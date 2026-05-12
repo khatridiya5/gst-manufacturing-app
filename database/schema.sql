@@ -255,3 +255,44 @@ CREATE TABLE journal_line_items (
     debit DECIMAL(12,2) DEFAULT 0,
     credit DECIMAL(12,2) DEFAULT 0
 );
+
+CREATE TABLE workers (
+    id SERIAL PRIMARY KEY,
+    company_id INTEGER REFERENCES companies(id),
+    name VARCHAR(100) NOT NULL,
+    worker_code VARCHAR(20) UNIQUE NOT NULL,
+    department VARCHAR(50),
+    phone VARCHAR(15),
+    qr_code_data TEXT,
+    -- stores the unique string encoded in their QR
+    is_active BOOLEAN DEFAULT TRUE,
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE part_instances (
+    id SERIAL PRIMARY KEY,
+    company_id INTEGER REFERENCES companies(id),
+    production_order_id INTEGER REFERENCES production_orders(id),
+    item_id INTEGER REFERENCES items(id),
+    serial_number VARCHAR(50) UNIQUE NOT NULL,
+    qr_code_data TEXT,
+    -- unique string encoded in part QR
+    current_status VARCHAR(30) DEFAULT 'not_started',
+    -- not_started, in_progress, completed, rejected
+    current_worker_id INTEGER REFERENCES workers(id),
+    created_at TIMESTAMP DEFAULT NOW()
+);
+
+CREATE TABLE wip_scans (
+    id SERIAL PRIMARY KEY,
+    company_id INTEGER REFERENCES companies(id),
+    worker_id INTEGER REFERENCES workers(id),
+    part_instance_id INTEGER REFERENCES part_instances(id),
+    scan_type VARCHAR(20) NOT NULL,
+    -- start, finish, reject
+    scanned_at TIMESTAMP DEFAULT NOW(),
+    duration_minutes INTEGER,
+    -- auto calculated when finish scan happens
+    workstation VARCHAR(50),
+    notes TEXT
+);
