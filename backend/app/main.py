@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, master, purchase, workers, production, sales
+from app.routers import auth, master, purchase, workers, production, sales, gst
 
 app = FastAPI(title="GST Manufacturing App")
 
@@ -18,6 +18,7 @@ app.include_router(purchase.router)
 app.include_router(workers.router)
 app.include_router(production.router)
 app.include_router(sales.router)
+app.include_router(gst.router)
 
 @app.get("/")
 def root():
