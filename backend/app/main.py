@@ -8,7 +8,9 @@ app = FastAPI(title="GST Manufacturing App")
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["https://gst-manufacturing-app.vercel.app",
-                    "https://wip-scan.vercel.app",],
+                    "https://wip-scan.vercel.app",
+                    "http://localhost:5501",
+                    "http://127.0.0.1:5501",],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
