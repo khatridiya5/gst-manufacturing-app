@@ -26,6 +26,15 @@ export default function Vendors() {
       fetchVendors()
     } catch (err) { alert(err.response?.data?.detail || 'Error') }
   }
+  const handleDelete = async (vendorId, vendorName) => {
+  if (!confirm(`Delete "${vendorName}"? This cannot be undone.`)) return
+  try {
+    await api.delete(`/master/vendors/${vendorId}`)
+    fetchVendors()
+  } catch (err) {
+    alert(err.response?.data?.detail || 'Error deleting vendor')
+  }
+}
 
   if (loading) return <div className="text-slate-400 p-8">Loading...</div>
 
@@ -75,20 +84,29 @@ export default function Vendors() {
               <th className="px-5 py-3 text-left">State</th>
               <th className="px-5 py-3 text-left">Phone</th>
               <th className="px-5 py-3 text-center">Status</th>
+              <th className="px-5 py-3 text-center">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
             {vendors.length === 0 && <tr><td colSpan={5} className="px-5 py-8 text-center text-slate-400">No vendors yet.</td></tr>}
             {vendors.map(v => (
               <tr key={v.id} className="hover:bg-slate-50">
-                <td className="px-5 py-3 font-medium text-slate-700">{v.name}</td>
-                <td className="px-5 py-3 font-mono text-xs text-slate-500">{v.gstin || '—'}</td>
-                <td className="px-5 py-3 text-slate-500">{v.state || '—'} {v.state_code ? `(${v.state_code})` : ''}</td>
-                <td className="px-5 py-3 text-slate-500">{v.phone || '—'}</td>
-                <td className="px-5 py-3 text-center">
-                  <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${v.is_active ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{v.is_active ? 'Active' : 'Inactive'}</span>
-                </td>
-              </tr>
+  <td className="px-5 py-3 font-medium text-slate-700">{v.name}</td>
+  <td className="px-5 py-3 font-mono text-xs text-slate-500">{v.gstin || '—'}</td>
+  <td className="px-5 py-3 text-slate-500">{v.state || '—'} {v.state_code ? `(${v.state_code})` : ''}</td>
+  <td className="px-5 py-3 text-slate-500">{v.phone || '—'}</td>
+  <td className="px-5 py-3 text-center">
+    <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${v.is_active ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{v.is_active ? 'Active' : 'Inactive'}</span>
+  </td>
+  <td className="px-5 py-3 text-center">
+    <button
+      onClick={() => handleDelete(v.id, v.name)}
+      className="px-3 py-1 text-xs font-medium text-red-600 hover:bg-red-50 border border-red-200 rounded-lg transition-colors"
+    >
+      Delete
+    </button>
+  </td>
+</tr>
             ))}
           </tbody>
         </table>

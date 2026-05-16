@@ -182,3 +182,13 @@ def get_customers(
         Customer.company_id == current_user.company_id,
         Customer.is_active == True
     ).all()
+
+
+@router.delete("/vendors/{vendor_id}")
+def delete_vendor(vendor_id: int, db: Session = Depends(get_db)):
+    vendor = db.query(Vendor).filter(Vendor.id == vendor_id).first()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    vendor.is_active = False  # soft delete
+    db.commit()
+    return {"message": "Vendor deactivated"}
