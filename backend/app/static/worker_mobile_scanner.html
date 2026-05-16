@@ -1,0 +1,974 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
+<title>WIP Scanner</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css"/>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=DM+Mono:wght@400;500&display=swap');
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --blue:       #1e40af;
+    --blue-light: #3b82f6;
+    --blue-bg:    #eff6ff;
+    --green:      #16a34a;
+    --green-bg:   #dcfce7;
+    --red:        #dc2626;
+    --red-bg:     #fee2e2;
+    --amber:      #d97706;
+    --bg:         #f1f5f9;
+    --surface:    #ffffff;
+    --border:     #e2e8f0;
+    --text:       #0f172a;
+    --muted:      #64748b;
+    --radius:     12px;
+    --radius-sm:  8px;
+  }
+
+  html, body {
+    height: 100%;
+    background: var(--bg);
+    font-family: 'DM Sans', system-ui, sans-serif;
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  .app {
+    max-width: 420px;
+    margin: 0 auto;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── TOP BAR ── */
+  .topbar {
+    background: var(--blue);
+    color: #fff;
+    padding: 16px 16px 0;
+    flex-shrink: 0;
+  }
+  .topbar-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-bottom: 16px;
+  }
+  .topbar-row h1 {
+    font-size: 16px;
+    font-weight: 600;
+    flex: 1;
+    letter-spacing: -0.2px;
+  }
+  .session-badge {
+    font-family: 'DM Mono', monospace;
+    font-size: 12px;
+    background: rgba(255,255,255,0.15);
+    padding: 3px 10px;
+    border-radius: 20px;
+    opacity: 0;
+    transition: opacity .3s;
+  }
+  .session-badge.visible { opacity: 1; }
+
+  /* steps */
+  .steps {
+    display: flex;
+    align-items: center;
+  }
+  .step {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 10px 14px;
+    border-radius: 10px 10px 0 0;
+    font-size: 12px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.5);
+    transition: all .2s;
+  }
+  .step.active {
+    background: var(--bg);
+    color: var(--blue);
+  }
+  .step.done { color: rgba(255,255,255,0.85); }
+  .step-num {
+    width: 18px; height: 18px;
+    border-radius: 50%;
+    border: 1.5px solid currentColor;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 10px; flex-shrink: 0;
+  }
+  .step.done .step-num {
+    background: rgba(255,255,255,0.25);
+    border-color: transparent;
+  }
+  .step-div { color: rgba(255,255,255,0.25); font-size: 14px; }
+
+  /* ── BODY ── */
+  .body { padding: 16px; flex: 1; }
+
+  /* ── CARDS ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 12px;
+  }
+
+  /* ── HINT ── */
+  .hint {
+    text-align: center;
+    font-size: 13px;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+  }
+
+  /* ── SCANNER VIEWPORT ── */
+  .viewport-wrap {
+    background: #0a0a0a;
+    border-radius: var(--radius);
+    overflow: hidden;
+    position: relative;
+    margin-bottom: 14px;
+    aspect-ratio: 4/3;
+  }
+  #qr-reader {
+    width: 100% !important;
+    border: none !important;
+  }
+  #qr-reader video { width: 100% !important; object-fit: cover; }
+  #qr-reader img { display: none !important; }
+  /* hide html5-qrcode default UI chrome */
+  #qr-reader__dashboard { display: none !important; }
+  #qr-reader__header_message { display: none !important; }
+  #qr-reader__status_span { display: none !important; }
+  #qr-reader__camera_permission_button { display: none !important; }
+
+  .scan-overlay {
+    position: absolute; inset: 0;
+    display: flex; align-items: center; justify-content: center;
+    pointer-events: none;
+  }
+  .scan-frame {
+    width: 55%; aspect-ratio: 1; position: relative;
+  }
+  .scan-corner {
+    position: absolute;
+    width: 22px; height: 22px;
+    border-color: #fff; border-style: solid; border-width: 0;
+  }
+  .scan-corner.tl { top:0;left:0; border-top-width:3px; border-left-width:3px; border-radius:4px 0 0 0; }
+  .scan-corner.tr { top:0;right:0; border-top-width:3px; border-right-width:3px; border-radius:0 4px 0 0; }
+  .scan-corner.bl { bottom:0;left:0; border-bottom-width:3px; border-left-width:3px; border-radius:0 0 0 4px; }
+  .scan-corner.br { bottom:0;right:0; border-bottom-width:3px; border-right-width:3px; border-radius:0 0 4px 0; }
+  .scan-line {
+    position: absolute;
+    height: 2px; width: 80%; left: 10%;
+    background: var(--blue-light);
+    box-shadow: 0 0 8px var(--blue-light);
+    animation: scanline 2s ease-in-out infinite;
+  }
+  @keyframes scanline { 0%,100%{top:10%} 50%{top:90%} }
+
+  .vp-hint {
+    position: absolute; bottom: 10px; left: 0; right: 0;
+    text-align: center;
+    font-size: 11px; color: rgba(255,255,255,0.45);
+  }
+
+  /* scanner start button */
+  .start-cam-btn {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 10px; cursor: pointer; background: transparent; border: none;
+  }
+  .start-cam-btn i { font-size: 40px; color: rgba(255,255,255,0.4); }
+  .start-cam-btn span { font-size: 13px; color: rgba(255,255,255,0.5); font-family:'DM Sans',sans-serif; }
+
+  /* success flash on scan */
+  .scan-success-flash {
+    position: absolute; inset: 0;
+    background: rgba(22,163,74,0.3);
+    border-radius: var(--radius);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity .15s;
+  }
+  .scan-success-flash.show { opacity: 1; }
+
+  /* ── OR DIVIDER ── */
+  .or-row {
+    display: flex; align-items: center; gap: 10px; margin-bottom: 12px;
+  }
+  .or-line { flex:1; height:1px; background:var(--border); }
+  .or-text { font-size: 11px; color: var(--muted); }
+
+  /* ── INPUTS ── */
+  .inp {
+    width: 100%;
+    padding: 11px 13px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    transition: border-color .15s;
+  }
+  .inp:focus { border-color: var(--blue-light); }
+  .inp-row { display: flex; gap: 8px; margin-bottom: 4px; }
+  .inp-row .inp { flex: 1; }
+
+  .select-inp {
+    flex: 1;
+    padding: 11px 13px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--surface);
+    color: var(--text);
+    font-size: 14px;
+    font-family: 'DM Sans', sans-serif;
+    outline: none;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%2364748b' stroke-width='2'%3E%3Cpath d='m6 9 6 6 6-6'/%3E%3C/svg%3E");
+    background-repeat: no-repeat;
+    background-position: right 12px center;
+    cursor: pointer;
+  }
+  .select-inp:focus { border-color: var(--blue-light); }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: flex; align-items: center; justify-content: center; gap: 7px;
+    padding: 11px 16px;
+    border: none; border-radius: var(--radius-sm);
+    font-size: 14px; font-weight: 500;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer; transition: background .15s, opacity .15s;
+  }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .btn-primary { background: var(--blue); color: #fff; }
+  .btn-primary:hover:not(:disabled) { background: #1d4ed8; }
+  .btn-green  { background: var(--green); color: #fff; width: 100%; padding: 14px; font-size: 15px; }
+  .btn-green:hover:not(:disabled) { background: #15803d; }
+  .btn-icon   { padding: 11px 13px; background: var(--blue); color: #fff; }
+  .btn-ghost  { background: none; border: 1px solid var(--border); color: var(--text); }
+  .btn-ghost:hover { background: var(--bg); }
+  .btn-full   { width: 100%; }
+  .btn-dashed {
+    width: 100%; padding: 12px;
+    border: 1.5px dashed var(--border);
+    border-radius: var(--radius-sm);
+    background: none; color: var(--blue);
+    font-size: 13px; font-weight: 500;
+    font-family: 'DM Sans', sans-serif;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+    margin-bottom: 14px;
+    transition: background .15s;
+  }
+  .btn-dashed:hover { background: var(--blue-bg); }
+
+  /* ── ERROR TEXT ── */
+  .err-text {
+    font-size: 12px; color: var(--red);
+    margin-top: 5px; display: none;
+  }
+
+  /* ── WORKER CARD ── */
+  .worker-card {
+    display: flex; align-items: center; gap: 12px;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+  }
+  .avatar {
+    width: 44px; height: 44px; border-radius: 50%;
+    background: var(--blue-bg); color: var(--blue);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 600; flex-shrink: 0;
+  }
+  .worker-info { flex: 1; min-width: 0; }
+  .worker-name { font-size: 15px; font-weight: 600; }
+  .worker-sub  { font-size: 12px; color: var(--muted); margin-top: 2px; }
+  .worker-code {
+    display: inline-block; margin-top: 5px;
+    font-size: 11px; font-family: 'DM Mono', monospace;
+    background: var(--blue-bg); color: var(--blue);
+    padding: 2px 8px; border-radius: 10px;
+  }
+  .change-btn {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 18px; padding: 4px;
+    transition: color .15s;
+  }
+  .change-btn:hover { color: var(--blue); }
+
+  /* ── SECTION HEADER ── */
+  .section-row {
+    display: flex; align-items: center;
+    justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .section-title { font-size: 14px; font-weight: 600; }
+  .count-badge {
+    font-size: 12px; color: var(--muted);
+    background: var(--bg);
+    padding: 2px 9px; border-radius: 10px;
+  }
+
+  /* ── SCAN TYPE BADGE ── */
+  .type-pill {
+    display: inline-flex; align-items: center; gap: 5px;
+    padding: 2px 10px; border-radius: 20px;
+    font-size: 12px; font-weight: 500;
+  }
+  .type-pill.start { background: var(--green-bg); color: var(--green); }
+  .type-pill.end   { background: var(--red-bg);   color: var(--red); }
+  .type-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+  /* ── PART ITEMS ── */
+  .part-item {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    margin-bottom: 8px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .part-icon {
+    width: 34px; height: 34px; border-radius: 8px;
+    background: #f0fdf4;
+    display: flex; align-items: center; justify-content: center;
+    color: var(--green); font-size: 17px; flex-shrink: 0;
+  }
+  .part-info { flex: 1; min-width: 0; }
+  .part-name { font-size: 13px; font-weight: 500; }
+  .part-meta { font-size: 11px; color: var(--muted); margin-top: 1px; font-family: 'DM Mono', monospace; }
+  .part-del {
+    background: none; border: none; cursor: pointer;
+    color: var(--muted); font-size: 17px; padding: 4px;
+    transition: color .15s; flex-shrink: 0;
+  }
+  .part-del:hover { color: var(--red); }
+  .empty-parts {
+    text-align: center; padding: 28px 0;
+    color: var(--muted); font-size: 13px;
+  }
+  .empty-parts i { font-size: 30px; display: block; margin-bottom: 8px; opacity: .35; }
+
+  /* ── ADD PART MODAL ── */
+  .modal-wrap {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 14px;
+    display: none;
+  }
+  .modal-wrap.open { display: block; }
+  .modal-title {
+    font-size: 14px; font-weight: 600;
+    margin-bottom: 10px;
+    display: flex; align-items: center; gap: 6px; color: var(--blue);
+  }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 10px; }
+  .chip {
+    padding: 5px 11px;
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    font-size: 12px; color: var(--muted);
+    cursor: pointer; background: var(--surface);
+    transition: all .15s;
+    font-family: 'DM Mono', monospace;
+  }
+  .chip:hover { background: var(--blue-bg); color: var(--blue); border-color: #93c5fd; }
+  .modal-actions { display: flex; gap: 8px; margin-top: 10px; }
+  .modal-actions .btn { flex: 1; }
+
+  /* ── FIELDS ROW ── */
+  .fields-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .fields-row .select-inp,
+  .fields-row .inp { flex: 1; }
+
+  /* ── SUCCESS ── */
+  .success-screen {
+    text-align: center; padding: 40px 20px;
+  }
+  .success-icon {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: var(--green-bg); color: var(--green);
+    display: flex; align-items: center; justify-content: center;
+    font-size: 32px; margin: 0 auto 20px;
+    animation: popIn .4s cubic-bezier(.34,1.56,.64,1);
+  }
+  @keyframes popIn {
+    0% { transform: scale(0); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
+  .success-title { font-size: 20px; font-weight: 600; margin-bottom: 6px; }
+  .success-sub   { font-size: 14px; color: var(--muted); margin-bottom: 24px; line-height: 1.5; }
+
+  .summary-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 14px 16px;
+    margin-bottom: 20px;
+    text-align: left;
+  }
+  .summary-row {
+    display: flex; justify-content: space-between;
+    align-items: center; padding: 7px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .summary-row:last-child { border-bottom: none; }
+  .summary-label { color: var(--muted); }
+  .summary-val   { font-weight: 500; }
+
+  /* ── LOADING SPINNER ── */
+  .spinner {
+    width: 18px; height: 18px;
+    border: 2px solid rgba(255,255,255,0.3);
+    border-top-color: #fff;
+    border-radius: 50%;
+    animation: spin .6s linear infinite;
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* ── TOAST ── */
+  .toast {
+    position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%) translateY(80px);
+    background: #1e293b; color: #fff;
+    padding: 10px 18px; border-radius: 22px;
+    font-size: 13px; font-weight: 500;
+    z-index: 999;
+    transition: transform .3s cubic-bezier(.34,1.56,.64,1);
+    white-space: nowrap;
+    display: flex; align-items: center; gap: 8px;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+  }
+  .toast.show { transform: translateX(-50%) translateY(0); }
+  .toast.error { background: var(--red); }
+  .toast.success { background: var(--green); }
+
+  /* ── NETWORK STATUS ── */
+  .offline-bar {
+    background: var(--amber); color: #fff;
+    text-align: center; font-size: 12px; font-weight: 500;
+    padding: 6px 16px;
+    display: none;
+  }
+  .offline-bar.show { display: block; }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+
+  <!-- Offline bar -->
+  <div class="offline-bar" id="offline-bar">
+    <i class="ti ti-wifi-off"></i> No connection — check network
+  </div>
+
+  <!-- Top bar -->
+  <div class="topbar">
+    <div class="topbar-row">
+      <i class="ti ti-scan" style="font-size:22px"></i>
+      <h1>WIP Scanner</h1>
+      <span class="session-badge" id="session-badge">0m 0s</span>
+    </div>
+    <div class="steps">
+      <div class="step active" id="stp1"><div class="step-num">1</div>Worker</div>
+      <div class="step-div">›</div>
+      <div class="step" id="stp2"><div class="step-num">2</div>Parts</div>
+      <div class="step-div">›</div>
+      <div class="step" id="stp3"><div class="step-num">3</div>Done</div>
+    </div>
+  </div>
+
+  <!-- ── STEP 1: WORKER ── -->
+  <div class="body" id="step-worker">
+    <p class="hint"><i class="ti ti-qrcode"></i> Scan worker QR badge or enter code</p>
+
+    <div class="viewport-wrap">
+      <div id="qr-reader"></div>
+      <div class="scan-overlay">
+        <div class="scan-frame">
+          <div class="scan-corner tl"></div>
+          <div class="scan-corner tr"></div>
+          <div class="scan-corner bl"></div>
+          <div class="scan-corner br"></div>
+          <div class="scan-line" id="scan-line-worker"></div>
+        </div>
+      </div>
+      <div class="scan-success-flash" id="worker-flash"></div>
+      <span class="vp-hint" id="cam-hint">Tap to start camera</span>
+      <button class="start-cam-btn" id="start-cam-btn" onclick="startCamera()">
+        <i class="ti ti-camera"></i>
+        <span>Start camera</span>
+      </button>
+    </div>
+
+    <div class="or-row">
+      <div class="or-line"></div>
+      <span class="or-text">or enter manually</span>
+      <div class="or-line"></div>
+    </div>
+
+    <div class="inp-row">
+      <input class="inp" id="worker-input" type="text" placeholder="Worker code (e.g. WRK-001)" autocomplete="off" autocorrect="off" spellcheck="false"/>
+      <button class="btn btn-icon" id="lookup-btn" onclick="lookupWorker()">
+        <i class="ti ti-arrow-right"></i>
+      </button>
+    </div>
+    <p class="err-text" id="worker-err">Worker not found. Check the code and try again.</p>
+  </div>
+
+  <!-- ── STEP 2: PARTS ── -->
+  <div class="body" id="step-parts" style="display:none">
+
+    <!-- Worker card -->
+    <div class="worker-card" id="worker-card"></div>
+
+    <!-- Scan type + workstation -->
+    <div class="fields-row">
+      <select class="select-inp" id="scan-type-input">
+        <option value="start">▶ Start</option>
+        <option value="end">■ End</option>
+      </select>
+      <input class="inp" id="workstation-input" type="text" placeholder="Workstation (e.g. A)"/>
+    </div>
+
+    <!-- Add part modal -->
+    <div class="modal-wrap" id="add-part-modal">
+      <div class="modal-title"><i class="ti ti-package"></i> Add part by QR</div>
+      <div class="chips" id="quick-chips"></div>
+      <div class="or-row" style="margin-bottom:10px">
+        <div class="or-line"></div><span class="or-text">or type part QR code</span><div class="or-line"></div>
+      </div>
+      <input class="inp" id="part-input" type="text" placeholder="Part QR code (e.g. PRD-1-0001-U001)"/>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+        <button class="btn btn-primary" onclick="confirmAddPart()">Add part</button>
+      </div>
+    </div>
+
+    <!-- Parts list -->
+    <div class="section-row">
+      <span class="section-title">Parts scanned</span>
+      <span class="count-badge" id="part-count">0 parts</span>
+    </div>
+    <div id="parts-list"></div>
+
+    <button class="btn-dashed" onclick="showModal()">
+      <i class="ti ti-plus"></i> Add / scan part
+    </button>
+
+    <button class="btn btn-green" id="done-btn" onclick="submitSession()" disabled>
+      <i class="ti ti-circle-check"></i> Submit session
+    </button>
+  </div>
+
+  <!-- ── STEP 3: SUCCESS ── -->
+  <div class="body" id="step-done" style="display:none">
+    <div class="success-screen">
+      <div class="success-icon"><i class="ti ti-check"></i></div>
+      <div class="success-title">Session submitted!</div>
+      <div class="success-sub">Scan recorded and WIP dashboard updated.</div>
+      <div class="summary-card" id="summary-card"></div>
+      <button class="btn btn-primary btn-full" onclick="resetApp()" style="margin-bottom:10px">
+        <i class="ti ti-refresh"></i> New scan
+      </button>
+    </div>
+  </div>
+
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ─────────────────────────────────────────
+// CONFIG — change this to your deployed URL
+// ─────────────────────────────────────────
+const BACKEND = 'http://localhost:8000';
+
+// Quick-select part QR chips (update these to match your real PartInstance qr_code_data values)
+const QUICK_PARTS = [
+  { qr: 'PRD-1-0001-U001', label: 'PRD-0001 U1' },
+  { qr: 'PRD-1-0001-U002', label: 'PRD-0001 U2' },
+  { qr: 'PRD-1-0002-U001', label: 'PRD-0002 U1' },
+];
+
+// ─────────────────────────────────────────
+// STATE
+// ─────────────────────────────────────────
+let state = {
+  worker: null,       // { qr_code_data, name, department, worker_code }
+  parts: [],          // [{ qr, label, time }]
+  startTime: null,
+  sessionInterval: null,
+  scannerRunning: false,
+  html5QrCode: null,
+};
+
+// ─────────────────────────────────────────
+// UTILS
+// ─────────────────────────────────────────
+function nowStr() {
+  return new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+}
+function initials(name) {
+  return name.split(' ').map(w => w[0]).join('').slice(0, 2).toUpperCase();
+}
+function toast(msg, type = '') {
+  const el = document.getElementById('toast');
+  el.innerHTML = (type === 'success' ? '<i class="ti ti-check"></i> ' : type === 'error' ? '<i class="ti ti-x"></i> ' : '') + msg;
+  el.className = 'toast show' + (type ? ' ' + type : '');
+  clearTimeout(el._t);
+  el._t = setTimeout(() => { el.className = 'toast'; }, 2800);
+}
+function flash(id) {
+  const el = document.getElementById(id);
+  el.classList.add('show');
+  setTimeout(() => el.classList.remove('show'), 400);
+}
+function setLoading(btnId, loading) {
+  const btn = document.getElementById(btnId);
+  if (loading) {
+    btn._orig = btn.innerHTML;
+    btn.innerHTML = '<div class="spinner"></div>';
+    btn.disabled = true;
+  } else {
+    btn.innerHTML = btn._orig || btn.innerHTML;
+    btn.disabled = false;
+  }
+}
+
+// offline detection
+window.addEventListener('offline', () => document.getElementById('offline-bar').classList.add('show'));
+window.addEventListener('online',  () => document.getElementById('offline-bar').classList.remove('show'));
+
+// ─────────────────────────────────────────
+// CAMERA / QR SCANNER
+// ─────────────────────────────────────────
+async function startCamera() {
+  document.getElementById('start-cam-btn').style.display = 'none';
+  document.getElementById('cam-hint').textContent = 'Starting camera…';
+
+  try {
+    state.html5QrCode = new Html5Qrcode('qr-reader');
+    await state.html5QrCode.start(
+      { facingMode: 'environment' },
+      { fps: 10, qrbox: { width: 200, height: 200 } },
+      (decodedText) => onWorkerQRScanned(decodedText),
+      () => {}
+    );
+    document.getElementById('cam-hint').textContent = 'Point at worker QR badge';
+    document.getElementById('scan-line-worker').style.display = 'block';
+    state.scannerRunning = true;
+  } catch (err) {
+    document.getElementById('cam-hint').textContent = 'Camera unavailable';
+    document.getElementById('start-cam-btn').style.display = 'flex';
+    toast('Camera error: ' + err.message, 'error');
+  }
+}
+
+async function stopCamera() {
+  if (state.html5QrCode && state.scannerRunning) {
+    try { await state.html5QrCode.stop(); } catch(_) {}
+    state.scannerRunning = false;
+  }
+}
+
+async function onWorkerQRScanned(qrText) {
+  if (state.worker) return; // already resolved
+  // pause scanning briefly
+  await stopCamera();
+  flash('worker-flash');
+  document.getElementById('worker-input').value = qrText;
+  await lookupWorker(qrText);
+}
+
+// ─────────────────────────────────────────
+// STEP 1 — WORKER LOOKUP
+// ─────────────────────────────────────────
+async function lookupWorker(qrOverride) {
+  const qr = qrOverride || document.getElementById('worker-input').value.trim();
+  const errEl = document.getElementById('worker-err');
+  if (!qr) { errEl.style.display = 'block'; errEl.textContent = 'Please enter a worker code.'; return; }
+
+  setLoading('lookup-btn', true);
+  errEl.style.display = 'none';
+
+  try {
+    const res = await fetch(`${BACKEND}/production/wip/verify-worker`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ qr_code: qr })
+    });
+
+    if (!res.ok) {
+      const err = await res.json();
+      errEl.textContent = err.detail || 'Worker not found.';
+      errEl.style.display = 'block';
+      setLoading('lookup-btn', false);
+      return;
+    }
+
+    const w = await res.json();
+    state.worker = { qr_code_data: qr, name: w.name, department: w.department, id: w.id };
+    state.startTime = Date.now();
+    state.sessionInterval = setInterval(tickSession, 1000);
+    setLoading('lookup-btn', false);
+    showPartsStep();
+
+  } catch (e) {
+    errEl.textContent = 'Cannot reach server. Check connection.';
+    errEl.style.display = 'block';
+    setLoading('lookup-btn', false);
+  }
+}
+
+document.getElementById('worker-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter') lookupWorker();
+});
+
+function tickSession() {
+  const diff = Math.round((Date.now() - state.startTime) / 1000);
+  const m = Math.floor(diff / 60), s = diff % 60;
+  const badge = document.getElementById('session-badge');
+  badge.textContent = `${m}m ${s}s`;
+  badge.classList.add('visible');
+}
+
+// ─────────────────────────────────────────
+// STEP 2 — PARTS
+// ─────────────────────────────────────────
+function showPartsStep() {
+  document.getElementById('step-worker').style.display = 'none';
+  document.getElementById('step-parts').style.display = 'block';
+  document.getElementById('stp1').classList.remove('active');
+  document.getElementById('stp1').classList.add('done');
+  document.getElementById('stp2').classList.add('active');
+
+  const w = state.worker;
+  document.getElementById('worker-card').innerHTML = `
+    <div class="avatar">${initials(w.name)}</div>
+    <div class="worker-info">
+      <div class="worker-name">${w.name}</div>
+      <div class="worker-sub">${w.department}</div>
+      <span class="worker-code">${w.qr_code_data}</span>
+    </div>
+    <button class="change-btn" onclick="changeWorker()" title="Change worker">
+      <i class="ti ti-edit"></i>
+    </button>`;
+
+  initChips();
+  renderParts();
+}
+
+function changeWorker() {
+  clearInterval(state.sessionInterval);
+  state = { worker: null, parts: [], startTime: null, sessionInterval: null, scannerRunning: false, html5QrCode: null };
+  document.getElementById('step-parts').style.display = 'none';
+  document.getElementById('step-worker').style.display = 'block';
+  document.getElementById('stp1').classList.add('active');
+  document.getElementById('stp1').classList.remove('done');
+  document.getElementById('stp2').classList.remove('active');
+  document.getElementById('worker-input').value = '';
+  document.getElementById('session-badge').classList.remove('visible');
+}
+
+function initChips() {
+  const c = document.getElementById('quick-chips');
+  c.innerHTML = QUICK_PARTS.map(p =>
+    `<span class="chip" onclick="addQuickPart('${p.qr}','${p.label}')">${p.label}</span>`
+  ).join('');
+}
+
+function showModal() {
+  document.getElementById('add-part-modal').classList.add('open');
+  setTimeout(() => document.getElementById('part-input').focus(), 50);
+}
+function closeModal() {
+  document.getElementById('add-part-modal').classList.remove('open');
+  document.getElementById('part-input').value = '';
+}
+
+function addQuickPart(qr, label) {
+  if (state.parts.find(p => p.qr === qr)) { toast('Part already added'); closeModal(); return; }
+  state.parts.push({ qr, label, time: nowStr() });
+  closeModal();
+  renderParts();
+  toast('Part added', 'success');
+}
+
+function confirmAddPart() {
+  const val = document.getElementById('part-input').value.trim();
+  if (!val) return;
+  if (state.parts.find(p => p.qr === val)) { toast('Part already added'); closeModal(); return; }
+  const match = QUICK_PARTS.find(p => p.qr === val);
+  state.parts.push({ qr: val, label: match ? match.label : val, time: nowStr() });
+  closeModal();
+  renderParts();
+  toast('Part added', 'success');
+}
+
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+document.getElementById('part-input').addEventListener('keydown', e => { if (e.key === 'Enter') confirmAddPart(); });
+
+function removePart(qr) {
+  state.parts = state.parts.filter(p => p.qr !== qr);
+  renderParts();
+}
+
+function renderParts() {
+  const list = document.getElementById('parts-list');
+  const count = document.getElementById('part-count');
+  const done = document.getElementById('done-btn');
+  count.textContent = state.parts.length + (state.parts.length === 1 ? ' part' : ' parts');
+  done.disabled = state.parts.length === 0;
+
+  if (state.parts.length === 0) {
+    list.innerHTML = `<div class="empty-parts">
+      <i class="ti ti-package-off"></i>No parts added yet</div>`;
+    return;
+  }
+  list.innerHTML = state.parts.map(p => `
+    <div class="part-item">
+      <div class="part-icon"><i class="ti ti-components"></i></div>
+      <div class="part-info">
+        <div class="part-name">${p.label}</div>
+        <div class="part-meta">${p.qr} · ${p.time}</div>
+      </div>
+      <button class="part-del" onclick="removePart('${p.qr}')">
+        <i class="ti ti-trash"></i>
+      </button>
+    </div>`).join('');
+}
+
+// ─────────────────────────────────────────
+// SUBMIT SESSION — posts one scan per part
+// ─────────────────────────────────────────
+async function submitSession() {
+  const scanType   = document.getElementById('scan-type-input').value;
+  const workstation = document.getElementById('workstation-input').value.trim() || null;
+  const w = state.worker;
+
+  document.getElementById('done-btn').disabled = true;
+  document.getElementById('done-btn').innerHTML = '<div class="spinner"></div> Submitting…';
+
+  let successCount = 0;
+  for (const part of state.parts) {
+    try {
+      const res = await fetch(`${BACKEND}/production/wip/scan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          worker_qr:   w.qr_code_data,
+          part_qr:     part.qr,
+          scan_type:   scanType,
+          workstation: workstation
+        })
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        toast(`${part.label}: ${err.detail}`, 'error');
+        document.getElementById('done-btn').disabled = false;
+        document.getElementById('done-btn').innerHTML = '<i class="ti ti-circle-check"></i> Submit session';
+        return;
+      }
+      successCount++;
+    } catch (e) {
+      toast('Network error. Check connection.', 'error');
+      document.getElementById('done-btn').disabled = false;
+      document.getElementById('done-btn').innerHTML = '<i class="ti ti-circle-check"></i> Submit session';
+      return;
+    }
+  }
+
+  // all scans submitted
+  clearInterval(state.sessionInterval);
+  const elapsed = state.startTime ? Math.round((Date.now() - state.startTime) / 1000) : 0;
+  const m = Math.floor(elapsed / 60), s = elapsed % 60;
+  const typeLabel = scanType === 'start' ? '▶ Start' : '■ End';
+
+  document.getElementById('step-parts').style.display = 'none';
+  document.getElementById('step-done').style.display  = 'block';
+  document.getElementById('stp2').classList.remove('active');
+  document.getElementById('stp2').classList.add('done');
+  document.getElementById('stp3').classList.add('active');
+
+  document.getElementById('summary-card').innerHTML = `
+    <div class="summary-row">
+      <span class="summary-label">Worker</span>
+      <span class="summary-val">${w.name}</span>
+    </div>
+    <div class="summary-row">
+      <span class="summary-label">Department</span>
+      <span class="summary-val">${w.department}</span>
+    </div>
+    <div class="summary-row">
+      <span class="summary-label">Scan type</span>
+      <span class="summary-val">${typeLabel}</span>
+    </div>
+    <div class="summary-row">
+      <span class="summary-label">Workstation</span>
+      <span class="summary-val">${workstation || '—'}</span>
+    </div>
+    <div class="summary-row">
+      <span class="summary-label">Parts logged</span>
+      <span class="summary-val">${successCount}</span>
+    </div>
+    <div class="summary-row">
+      <span class="summary-label">Session time</span>
+      <span class="summary-val">${m}m ${s}s</span>
+    </div>
+    <div class="summary-row">
+      <span class="summary-label">Submitted at</span>
+      <span class="summary-val">${nowStr()}</span>
+    </div>`;
+}
+
+// ─────────────────────────────────────────
+// RESET
+// ─────────────────────────────────────────
+function resetApp() {
+  clearInterval(state.sessionInterval);
+  state = { worker: null, parts: [], startTime: null, sessionInterval: null, scannerRunning: false, html5QrCode: null };
+
+  document.getElementById('step-done').style.display   = 'none';
+  document.getElementById('step-worker').style.display = 'block';
+  ['stp1','stp2','stp3'].forEach(id => {
+    document.getElementById(id).classList.remove('active','done');
+  });
+  document.getElementById('stp1').classList.add('active');
+  document.getElementById('worker-input').value = '';
+  document.getElementById('session-badge').classList.remove('visible');
+  document.getElementById('add-part-modal').classList.remove('open');
+
+  // reset camera UI
+  document.getElementById('start-cam-btn').style.display = 'flex';
+  document.getElementById('cam-hint').textContent = 'Tap to start camera';
+  document.getElementById('qr-reader').innerHTML = '';
+}
+</script>
+</body>
+</html>

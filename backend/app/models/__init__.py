@@ -1,0 +1,1 @@
+from app.models.wip_scan import WIPScan

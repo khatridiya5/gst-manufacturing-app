@@ -11,6 +11,11 @@ import ProductionOrders from './pages/production/ProductionOrders'
 import SalesInvoices from './pages/sales/SalesInvoices'
 import GSTReturns from './pages/gst/GSTReturns'
 import Reports from './pages/accounting/Reports'
+import InvoicePrint from './pages/sales/InvoicePrint'
+import MobileScanner from './pages/production/MobileScanner'
+import WIPDashboard from './pages/production/WIPDashboard'
+
+
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token')
@@ -32,6 +37,10 @@ export default function App() {
         <Route path="sales" element={<SalesInvoices />} />
         <Route path="gst" element={<GSTReturns />} />
         <Route path="reports" element={<Reports />} />
+        <Route path="invoice-print" element={<InvoicePrint />} />
+        <Route path="/scan" element={<MobileScanner />} />
+        <Route path="/wip" element={<WIPDashboard />} />
+        
       </Route>
     </Routes>
   )

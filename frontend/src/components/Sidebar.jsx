@@ -11,6 +11,9 @@ const links = [
   { to: '/vendors', label: 'Vendors', icon: '🏪' },
   { to: '/customers', label: 'Customers', icon: '👥' },
   { to: '/workers', label: 'Workers', icon: '👷' },
+  { to: '/invoice-print', label: 'Invoice Print', icon: '🖨️' },
+  { to: '/wip', label: 'WIP Tracking', icon: '📡' },
+  
 ]
 
 export default function Sidebar() {
@@ -70,3 +73,5 @@ export default function Sidebar() {
     </div>
   )
 }
+
+

@@ -11,6 +11,10 @@ from app.models.item import Item
 from app.utils.auth import get_current_user, require_role
 from app.models.user import User
 from app.services.qr import generate_qr_base64, generate_part_qr_data
+from app.models.wip_scan import WIPScan
+from app.models.worker import Worker
+from app.models.stock import PartInstance
+from datetime import datetime
 
 router = APIRouter(prefix="/production", tags=["Production"])
 
@@ -59,7 +63,7 @@ class ProductionOrderOut(BaseModel):
     class Config:
         from_attributes = True
 
-# ─── CREATE BOM ───────────────────────────────────────────────
+# ─── BOM ─────────────────────────────────────────────────────
 
 @router.post("/bom", response_model=BOMOut)
 def create_bom(
@@ -67,7 +71,6 @@ def create_bom(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "accountant"))
 ):
-    # Check finished good exists
     fg = db.query(Item).filter(Item.id == data.finished_good_id).first()
     if not fg:
         raise HTTPException(status_code=404, detail="Finished good item not found")
@@ -96,8 +99,6 @@ def create_bom(
     db.commit()
     db.refresh(bom)
     return bom
-
-# ─── GET BOM WITH LINE ITEMS ──────────────────────────────────
 
 @router.get("/bom/{bom_id}")
 def get_bom(
@@ -143,7 +144,7 @@ def get_all_boms(
         "version": b.version
     } for b in boms]
 
-# ─── CREATE PRODUCTION ORDER ──────────────────────────────────
+# ─── PRODUCTION ORDERS ────────────────────────────────────────
 
 @router.post("/orders", response_model=ProductionOrderOut)
 def create_production_order(
@@ -158,12 +159,10 @@ def create_production_order(
     if not bom:
         raise HTTPException(status_code=404, detail="BOM not found")
 
-    # Check sufficient stock for all raw materials
     bom_lines = db.query(BOMLineItem).filter(BOMLineItem.bom_id == bom.id).all()
     for line in bom_lines:
         rm = db.query(Item).filter(Item.id == line.raw_material_id).first()
         qty_needed = line.quantity_required * data.planned_quantity
-        # Add scrap
         qty_with_scrap = qty_needed * (1 + line.scrap_percentage / 100)
         if rm.current_stock < qty_with_scrap:
             raise HTTPException(
@@ -171,7 +170,6 @@ def create_production_order(
                 detail=f"Insufficient stock for {rm.name}. Need {qty_with_scrap}, have {rm.current_stock}"
             )
 
-    # Generate order number
     count = db.query(ProductionOrder).filter(
         ProductionOrder.company_id == current_user.company_id
     ).count()
@@ -190,8 +188,6 @@ def create_production_order(
     db.commit()
     db.refresh(order)
     return order
-
-# ─── COMPLETE PRODUCTION ORDER ────────────────────────────────
 
 @router.patch("/orders/{order_id}/complete")
 def complete_production_order(
@@ -216,16 +212,12 @@ def complete_production_order(
 
     total_cost = Decimal("0")
 
-    # Consume raw materials
     for line in bom_lines:
         rm = db.query(Item).filter(Item.id == line.raw_material_id).first()
         qty_consumed = line.quantity_required * actual_quantity
         qty_with_scrap = qty_consumed * (1 + line.scrap_percentage / 100)
-
-        # Deduct from stock
         rm.current_stock -= qty_with_scrap
 
-        # Stock ledger entry
         stock_out = StockLedger(
             company_id=current_user.company_id,
             item_id=rm.id,
@@ -237,14 +229,10 @@ def complete_production_order(
             transaction_date=date.today()
         )
         db.add(stock_out)
+        total_cost += qty_with_scrap * Decimal("50")
 
-        # Add to cost (approximate)
-        total_cost += qty_with_scrap * Decimal("50")  # placeholder unit cost
-
-    # Add finished goods to stock
     fg.current_stock += actual_quantity
 
-    # Stock ledger — finished goods in
     stock_in = StockLedger(
         company_id=current_user.company_id,
         item_id=fg.id,
@@ -257,7 +245,6 @@ def complete_production_order(
     )
     db.add(stock_in)
 
-    # Generate QR for each finished good unit
     qr_codes = []
     for unit_num in range(1, actual_quantity + 1):
         qr_data = generate_part_qr_data(
@@ -279,13 +266,11 @@ def complete_production_order(
         db.add(part)
         qr_codes.append(qr_data)
 
-    # Update order
     order.actual_quantity = actual_quantity
     order.scrap_quantity = scrap_quantity
     order.end_date = date.today()
     order.status = "completed"
     order.production_cost = total_cost
-
     db.commit()
 
     return {
@@ -298,8 +283,6 @@ def complete_production_order(
         "finished_good": fg.name,
         "note": f"GET /production/orders/{order_id}/qr-codes to fetch all QR images"
     }
-
-# ─── GET QR CODES FOR PRODUCTION ORDER ───────────────────────
 
 @router.get("/orders/{order_id}/qr-codes")
 def get_production_qr_codes(
@@ -327,8 +310,6 @@ def get_production_qr_codes(
         "status": p.current_status
     } for p in parts]
 
-# ─── GET ALL ORDERS ───────────────────────────────────────────
-
 @router.get("/orders", response_model=List[ProductionOrderOut])
 def get_orders(
     db: Session = Depends(get_db),
@@ -337,3 +318,76 @@ def get_orders(
     return db.query(ProductionOrder).filter(
         ProductionOrder.company_id == current_user.company_id
     ).all()
+
+# ─── WIP SCANS ───────────────────────────────────────────────
+
+@router.get("/wip")
+def get_wip_scans(db: Session = Depends(get_db)):
+    results = (
+        db.query(WIPScan, Worker.name, Worker.department, PartInstance.qr_code_data)
+        .join(Worker, WIPScan.worker_id == Worker.id)
+        .join(PartInstance, WIPScan.part_instance_id == PartInstance.id)
+        .order_by(WIPScan.scanned_at.desc())
+        .limit(100)
+        .all()
+    )
+    return [
+        {
+            "id": scan.id,
+            "worker_id": scan.worker_id,
+            "worker_name": name,
+            "worker_department": department,
+            "part_code": qr_code_data, 
+            "part_instance_id": scan.part_instance_id,
+            "scan_type": scan.scan_type,
+            "workstation": scan.workstation,
+            "duration_minutes": scan.duration_minutes,
+            "scanned_at": scan.scanned_at,
+        }
+        for scan, name, department ,qr_code_data in results
+    ]
+
+
+class WIPScanIn(BaseModel):
+    worker_qr: str
+    part_qr: str
+    scan_type: str  # "start" or "end"
+    workstation: Optional[str] = None
+
+@router.post("/wip/scan")
+def submit_wip_scan(data: WIPScanIn, db: Session = Depends(get_db)):
+    # resolve worker from qr_code_data
+    worker = db.query(Worker).filter(Worker.qr_code_data == data.worker_qr).first()
+    if not worker:
+        raise HTTPException(status_code=404, detail="Worker QR not recognised")
+
+    part = db.query(PartInstance).filter(PartInstance.qr_code_data == data.part_qr).first()
+    if not part:
+        raise HTTPException(status_code=404, detail="Part instance not found")
+
+    scan = WIPScan(
+        company_id=worker.company_id,
+        worker_id=worker.id,
+        part_instance_id=part.id,
+        scan_type=data.scan_type,
+        workstation=data.workstation,
+        scanned_at=datetime.utcnow()
+    )
+    db.add(scan)
+    db.commit()
+    db.refresh(scan)
+    return {"message": "Scan recorded", "scan_id": scan.id, "worker_name": worker.name}
+
+
+
+#----Verify worker --------
+
+class WorkerQRIn(BaseModel):
+    qr_code: str
+
+@router.post("/wip/verify-worker")
+def verify_worker(data: WorkerQRIn, db: Session = Depends(get_db)):
+    worker = db.query(Worker).filter(Worker.qr_code_data == data.qr_code).first()
+    if not worker:
+        raise HTTPException(status_code=404, detail="Worker not found")
+    return {"id": worker.id, "name": worker.name, "department": worker.department}

@@ -1,1 +1,30 @@
 @import "tailwindcss";
+
+
+
+@media print {
+  /* Hide everything first */
+  body * {
+    visibility: hidden;
+  }
+
+  /* Show only invoice */
+  #invoice-preview,
+  #invoice-preview * {
+    visibility: visible;
+  }
+
+  /* Position invoice properly */
+  #invoice-preview {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    background: white;
+  }
+
+  /* Hide buttons while printing */
+  button {
+    display: none !important;
+  }
+}

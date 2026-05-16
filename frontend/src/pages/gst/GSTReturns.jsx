@@ -1,8 +1,329 @@
+import { useState } from 'react'
+import api from '../../api/client'
+
 export default function GSTReturns() {
-    return (
-      <div>
-        <h1 className="text-2xl font-bold text-slate-800 mb-2">GST Returns</h1>
-        <p className="text-slate-500">Coming soon...</p>
-      </div>
-    )
+  const [month, setMonth] = useState(new Date().getMonth() + 1)
+  const [year, setYear] = useState(new Date().getFullYear())
+  const [gstr1, setGstr1] = useState(null)
+  const [gstr3b, setGstr3b] = useState(null)
+  const [activeTab, setActiveTab] = useState('gstr1')
+  const [loading, setLoading] = useState(false)
+
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ]
+
+  const handleFetch = async () => {
+    setLoading(true)
+    try {
+      const [r1, r3b] = await Promise.all([
+        api.get(`/gst/gstr1?month=${month}&year=${year}`),
+        api.get(`/gst/gstr3b?month=${month}&year=${year}`),
+      ])
+      setGstr1(r1.data)
+      setGstr3b(r3b.data)
+    } catch (err) {
+      console.error(err)
+    } finally {
+      setLoading(false)
+    }
   }
+
+  const handleSave = async (type) => {
+    try {
+      await api.post(`/gst/save/${type}?month=${month}&year=${year}`)
+      alert(`${type} saved successfully for ${months[month - 1]} ${year}`)
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Error saving return')
+    }
+  }
+
+  return (
+    <div>
+      {/* Header */}
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-slate-800">GST Returns</h1>
+        <p className="text-slate-500 text-sm mt-1">Auto-generated from your transactions</p>
+      </div>
+
+      {/* Period selector */}
+      <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6 shadow-sm">
+        <div className="flex items-center gap-4">
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">Month</label>
+            <select
+              value={month}
+              onChange={(e) => setMonth(parseInt(e.target.value))}
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500 w-36"
+            >
+              {months.map((m, i) => (
+                <option key={i + 1} value={i + 1}>{m}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-sm font-medium text-slate-600 mb-1">Year</label>
+            <select
+              value={year}
+              onChange={(e) => setYear(parseInt(e.target.value))}
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500 w-28"
+            >
+              {[2024, 2025, 2026, 2027].map(y => (
+                <option key={y} value={y}>{y}</option>
+              ))}
+            </select>
+          </div>
+          <div className="pt-5">
+            <button
+              onClick={handleFetch}
+              disabled={loading}
+              className="px-5 py-2 bg-teal-600 hover:bg-teal-500 disabled:bg-teal-800 text-white rounded-lg text-sm font-medium transition-colors"
+            >
+              {loading ? 'Loading...' : 'Generate Returns'}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* Tabs */}
+      {(gstr1 || gstr3b) && (
+        <>
+          <div className="flex gap-2 mb-4">
+            <button
+              onClick={() => setActiveTab('gstr1')}
+              className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'gstr1'
+                  ? 'bg-teal-600 text-white'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              GSTR-1
+            </button>
+            <button
+              onClick={() => setActiveTab('gstr3b')}
+              className={`px-5 py-2 rounded-lg text-sm font-medium transition-colors ${
+                activeTab === 'gstr3b'
+                  ? 'bg-teal-600 text-white'
+                  : 'bg-white text-slate-600 border border-slate-200 hover:bg-slate-50'
+              }`}
+            >
+              GSTR-3B
+            </button>
+          </div>
+
+          {/* GSTR-1 */}
+          {activeTab === 'gstr1' && gstr1 && (
+            <div className="space-y-4">
+              {/* Summary */}
+              <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-4">
+                  <div>
+                    <h2 className="font-semibold text-slate-700">GSTR-1 — {gstr1.period}</h2>
+                    <p className="text-sm text-slate-500">{gstr1.total_invoices} invoices</p>
+                  </div>
+                  <button
+                    onClick={() => handleSave('GSTR1')}
+                    className="px-4 py-2 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-sm font-medium"
+                  >
+                    Save Draft
+                  </button>
+                </div>
+
+                {/* Totals */}
+                <div className="grid grid-cols-4 gap-3">
+                  {[
+                    { label: 'Taxable Value', val: gstr1.totals?.total_taxable_value, color: 'text-slate-800' },
+                    { label: 'CGST', val: gstr1.totals?.total_cgst, color: 'text-blue-600' },
+                    { label: 'SGST', val: gstr1.totals?.total_sgst, color: 'text-blue-600' },
+                    { label: 'IGST', val: gstr1.totals?.total_igst, color: 'text-violet-600' },
+                  ].map((t, i) => (
+                    <div key={i} className="bg-slate-50 rounded-lg p-3">
+                      <p className="text-xs text-slate-500 mb-1">{t.label}</p>
+                      <p className={`text-lg font-bold ${t.color}`}>
+                        ₹{Number(t.val || 0).toLocaleString('en-IN')}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              {/* B2B Invoices */}
+              {gstr1.b2b_invoices?.length > 0 && (
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+                  <div className="px-5 py-4 border-b border-slate-100">
+                    <h3 className="font-semibold text-slate-700">B2B Invoices</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">Sales to GST registered customers</p>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-slate-50 text-slate-500 text-xs uppercase">
+                          <th className="px-5 py-3 text-left">Customer</th>
+                          <th className="px-5 py-3 text-left">GSTIN</th>
+                          <th className="px-5 py-3 text-left">Invoice</th>
+                          <th className="px-5 py-3 text-left">Date</th>
+                          <th className="px-5 py-3 text-center">Type</th>
+                          <th className="px-5 py-3 text-right">Taxable</th>
+                          <th className="px-5 py-3 text-right">Tax</th>
+                          <th className="px-5 py-3 text-right">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {gstr1.b2b_invoices.map((inv, i) => {
+                          const tax = Number(inv.cgst) + Number(inv.sgst) + Number(inv.igst)
+                          return (
+                            <tr key={i} className="hover:bg-slate-50">
+                              <td className="px-5 py-3 font-medium text-slate-700">{inv.customer_name}</td>
+                              <td className="px-5 py-3 font-mono text-xs text-slate-500">{inv.customer_gstin}</td>
+                              <td className="px-5 py-3 text-slate-600">{inv.invoice_number}</td>
+                              <td className="px-5 py-3 text-slate-500">{inv.invoice_date}</td>
+                              <td className="px-5 py-3 text-center">
+                                <span className={`px-2 py-0.5 rounded text-xs font-medium ${
+                                  inv.is_interstate ? 'bg-violet-50 text-violet-700' : 'bg-blue-50 text-blue-700'
+                                }`}>
+                                  {inv.is_interstate ? 'IGST' : 'CGST+SGST'}
+                                </span>
+                              </td>
+                              <td className="px-5 py-3 text-right text-slate-600">₹{Number(inv.taxable_value).toLocaleString('en-IN')}</td>
+                              <td className="px-5 py-3 text-right text-teal-600 font-medium">₹{tax.toLocaleString('en-IN')}</td>
+                              <td className="px-5 py-3 text-right font-bold text-slate-800">₹{Number(inv.invoice_value).toLocaleString('en-IN')}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {/* HSN Summary */}
+              {gstr1.hsn_summary?.length > 0 && (
+                <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
+                  <div className="px-5 py-4 border-b border-slate-100">
+                    <h3 className="font-semibold text-slate-700">HSN-wise Summary</h3>
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="bg-slate-50 text-slate-500 text-xs uppercase">
+                          <th className="px-5 py-3 text-left">HSN Code</th>
+                          <th className="px-5 py-3 text-left">Description</th>
+                          <th className="px-5 py-3 text-right">Quantity</th>
+                          <th className="px-5 py-3 text-right">Taxable Value</th>
+                          <th className="px-5 py-3 text-right">IGST</th>
+                          <th className="px-5 py-3 text-right">CGST</th>
+                          <th className="px-5 py-3 text-right">SGST</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-slate-50">
+                        {gstr1.hsn_summary.map((hsn, i) => (
+                          <tr key={i} className="hover:bg-slate-50">
+                            <td className="px-5 py-3 font-mono font-medium text-slate-700">{hsn.hsn_code}</td>
+                            <td className="px-5 py-3 text-slate-600">{hsn.description}</td>
+                            <td className="px-5 py-3 text-right text-slate-600">{Number(hsn.total_quantity).toLocaleString('en-IN')} {hsn.uom}</td>
+                            <td className="px-5 py-3 text-right text-slate-700">₹{Number(hsn.taxable_value).toLocaleString('en-IN')}</td>
+                            <td className="px-5 py-3 text-right text-violet-600">₹{Number(hsn.igst).toLocaleString('en-IN')}</td>
+                            <td className="px-5 py-3 text-right text-blue-600">₹{Number(hsn.cgst).toLocaleString('en-IN')}</td>
+                            <td className="px-5 py-3 text-right text-blue-600">₹{Number(hsn.sgst).toLocaleString('en-IN')}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              )}
+
+              {gstr1.total_invoices === 0 && (
+                <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400">
+                  No invoices found for {months[month - 1]} {year}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* GSTR-3B */}
+          {activeTab === 'gstr3b' && gstr3b && (
+            <div className="space-y-4">
+              <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm">
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <h2 className="font-semibold text-slate-700">GSTR-3B — {gstr3b.period}</h2>
+                    <p className="text-sm text-slate-500 mt-0.5">{gstr3b.summary}</p>
+                  </div>
+                  <button
+                    onClick={() => handleSave('GSTR3B')}
+                    className="px-4 py-2 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-sm font-medium"
+                  >
+                    Save Draft
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-3 gap-4">
+                  {/* Tax Collected */}
+                  <div className="bg-slate-50 rounded-xl p-4">
+                    <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide mb-3">Tax Collected (Sales)</p>
+                    <div className="space-y-2">
+                      {['cgst', 'sgst', 'igst'].map(type => (
+                        <div key={type} className="flex justify-between text-sm">
+                          <span className="text-slate-500 uppercase">{type}</span>
+                          <span className="font-medium text-slate-700">
+                            ₹{Number(gstr3b.tax_collected?.[type] || 0).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between text-sm font-bold pt-2 border-t border-slate-200">
+                        <span>Total</span>
+                        <span className="text-slate-800">₹{Number(gstr3b.tax_collected?.total || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* ITC Available */}
+                  <div className="bg-green-50 rounded-xl p-4">
+                    <p className="text-xs font-semibold text-green-600 uppercase tracking-wide mb-3">ITC Available (Purchases)</p>
+                    <div className="space-y-2">
+                      {['cgst', 'sgst', 'igst'].map(type => (
+                        <div key={type} className="flex justify-between text-sm">
+                          <span className="text-green-600 uppercase">{type}</span>
+                          <span className="font-medium text-green-700">
+                            ₹{Number(gstr3b.itc_available?.[type] || 0).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between text-sm font-bold pt-2 border-t border-green-200">
+                        <span className="text-green-700">Total ITC</span>
+                        <span className="text-green-700">₹{Number(gstr3b.itc_available?.total || 0).toLocaleString('en-IN')}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Net Payable */}
+                  <div className="bg-amber-50 rounded-xl p-4">
+                    <p className="text-xs font-semibold text-amber-600 uppercase tracking-wide mb-3">Net Payable to Govt</p>
+                    <div className="space-y-2">
+                      {['cgst', 'sgst', 'igst'].map(type => (
+                        <div key={type} className="flex justify-between text-sm">
+                          <span className="text-amber-600 uppercase">{type}</span>
+                          <span className="font-medium text-amber-700">
+                            ₹{Number(gstr3b.net_payable?.[type] || 0).toLocaleString('en-IN')}
+                          </span>
+                        </div>
+                      ))}
+                      <div className="flex justify-between text-sm font-bold pt-2 border-t border-amber-200">
+                        <span className="text-amber-700">Total</span>
+                        <span className="text-amber-700 text-lg">
+                          ₹{Number(gstr3b.net_payable?.total || 0).toLocaleString('en-IN')}
+                        </span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  )
+}
