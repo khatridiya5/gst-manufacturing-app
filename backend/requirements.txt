@@ -70,7 +70,6 @@ numba==0.61.2
 numpy==2.2.6
 packaging==26.0
 pandas==3.0.2
-pandas-ta==0.4.71b0
 pandocfilters==1.5.1
 parso==0.8.6
 peewee==4.0.4
