@@ -91,6 +91,22 @@ def update_item(
     db.refresh(item)
     return item
 
+@router.delete("/items/{item_id}")
+def delete_item(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    item = db.query(Item).filter(
+        Item.id == item_id,
+        Item.company_id == current_user.company_id
+    ).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
+    db.delete(item)
+    db.commit()
+    return {"message": "Item deleted successfully"}
+
 # ─── VENDOR SCHEMAS ──────────────────────────────────────────
 class VendorCreate(BaseModel):
     name: str

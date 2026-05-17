@@ -27,6 +27,16 @@ export default function Items() {
     } catch (err) { alert(err.response?.data?.detail || 'Error') }
   }
 
+  const handleDelete = async (itemId, itemName) => {
+    if (!confirm(`Delete "${itemName}"? This cannot be undone.`)) return
+    try {
+      await api.delete(`/master/items/${itemId}`)
+      fetchItems()
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Error deleting item')
+    }
+  }
+
   const typeColors = { raw_material: 'bg-slate-100 text-slate-600', finished_good: 'bg-teal-50 text-teal-700', scrap: 'bg-red-50 text-red-600' }
 
   if (loading) return <div className="text-slate-400 p-8">Loading...</div>
@@ -103,10 +113,11 @@ export default function Items() {
               <th className="px-5 py-3 text-center">Unit</th>
               <th className="px-5 py-3 text-center">Tax</th>
               <th className="px-5 py-3 text-right">Stock</th>
+              <th className="px-5 py-3 text-center">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {items.length === 0 && <tr><td colSpan={7} className="px-5 py-8 text-center text-slate-400">No items yet.</td></tr>}
+            {items.length === 0 && <tr><td colSpan={8} className="px-5 py-8 text-center text-slate-400">No items yet.</td></tr>}
             {items.map(item => (
               <tr key={item.id} className="hover:bg-slate-50">
                 <td className="px-5 py-3 font-medium text-slate-700">{item.name}</td>
@@ -116,6 +127,14 @@ export default function Items() {
                 <td className="px-5 py-3 text-center text-slate-500">{item.unit}</td>
                 <td className="px-5 py-3 text-center text-slate-500">{item.tax_rate}%</td>
                 <td className="px-5 py-3 text-right font-semibold text-slate-700">{Number(item.current_stock).toLocaleString('en-IN')}</td>
+                <td className="px-5 py-3 text-center">
+                  <button
+                    onClick={() => handleDelete(item.id, item.name)}
+                    className="px-3 py-1 border border-red-300 hover:bg-red-50 text-red-500 rounded-lg text-xs font-medium transition-colors"
+                  >
+                    Delete
+                  </button>
+                </td>
               </tr>
             ))}
           </tbody>
