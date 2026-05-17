@@ -97,12 +97,37 @@ def delete_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin"))
 ):
+    from app.models.purchase import POLineItem, PurchaseLineItem, PurchaseInvoice
+    from app.models.production import BOMLineItem
+    from app.models.stock import StockLedger, PartInstance
+    from app.models.wip_scan import WIPScan
+
     item = db.query(Item).filter(
         Item.id == item_id,
         Item.company_id == current_user.company_id
     ).first()
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
+
+    # 1. Delete wip_scans → part_instances
+    parts = db.query(PartInstance).filter(PartInstance.item_id == item_id).all()
+    part_ids = [p.id for p in parts]
+    if part_ids:
+        db.query(WIPScan).filter(WIPScan.part_instance_id.in_(part_ids)).delete(synchronize_session=False)
+        db.query(PartInstance).filter(PartInstance.id.in_(part_ids)).delete(synchronize_session=False)
+
+    # 2. Delete purchase line items
+    db.query(POLineItem).filter(POLineItem.item_id == item_id).delete()
+    inv_lines_query = db.query(PurchaseLineItem).filter(PurchaseLineItem.item_id == item_id)
+    inv_lines_query.delete()
+
+    # 3. Delete BOM line items
+    db.query(BOMLineItem).filter(BOMLineItem.raw_material_id == item_id).delete()
+
+    # 4. Delete stock ledger
+    db.query(StockLedger).filter(StockLedger.item_id == item_id).delete()
+
+    # 5. Delete item
     db.delete(item)
     db.commit()
     return {"message": "Item deleted successfully"}
