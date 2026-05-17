@@ -18,6 +18,7 @@ const DEFAULT_COMPANY = {
   state: 'Gujarat',
   state_code: '24',
   watermark: '',
+  pan: '',
 }
 
 export default function InvoicePrint() {
@@ -78,142 +79,370 @@ export default function InvoicePrint() {
   }
 
   const handleDownloadPDF = () => {
-    const doc = new jsPDF()
-    // Watermark
-  doc.setTextColor(230, 230, 230)
-  doc.setFontSize(50)
-  doc.text(company.watermark ||company.name, 35, 160, {
-    angle: 45,
-  })
-doc.setTextColor(0, 0, 0)
-    if (company.logo) {
-  doc.addImage(
-    company.logo,
-    'PNG',
-    14,
-    10,
-    28,
-    28
-  )
-}
-    const isManual = manualMode
+  const doc = new jsPDF()
+  const W = 210, margin = 12, TW = W - margin * 2
+  const x0 = margin
+  let y = 15
 
-    // Header
-    doc.setFontSize(16)
-    doc.setFont('helvetica', 'bold')
-    doc.text(company.name, 120, 18, { align: 'center' })
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'normal')
-    doc.text(company.address, 120, 24, { align: 'center' })
-    doc.text(`Phone: ${company.phone}  |  Email: ${company.email}`, 120, 29, { align: 'center' })
-    doc.text(`GSTIN: ${company.gstin}`, 120, 34, { align: 'center' })
+  const isManual = manualMode
+  const invNum  = isManual ? manualInvoice.invoice_number : invoice?.invoice_number
+  const invDate = isManual ? manualInvoice.invoice_date   : invoice?.invoice_date
+  const custName = isManual ? manualInvoice.customer_name  : invoice?.customer
+  const custAddr = isManual ? manualInvoice.customer_address : ''
+  const custGSTIN = isManual ? manualInvoice.customer_gstin : ''
+  const custState = isManual ? manualInvoice.customer_state : company.state
+  const isInter  = isManual ? manualInvoice.is_interstate  : invoice?.is_interstate
+  const taxRate  = isManual ? manualInvoice.tax_rate : 18
 
-    // Title
-    doc.setFillColor(30, 41, 59)
-    doc.rect(0, 38, 210, 8, 'F')
-    doc.setFontSize(11)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(255, 255, 255)
-    doc.text('TAX INVOICE', 105, 44, { align: 'center' })
-    doc.setTextColor(0, 0, 0)
-
-    // Invoice details
-    const invNum = isManual ? manualInvoice.invoice_number : invoice?.invoice_number
-    const invDate = isManual ? manualInvoice.invoice_date : invoice?.invoice_date
-    const custName = isManual ? manualInvoice.customer_name : invoice?.customer
-    const custGSTIN = isManual ? manualInvoice.customer_gstin : ''
-    const custAddr = isManual ? manualInvoice.customer_address : ''
-    const custState = isManual ? manualInvoice.customer_state : ''
-    const custStateCode = isManual ? manualInvoice.customer_state_code : ''
-
-    doc.setFontSize(9)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Bill To:', 14, 54)
-    doc.setFont('helvetica', 'normal')
-    doc.text(custName || '', 14, 59)
-    doc.text(custAddr || '', 14, 64)
-    if (custGSTIN) doc.text(`GSTIN: ${custGSTIN}`, 14, 69)
-    if (custState) doc.text(`State: ${custState}  Code: ${custStateCode}`, 14, 74)
-
-    doc.setFont('helvetica', 'bold')
-    doc.text('Invoice No:', 130, 54)
-    doc.setFont('helvetica', 'normal')
-    doc.text(invNum || '', 165, 54)
-    doc.setFont('helvetica', 'bold')
-    doc.text('Date:', 130, 59)
-    doc.setFont('helvetica', 'normal')
-    doc.text(invDate || '', 165, 59)
-
-    // Line items
-    let tableData = []
-    if (isManual) {
-      const { lines } = calcManual()
-      tableData = lines.map((li, i) => [
-        i + 1, li.description, li.hsn_code, li.qty, li.unit,
-        `₹${parseFloat(li.rate || 0).toFixed(2)}`,
-        `₹${li.amount.toFixed(2)}`
-      ])
-    } else if (invoice?.line_items) {
-      tableData = invoice.line_items.map((li, i) => [
-        i + 1, `Item #${li.item_id}`, '', li.quantity, 'NOS',
-        `₹${parseFloat(li.unit_price).toFixed(2)}`,
-        `₹${(parseFloat(li.quantity) * parseFloat(li.unit_price)).toFixed(2)}`
-      ])
-    }
-
-    autoTable(doc, {
-      startY: 80,
-      head: [['#', 'Description', 'HSN', 'Qty', 'Unit', 'Rate', 'Amount']],
-      body: tableData,
-      theme: 'striped',
-      headStyles: { fillColor: [13, 148, 136], fontSize: 9 },
-      bodyStyles: { fontSize: 9 },
-      columnStyles: { 0: { cellWidth: 10 }, 6: { halign: 'right' } }
-    })
-
-    const finalY = doc.lastAutoTable.finalY + 5
-
-    // Totals
-    let subtotal, taxLabel, taxAmount, total
-    if (isManual) {
-      const calc = calcManual()
-      subtotal = calc.subtotal
-      taxLabel = manualInvoice.is_interstate ? `IGST @${manualInvoice.tax_rate}%` : `CGST+SGST @${manualInvoice.tax_rate}%`
-      taxAmount = calc.taxAmount
-      total = calc.total
-    } else {
-      subtotal = parseFloat(invoice?.subtotal || 0)
-      const igst = parseFloat(invoice?.igst || 0)
-      const cgst = parseFloat(invoice?.cgst || 0)
-      const sgst = parseFloat(invoice?.sgst || 0)
-      taxLabel = igst > 0 ? 'IGST' : 'CGST + SGST'
-      taxAmount = igst > 0 ? igst : cgst + sgst
-      total = parseFloat(invoice?.total || 0)
-    }
-
-    doc.setFontSize(9)
-    doc.text(`Basic Amount:`, 140, finalY)
-    doc.text(`₹${subtotal.toFixed(2)}`, 195, finalY, { align: 'right' })
-    doc.text(`${taxLabel}:`, 140, finalY + 5)
-    doc.text(`₹${taxAmount.toFixed(2)}`, 195, finalY + 5, { align: 'right' })
-    doc.setFont('helvetica', 'bold')
-    doc.text(`Total:`, 140, finalY + 10)
-    doc.text(`₹${total.toFixed(2)}`, 195, finalY + 10, { align: 'right' })
-    doc.setFont('helvetica', 'normal')
-
-    // Bank details
-    doc.setFontSize(8)
-    doc.text('Bank Details:', 14, finalY + 20)
-    doc.text(`Bank: ${company.bank_name}  |  A/C: ${company.account_no}  |  IFSC: ${company.ifsc}  |  Branch: ${company.branch}`, 14, finalY + 25)
-
-    // Footer
-    doc.text('Terms: Goods once sold will not be taken back. Subject to local jurisdiction.', 14, finalY + 35)
-    doc.setFont('helvetica', 'bold')
-    doc.text(`For ${company.name}`, 150, finalY + 40)
-    doc.text('(Authorised Signatory)', 150, finalY + 50)
-
-    doc.save(`${invNum || 'invoice'}.pdf`)
+  // helpers
+  const rh = 5.2
+  const drawRect = (x, y, w, h) => doc.rect(x, y, w, h)
+  const cell = (x, y, w, h, txt = '', opts = {}) => {
+    const { bold = false, size = 7, align = 'L', px = 1.5, py = 1.2 } = opts
+    doc.setDrawColor(0)
+    doc.rect(x, y, w, h)
+    if (!txt) return
+    doc.setFont('helvetica', bold ? 'bold' : 'normal')
+    doc.setFontSize(size)
+    doc.setTextColor(0)
+    const ty = y + py + size * 0.352
+    if (align === 'C') doc.text(String(txt), x + w / 2, ty, { align: 'center' })
+    else if (align === 'R') doc.text(String(txt), x + w - px, ty, { align: 'right' })
+    else doc.text(String(txt), x + px, ty)
   }
+
+  // ── TITLE ──────────────────────────────────────────────────
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(11)
+  doc.text('Tax Invoice', W / 2, y, { align: 'center' })
+  y += 5
+
+  // column layout
+  const lw = TW * 0.52, rw = TW - lw, rx = x0 + lw
+  const c1 = rw * 0.37, c2 = rw * 0.27, c3 = rw - c1 - c2
+
+  // ── COMPANY + META ROWS ────────────────────────────────────
+  const companyRows = [
+    [company.name, true, 7.5],
+    ['', false, 6.5],
+    [company.address.split(',')[0] || '', false, 7],
+    [company.address.split(',').slice(1).join(',').trim() || '', false, 7],
+    ['', false, 7],
+    ['', false, 7],
+    [`GSTIN/UIN: ${company.gstin}`, false, 7],
+    [`State Name :  ${company.state}, Code : ${company.state_code}`, false, 7],
+    ['CIN: ........', false, 7],
+  ]
+  const metaRows = [
+    [['Invoice No.', 'e-Way Bill No.', 'Dated']],
+    [[invNum || '', '', invDate || '']],
+    [['Delivery Note', 'Mode/Terms of Payment', '']],
+    [['', '', '']],
+    [['Reference No. & Date.', 'Other References', '']],
+    [['', '', '']],
+    [["Buyer's Order No.", 'Dated', '']],
+    [['', '', '']],
+    [['Dispatch Doc No.', 'Delivery Note Date', '']],
+  ]
+
+  companyRows.forEach(([txt, bold, sz], i) => {
+    cell(x0, y, lw, rh, txt, { bold, size: sz })
+    const [labels] = metaRows[i]
+    if (labels.length === 3) {
+      cell(rx,       y, c1, rh, labels[0], { size: 7 })
+      cell(rx+c1,    y, c2, rh, labels[1], { size: 7 })
+      cell(rx+c1+c2, y, c3, rh, labels[2], { size: 7 })
+    }
+    y += rh
+  })
+
+  // ── CONSIGNEE ─────────────────────────────────────────────
+  const dw = rw * 0.5
+  const conRows = [
+    ['Consignee (Ship to)', false],
+    [custName || '', true],
+    [custAddr || '', false],
+    ['', false],
+    [custState ? `Ahmedabad ${custState}` : '', false],
+    ['GSTIN/UIN:', false],
+    [`State Name :        ${custState || 'Gujarat'}, Code : ${company.state_code}`, false],
+  ]
+  const conRight = [
+    ['Dispatched through', 'Destination'],
+    ['', ''],
+    ['Bill of Lading/LR-RR No.', 'Motor Vehicle No.'],
+    ['', ''],
+    ['Terms of Delivery', ''],
+    ['', ''],
+    ['', ''],
+  ]
+  conRows.forEach(([txt, bold], i) => {
+    cell(x0, y, lw, rh, txt, { bold, size: 7 })
+    if (i < 2) {
+      cell(rx,    y, dw, rh, conRight[i][0], { size: 7 })
+      cell(rx+dw, y, rw-dw, rh, conRight[i][1], { size: 7 })
+    } else if (i === 2) {
+      cell(rx,    y, dw, rh, conRight[i][0], { size: 7 })
+      cell(rx+dw, y, rw-dw, rh, conRight[i][1], { size: 7 })
+    } else {
+      cell(rx, y, rw, rh, i === 4 ? 'Terms of Delivery' : '', { size: 7 })
+    }
+    y += rh
+  })
+
+  // ── BUYER ─────────────────────────────────────────────────
+  const buyerRows = [
+    ['Buyer (Bill to)', false],
+    [custName || '', true],
+    [custAddr || '', false],
+    ['', false],
+    ['', false],
+    ['GSTIN/UIN:', false],
+    [`State Name :        ${custState || 'Gujarat'}, Code : ${company.state_code}`, false],
+  ]
+  buyerRows.forEach(([txt, bold]) => {
+    cell(x0, y, TW, rh, txt, { bold, size: 7 })
+    y += rh
+  })
+
+  // ── ITEMS TABLE HEADER ─────────────────────────────────────
+  const si_w=TW*0.04, desc_w=TW*0.35, hsn_w=TW*0.115,
+        qty_w=TW*0.09, rate_w=TW*0.105, per_w=TW*0.07,
+        disc_w=TW*0.085
+  const amt_w = TW - si_w - desc_w - hsn_w - qty_w - rate_w - per_w - disc_w
+  const hdrH = 6.5
+
+  let cx = x0
+  cell(cx, y, si_w,   hdrH, 'Sl\nNo.', { align:'C' }); cx+=si_w
+  cell(cx, y, desc_w, hdrH, 'Description of Goods', { align:'C' }); cx+=desc_w
+  cell(cx, y, hsn_w,  hdrH, 'HSN/SAC', { align:'C' }); cx+=hsn_w
+  cell(cx, y, qty_w,  hdrH, 'Quantity', { align:'C' }); cx+=qty_w
+  cell(cx, y, rate_w, hdrH, 'Rate', { align:'C' }); cx+=rate_w
+  cell(cx, y, per_w,  hdrH, 'per', { align:'C' }); cx+=per_w
+  cell(cx, y, disc_w, hdrH, 'Disc. %', { align:'C' }); cx+=disc_w
+  cell(cx, y, amt_w,  hdrH, 'Amount', { align:'C' })
+  y += hdrH
+
+  // ── LINE ITEMS ─────────────────────────────────────────────
+  const itemH = 5.5
+  let lineItems = []
+  if (isManual) {
+    const { lines } = calcManual()
+    lineItems = lines.map((li, i) => ({
+      sl: i+1,
+      category: li.description,
+      description: li.description,
+      hsn: li.hsn_code,
+      qty: li.qty,
+      unit: li.unit || 'NOS',
+      rate: parseFloat(li.rate||0),
+      amount: li.amount,
+      date: '',
+    }))
+  } else if (invoice?.line_items) {
+    lineItems = invoice.line_items.map((li, i) => ({
+      sl: i+1,
+      category: `Item #${li.item_id}`,
+      description: `Item #${li.item_id}`,
+      hsn: '',
+      qty: li.quantity,
+      unit: 'NOS',
+      rate: parseFloat(li.unit_price),
+      amount: parseFloat(li.quantity)*parseFloat(li.unit_price),
+      date: '',
+    }))
+  }
+
+  lineItems.forEach(item => {
+    // category row
+    cx = x0
+    cell(cx,y,si_w,  itemH,String(item.sl),{align:'C'}); cx+=si_w
+    cell(cx,y,desc_w,itemH,item.category,{bold:true}); cx+=desc_w
+    cell(cx,y,hsn_w, itemH,item.hsn||''); cx+=hsn_w
+    cell(cx,y,qty_w, itemH,''); cx+=qty_w
+    cell(cx,y,rate_w,itemH,''); cx+=rate_w
+    cell(cx,y,per_w, itemH,''); cx+=per_w
+    cell(cx,y,disc_w,itemH,''); cx+=disc_w
+    cell(cx,y,amt_w, itemH,'')
+    y += itemH
+
+    // detail row
+    cx = x0
+    cell(cx,y,si_w,  itemH,''); cx+=si_w
+    const dLabel = item.date ? `${item.description}     (${item.date})` : item.description
+    cell(cx,y,desc_w,itemH,dLabel,{bold:true}); cx+=desc_w
+    cell(cx,y,hsn_w, itemH,''); cx+=hsn_w
+    cell(cx,y,qty_w, itemH,`${item.qty} ${item.unit}`,{bold:true,align:'C'}); cx+=qty_w
+    cell(cx,y,rate_w,itemH,`${item.rate.toFixed(2)}`,{align:'R'}); cx+=rate_w
+    cell(cx,y,per_w, itemH,item.unit,{align:'C'}); cx+=per_w
+    cell(cx,y,disc_w,itemH,''); cx+=disc_w
+    cell(cx,y,amt_w, itemH,`${item.amount.toFixed(2)}`,{bold:true,align:'R'})
+    y += itemH
+  })
+
+  // blank rows
+  for (let i = 0; i < 5; i++) {
+    cx = x0
+    ;[si_w,desc_w,hsn_w,qty_w,rate_w,per_w,disc_w,amt_w].forEach(w=>{
+      cell(cx,y,w,itemH,''); cx+=w
+    })
+    y += itemH
+  }
+
+  // ── TAX ROWS ───────────────────────────────────────────────
+  const subtotal = lineItems.reduce((s,l)=>s+l.amount,0)
+  const halfRate = isInter ? 0 : taxRate/2
+  const cgstAmt  = isInter ? 0 : subtotal * halfRate / 100
+  const sgstAmt  = isInter ? 0 : subtotal * halfRate / 100
+  const igstAmt  = isInter ? subtotal * taxRate / 100 : 0
+  const totalAmt = subtotal + cgstAmt + sgstAmt + igstAmt
+  const labelW   = si_w+desc_w+hsn_w+qty_w+rate_w+per_w+disc_w
+  const subH = 5
+
+  // subtotal line
+  cx=x0; cell(cx,y,labelW,subH,''); cx+=labelW
+  cell(cx,y,amt_w,subH,subtotal.toFixed(2),{align:'R'}); y+=subH
+
+  if (isInter) {
+    cx=x0
+    cell(cx,y,labelW,subH,`OUTPUT IGST @ ${taxRate}%`,{bold:true,align:'R'}); cx+=labelW
+    cell(cx,y,amt_w,subH,igstAmt.toFixed(2),{bold:true,align:'R'}); y+=subH
+  } else {
+    // CGST
+    const cgstLW = labelW - qty_w - rate_w - per_w
+    cx=x0
+    cell(cx,y,cgstLW,subH,`OUTPUT CGST @ ${halfRate}%`,{bold:true,align:'R'}); cx+=cgstLW
+    cell(cx,y,qty_w, subH,''); cx+=qty_w
+    cell(cx,y,rate_w,subH,String(halfRate),{align:'R'}); cx+=rate_w
+    cell(cx,y,per_w, subH,'%',{align:'C'}); cx+=per_w
+    cell(cx,y,disc_w,subH,''); cx+=disc_w
+    cell(cx,y,amt_w, subH,cgstAmt.toFixed(2),{bold:true,align:'R'}); y+=subH
+    // SGST
+    cx=x0
+    cell(cx,y,cgstLW,subH,`OUTPUT SGST @ ${halfRate}%`,{bold:true,align:'R'}); cx+=cgstLW
+    cell(cx,y,qty_w, subH,''); cx+=qty_w
+    cell(cx,y,rate_w,subH,String(halfRate),{align:'R'}); cx+=rate_w
+    cell(cx,y,per_w, subH,'%',{align:'C'}); cx+=per_w
+    cell(cx,y,disc_w,subH,''); cx+=disc_w
+    cell(cx,y,amt_w, subH,sgstAmt.toFixed(2),{bold:true,align:'R'}); y+=subH
+  }
+
+  // total row
+  const totalQty = lineItems.reduce((s,l)=>s+parseFloat(l.qty||0),0)
+  const totH = 5.5
+  const cgstLW2 = labelW - qty_w - rate_w - per_w
+  cx=x0
+  cell(cx,y,cgstLW2,totH,'Total',{align:'R'}); cx+=cgstLW2
+  cell(cx,y,qty_w,totH,`${totalQty} NOS`,{bold:true,align:'C'}); cx+=qty_w
+  cell(cx,y,rate_w,totH,''); cx+=rate_w
+  cell(cx,y,per_w, totH,''); cx+=per_w
+  cell(cx,y,disc_w,totH,''); cx+=disc_w
+  cell(cx,y,amt_w, totH,`\u20b9 ${totalAmt.toFixed(2)}`,{bold:true,align:'R',size:8})
+  y+=totH
+
+  // ── AMOUNT IN WORDS ────────────────────────────────────────
+  const awH = 4.5
+  cell(x0, y, TW*0.6, awH, 'Amount Chargeable (in words)', {size:7})
+  cell(x0+TW*0.6, y, TW*0.4, awH, 'E. & O.E', {size:7,align:'R'})
+  y+=awH
+  const numToWords = (n) => {
+    const ones=['','One','Two','Three','Four','Five','Six','Seven','Eight','Nine',
+      'Ten','Eleven','Twelve','Thirteen','Fourteen','Fifteen','Sixteen',
+      'Seventeen','Eighteen','Nineteen']
+    const tens=['','','Twenty','Thirty','Forty','Fifty','Sixty','Seventy','Eighty','Ninety']
+    if(n===0) return 'Zero'
+    const t = Math.round(n)
+    if(t<20) return ones[t]
+    if(t<100) return tens[Math.floor(t/10)]+(t%10?' '+ones[t%10]:'')
+    if(t<1000) return ones[Math.floor(t/100)]+' Hundred'+(t%100?' '+numToWords(t%100):'')
+    if(t<100000) return numToWords(Math.floor(t/1000))+' Thousand'+(t%1000?' '+numToWords(t%1000):'')
+    if(t<10000000) return numToWords(Math.floor(t/100000))+' Lakh'+(t%100000?' '+numToWords(t%100000):'')
+    return numToWords(Math.floor(t/10000000))+' Crore'+(t%10000000?' '+numToWords(t%10000000):'')
+  }
+  const amtWords = numToWords(Math.round(totalAmt)) + ' Rupees Only.'
+  cell(x0, y, TW, awH, '  '+amtWords, {bold:true,size:7})
+  y+=awH
+
+  // ── HSN TAX SUMMARY ────────────────────────────────────────
+  const th = 4.5
+  const hsnC=TW*0.20,taxC=TW*0.15,rateC=TW*0.10,amtC=TW*0.10,totTax=TW-(hsnC+taxC+rateC+amtC)*2
+  // header row 1
+  cx=x0
+  cell(cx,y,hsnC,th,'HSN/SAC',{align:'C'}); cx+=hsnC
+  cell(cx,y,taxC,th,'Taxable',{align:'C'}); cx+=taxC
+  cell(cx,y,rateC+amtC,th,'CGST',{align:'C'}); cx+=rateC+amtC
+  cell(cx,y,rateC+amtC,th,isInter?'IGST':'SGST/UTGST',{align:'C'}); cx+=rateC+amtC
+  cell(cx,y,totTax,th,'Total',{align:'C'}); y+=th
+  // header row 2
+  cx=x0
+  cell(cx,y,hsnC,th,'',{}); cx+=hsnC
+  cell(cx,y,taxC,th,'Value',{align:'C'}); cx+=taxC
+  cell(cx,y,rateC,th,'Rate',{align:'C'}); cx+=rateC
+  cell(cx,y,amtC,th,'Amount',{align:'C'}); cx+=amtC
+  cell(cx,y,rateC,th,'Rate',{align:'C'}); cx+=rateC
+  cell(cx,y,amtC,th,'Amount',{align:'C'}); cx+=amtC
+  cell(cx,y,totTax,th,'Tax Amount',{align:'C'}); y+=th
+
+  // data rows
+  const uniqueHSN = {}
+  lineItems.forEach(li=>{
+    const k = li.hsn||'—'
+    if(!uniqueHSN[k]) uniqueHSN[k]={taxable:0}
+    uniqueHSN[k].taxable += li.amount
+  })
+  Object.entries(uniqueHSN).forEach(([hsn,{taxable}])=>{
+    const cAmt = isInter ? 0 : taxable*halfRate/100
+    const sAmt = isInter ? 0 : taxable*halfRate/100
+    const iAmt = isInter ? taxable*taxRate/100 : 0
+    const totT = cAmt+sAmt+iAmt
+    cx=x0
+    cell(cx,y,hsnC,th,hsn,{}); cx+=hsnC
+    cell(cx,y,taxC,th,taxable.toFixed(2),{align:'R'}); cx+=taxC
+    cell(cx,y,rateC,th,isInter?`${taxRate}%`:`${halfRate}%`,{align:'C'}); cx+=rateC
+    cell(cx,y,amtC,th,(isInter?iAmt:cAmt).toFixed(2),{align:'R'}); cx+=amtC
+    cell(cx,y,rateC,th,isInter?`${taxRate}%`:`${halfRate}%`,{align:'C'}); cx+=rateC
+    cell(cx,y,amtC,th,(isInter?iAmt:sAmt).toFixed(2),{align:'R'}); cx+=amtC
+    cell(cx,y,totTax,th,totT.toFixed(2),{align:'R'}); y+=th
+  })
+  // total row
+  const totalTax = cgstAmt+sgstAmt+igstAmt
+  cx=x0
+  cell(cx,y,hsnC,th,'Total',{align:'R'}); cx+=hsnC
+  cell(cx,y,taxC,th,subtotal.toFixed(2),{align:'R'}); cx+=taxC
+  cell(cx,y,rateC,th,'',{}); cx+=rateC
+  cell(cx,y,amtC,th,(isInter?igstAmt:cgstAmt).toFixed(2),{align:'R'}); cx+=amtC
+  cell(cx,y,rateC,th,'',{}); cx+=rateC
+  cell(cx,y,amtC,th,(isInter?igstAmt:sgstAmt).toFixed(2),{align:'R'}); cx+=amtC
+  cell(cx,y,totTax,th,totalTax.toFixed(2),{bold:true,align:'R'}); y+=th
+
+  // ── FOOTER ─────────────────────────────────────────────────
+  const fh=4.5, hw=TW/2
+  // tax in words
+  const taxWords = numToWords(Math.round(totalTax)) + ' Rupees Only'
+  cell(x0,y,hw*0.35,fh,'Tax Amount (in words) :',{size:7})
+  cell(x0+hw*0.35,y,TW-hw*0.35,fh,'INR '+taxWords,{size:7}); y+=fh
+  // PAN + for company
+  cell(x0,y,hw*0.35,fh,"Company's PAN :",{size:7})
+  cell(x0+hw*0.35,y,hw*0.65,fh,company.pan||'',{bold:true,size:7})
+  cell(x0+hw,y,TW-hw,fh,`for ${company.name}`,{bold:true,align:'C',size:7}); y+=fh
+  // declaration
+  cell(x0,y,hw,fh,'Declaration',{size:7})
+  cell(x0+hw,y,TW-hw,fh,'',{}); y+=fh
+  cell(x0,y,hw,8,'We declare that this invoice shows the actual price of the',{size:6.5})
+  cell(x0+hw,y,TW-hw,8,'Authorised Signatory',{align:'C',size:7}); y+=8
+
+  // bottom note
+  doc.setFont('helvetica','normal')
+  doc.setFontSize(7)
+  doc.text('This is a Computer Generated Invoice', W/2, y+2, {align:'center'})
+
+  doc.save(`${invNum||'invoice'}.pdf`)
+}
+    
+   
+  
+   
+
 
   const { lines: manualLines, subtotal: manualSubtotal, taxAmount: manualTax, total: manualTotal } = calcManual()
 
@@ -250,6 +479,7 @@ doc.setTextColor(0, 0, 0)
                 { label: 'IFSC Code', key: 'ifsc' },
                 { label: 'Branch', key: 'branch' },
                 { label: 'Watermark Text', key: 'watermark' },
+                { label: 'Company PAN', key: 'pan' },
         
 
               ].map(f => (
@@ -399,7 +629,7 @@ doc.setTextColor(0, 0, 0)
             <h1
               className="text-[100px] font-bold text-slate-200 opacity-10 rotate-[-30deg]"
                 >
-              {company.watermark || company.name}
+              
             </h1>
             </div> 
             {/* Company header */}
