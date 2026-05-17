@@ -241,6 +241,7 @@ def get_customers(
         Customer.is_active == True
     ).all()
 
+
 @router.delete("/customers/{customer_id}")
 def delete_customer(
     customer_id: int,
@@ -256,15 +257,19 @@ def delete_customer(
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
-    # Delete sales invoice line items then invoices
-    invoices = db.query(SalesInvoice).filter(SalesInvoice.customer_id == customer_id).all()
-    for inv in invoices:
-        db.query(SalesLineItem).filter(SalesLineItem.sales_invoice_id == inv.id).delete()
-        db.delete(inv)
+    # Get all invoice ids for this customer
+    invoice_ids = [inv.id for inv in db.query(SalesInvoice).filter(SalesInvoice.customer_id == customer_id).all()]
+    
+    # Delete line items first
+    if invoice_ids:
+        db.query(SalesLineItem).filter(SalesLineItem.sales_invoice_id.in_(invoice_ids)).delete(synchronize_session=False)
+        db.query(SalesInvoice).filter(SalesInvoice.id.in_(invoice_ids)).delete(synchronize_session=False)
 
     db.delete(customer)
     db.commit()
     return {"message": "Customer deleted successfully"}
+
+    
 
 @router.delete("/vendors/{vendor_id}")
 def delete_vendor(vendor_id: int, db: Session = Depends(get_db)):
