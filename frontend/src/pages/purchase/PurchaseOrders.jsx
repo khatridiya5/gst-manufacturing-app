@@ -112,6 +112,15 @@ export default function PurchaseOrders() {
       console.error(err)
     }
   }
+  const handleDelete = async (poId, poNumber) => {
+  if (!confirm(`Delete ${poNumber}? This cannot be undone.`)) return
+  try {
+    await api.delete(`/purchase/po/${poId}`)
+    fetchPOs()
+  } catch (err) {
+    alert(err.response?.data?.detail || 'Error deleting PO')
+  }
+}
 
   const handlePrint = () => {
     window.print()
@@ -275,6 +284,42 @@ export default function PurchaseOrders() {
                   </td>
                   <td className="px-5 py-3 text-center">
                     <div className="flex items-center justify-center gap-2">
+                      <td className="px-5 py-3 text-center">
+  <div className="flex items-center justify-center gap-2">
+    {po.status === 'draft' && role === 'admin' && (
+      <button
+        onClick={() => handleApprove(po.id)}
+        className="px-3 py-1 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-xs font-medium transition-colors"
+      >
+        Approve
+      </button>
+    )}
+    {po.status === 'approved' && (
+      <button
+        onClick={() => handleReceive(po.id)}
+        className="px-3 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg text-xs font-medium transition-colors"
+      >
+        Mark Received
+      </button>
+    )}
+    {po.status === 'received' && (
+      <button
+        onClick={() => handleViewQR(po.id)}
+        className="px-3 py-1 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg text-xs font-medium transition-colors"
+      >
+        View QR Codes
+      </button>
+    )}
+    {role === 'admin' && (
+      <button
+        onClick={() => handleDelete(po.id, po.po_number)}
+        className="px-3 py-1 border border-red-300 hover:bg-red-50 text-red-500 rounded-lg text-xs font-medium transition-colors"
+      >
+        Delete
+      </button>
+    )}
+  </div>
+</td>
                       {po.status === 'draft' && role === 'admin' && (
                         <button
                           onClick={() => handleApprove(po.id)}

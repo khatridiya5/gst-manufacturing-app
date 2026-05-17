@@ -323,3 +323,25 @@ def get_itc_summary(
         "total_igst_itc": total_igst,
         "total_itc": total_cgst + total_sgst + total_igst
     }
+
+# ─── DELETE PO ───────────────────────────────────────────────
+
+@router.delete("/po/{po_id}")
+def delete_po(
+    po_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    po = db.query(PurchaseOrder).filter(
+        PurchaseOrder.id == po_id,
+        PurchaseOrder.company_id == current_user.company_id
+    ).first()
+    if not po:
+        raise HTTPException(status_code=404, detail="PO not found")
+    
+    # Delete related records first
+    db.query(POLineItem).filter(POLineItem.po_id == po_id).delete()
+    db.query(PartInstance).filter(PartInstance.purchase_order_id == po_id).delete()
+    db.delete(po)
+    db.commit()
+    return {"message": "PO deleted successfully"}
