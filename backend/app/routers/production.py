@@ -391,3 +391,45 @@ def verify_worker(data: WorkerQRIn, db: Session = Depends(get_db)):
     if not worker:
         raise HTTPException(status_code=404, detail="Worker not found")
     return {"id": worker.id, "name": worker.name, "department": worker.department}
+
+
+# ─── DELETE PRODUCTION ORDER ─────────────────────────────────
+
+@router.delete("/orders/{order_id}")
+def delete_production_order(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    order = db.query(ProductionOrder).filter(
+        ProductionOrder.id == order_id,
+        ProductionOrder.company_id == current_user.company_id
+    ).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Production order not found")
+
+    # 1. Find part instances linked to this order's finished good via order_number in serial
+    bom = db.query(BOMHeader).filter(BOMHeader.id == order.bom_id).first()
+    fg = db.query(Item).filter(Item.id == bom.finished_good_id).first()
+    parts = db.query(PartInstance).filter(
+        PartInstance.item_id == fg.id,
+        PartInstance.company_id == current_user.company_id,
+        PartInstance.serial_number.like(f"%{order.order_number}%")
+    ).all()
+    part_ids = [p.id for p in parts]
+
+    # 2. Delete wip_scans for those parts
+    if part_ids:
+        db.query(WIPScan).filter(WIPScan.part_instance_id.in_(part_ids)).delete(synchronize_session=False)
+        db.query(PartInstance).filter(PartInstance.id.in_(part_ids)).delete(synchronize_session=False)
+
+    # 3. Delete stock ledger entries
+    db.query(StockLedger).filter(
+        StockLedger.reference_id == order_id,
+        StockLedger.reference_type == "production_order"
+    ).delete()
+
+    # 4. Delete the order
+    db.delete(order)
+    db.commit()
+    return {"message": "Production order deleted successfully"}
