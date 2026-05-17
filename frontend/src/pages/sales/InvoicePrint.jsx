@@ -139,7 +139,7 @@ export default function InvoicePrint() {
     y += 5
 
     const lw = TW * 0.52, rw = TW - lw, rx = x0 + lw
-    const c1 = rw * 0.37, c2 = rw * 0.27, c3 = rw - c1 - c2
+    const c1 = rw * 0.32, c2 = rw * 0.38, c3 = rw - c1 - c2
 
     // Build address lines from company address
     const addrParts = company.address.split(',').map(s => s.trim()).filter(Boolean)
