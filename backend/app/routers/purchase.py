@@ -68,6 +68,7 @@ def create_po(
         PurchaseOrder.company_id == current_user.company_id
     ).scalar() or 0
     po_number = f"PO-{current_user.company_id}-{str(last_id + 1).zfill(4)}"
+    total = sum(li.quantity * li.unit_price for li in data.line_items)
 
     po = PurchaseOrder(
         company_id=current_user.company_id,
