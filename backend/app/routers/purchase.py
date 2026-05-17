@@ -338,8 +338,13 @@ def delete_po(
     ).first()
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
-    
-    # Delete related records first
+
+    # Delete in correct order to avoid FK violations
+    invoices = db.query(PurchaseInvoice).filter(PurchaseInvoice.po_id == po_id).all()
+    for inv in invoices:
+        db.query(PurchaseLineItem).filter(PurchaseLineItem.purchase_invoice_id == inv.id).delete()
+        db.delete(inv)
+
     db.query(POLineItem).filter(POLineItem.po_id == po_id).delete()
     db.query(PartInstance).filter(PartInstance.purchase_order_id == po_id).delete()
     db.delete(po)
