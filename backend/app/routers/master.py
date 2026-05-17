@@ -98,7 +98,7 @@ def delete_item(
     current_user: User = Depends(require_role("admin"))
 ):
     from app.models.purchase import POLineItem, PurchaseLineItem, PurchaseInvoice
-    from app.models.production import BOMLineItem
+    from app.models.production import BOMLineItem, BOMHeader, ProductionOrder
     from app.models.stock import StockLedger, PartInstance
     from app.models.wip_scan import WIPScan
 
@@ -116,21 +116,33 @@ def delete_item(
         db.query(WIPScan).filter(WIPScan.part_instance_id.in_(part_ids)).delete(synchronize_session=False)
         db.query(PartInstance).filter(PartInstance.id.in_(part_ids)).delete(synchronize_session=False)
 
-    # 2. Delete purchase line items
-    db.query(POLineItem).filter(POLineItem.item_id == item_id).delete()
-    inv_lines_query = db.query(PurchaseLineItem).filter(PurchaseLineItem.item_id == item_id)
-    inv_lines_query.delete()
+    # 2. Delete BOM headers (finished good) → first delete their line items and production orders
+    boms = db.query(BOMHeader).filter(BOMHeader.finished_good_id == item_id).all()
+    bom_ids = [b.id for b in boms]
+    if bom_ids:
+        db.query(BOMLineItem).filter(BOMLineItem.bom_id.in_(bom_ids)).delete(synchronize_session=False)
+        prod_orders = db.query(ProductionOrder).filter(ProductionOrder.bom_id.in_(bom_ids)).all()
+        prod_order_ids = [o.id for o in prod_orders]
+        if prod_order_ids:
+            db.query(StockLedger).filter(
+                StockLedger.reference_id.in_(prod_order_ids),
+                StockLedger.reference_type == "production_order"
+            ).delete(synchronize_session=False)
+        db.query(ProductionOrder).filter(ProductionOrder.bom_id.in_(bom_ids)).delete(synchronize_session=False)
+        db.query(BOMHeader).filter(BOMHeader.id.in_(bom_ids)).delete(synchronize_session=False)
 
-    # 3. Delete BOM line items
+    # 3. Delete BOM line items where item is raw material
     db.query(BOMLineItem).filter(BOMLineItem.raw_material_id == item_id).delete()
 
-    # 4. Delete stock ledger
+    # 4. Delete purchase line items and stock ledger
+    db.query(POLineItem).filter(POLineItem.item_id == item_id).delete()
+    db.query(PurchaseLineItem).filter(PurchaseLineItem.item_id == item_id).delete()
     db.query(StockLedger).filter(StockLedger.item_id == item_id).delete()
 
     # 5. Delete item
     db.delete(item)
     db.commit()
-    return {"message": "Item deleted successfully"}
+    return {"message": "Item deleted successfully"} 
 
 # ─── VENDOR SCHEMAS ──────────────────────────────────────────
 class VendorCreate(BaseModel):
