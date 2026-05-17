@@ -251,10 +251,14 @@ export default function InvoicePrint() {
     })
 
     // ── ITEMS TABLE HEADER ─────────────────────────────────────
-    const si_w = TW * 0.04, desc_w = TW * 0.35, hsn_w = TW * 0.115,
-          qty_w = TW * 0.09, rate_w = TW * 0.105, per_w = TW * 0.07,
-          disc_w = TW * 0.085
-    const amt_w = TW - si_w - desc_w - hsn_w - qty_w - rate_w - per_w - disc_w
+    const si_w   = TW * 0.04
+const desc_w = TW * 0.32
+const hsn_w  = TW * 0.11
+const qty_w  = TW * 0.09
+const rate_w = TW * 0.10
+const per_w  = TW * 0.06
+const disc_w = TW * 0.07
+const amt_w  = TW - si_w - desc_w - hsn_w - qty_w - rate_w - per_w - disc_w
     const hdrH = 6.5
 
     let cx = x0
