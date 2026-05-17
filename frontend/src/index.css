@@ -3,18 +3,13 @@
 
 
 @media print {
-  /* Hide everything */
   body * {
     visibility: hidden;
   }
-  
-  /* Show only the invoice preview */
   #invoice-preview,
   #invoice-preview * {
     visibility: visible;
   }
-  
-  /* Position it at top-left */
   #invoice-preview {
     position: absolute;
     left: 0;
