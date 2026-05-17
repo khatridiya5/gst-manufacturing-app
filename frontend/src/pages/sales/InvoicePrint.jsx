@@ -17,6 +17,7 @@ const DEFAULT_COMPANY = {
   branch: 'Branch Name',
   state: 'Gujarat',
   state_code: '24',
+  watermark: '',
 }
 
 export default function InvoicePrint() {
@@ -81,7 +82,7 @@ export default function InvoicePrint() {
     // Watermark
   doc.setTextColor(230, 230, 230)
   doc.setFontSize(50)
-  doc.text(company.name, 35, 160, {
+  doc.text(company.watermark ||company.name, 35, 160, {
     angle: 45,
   })
 doc.setTextColor(0, 0, 0)
@@ -248,6 +249,9 @@ doc.setTextColor(0, 0, 0)
                 { label: 'Account No', key: 'account_no' },
                 { label: 'IFSC Code', key: 'ifsc' },
                 { label: 'Branch', key: 'branch' },
+                { label: 'Watermark Text', key: 'watermark' },
+        
+
               ].map(f => (
                 <div key={f.key}>
                   <label className="block text-sm font-medium text-slate-600 mb-1">{f.label}</label>
@@ -395,7 +399,7 @@ doc.setTextColor(0, 0, 0)
             <h1
               className="text-[100px] font-bold text-slate-200 opacity-10 rotate-[-30deg]"
                 >
-              KUNJ'S WORLD :-)
+              {company.watermark || company.name}
             </h1>
             </div> 
             {/* Company header */}
