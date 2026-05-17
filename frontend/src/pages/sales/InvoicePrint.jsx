@@ -380,7 +380,7 @@ export default function InvoicePrint() {
     cell(cx, y, rate_w,  totH, ''); cx += rate_w
     cell(cx, y, per_w,   totH, ''); cx += per_w
     cell(cx, y, disc_w,  totH, ''); cx += disc_w
-    cell(cx, y, amt_w,   totH, `\u20b9 ${totalAmt.toFixed(2)}`, { bold: true, align: 'R', size: 8 })
+    cell(cx, y, amt_w,   totH, `\u20b9 ${totalAmt.toFixed(2)}`, { bold: true, align: 'R', size: 7 })
     y += totH
 
     // ── AMOUNT IN WORDS ────────────────────────────────────────
@@ -410,8 +410,12 @@ export default function InvoicePrint() {
 
     // ── HSN TAX SUMMARY ────────────────────────────────────────
     const th = 4.5
-    const hsnC = TW * 0.20, taxC = TW * 0.15, rateC = TW * 0.10, amtC = TW * 0.10
-    const totTax = TW - (hsnC + taxC + rateC + amtC) * 2
+    const hsnC  = TW * 0.20   // HSN/SAC column
+    const taxC  = TW * 0.15   // Taxable Value
+    const rateC = TW * 0.10   // Rate (appears twice: CGST rate + IGST rate)
+    const amtC  = TW * 0.10   // Amount (appears twice: CGST amt + IGST amt)
+    const totTax = TW - hsnC - taxC - (rateC * 2) - (amtC * 2)
+    // = 186 - 37.2 - 27.9 - 37.2 - 37.2 = 46.5mm  ✓
 
     cx = x0
     cell(cx, y, hsnC, th, 'HSN/SAC', { align: 'C' }); cx += hsnC
