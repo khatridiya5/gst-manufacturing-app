@@ -379,12 +379,11 @@ const amt_w  = TW - si_w - desc_w - hsn_w - qty_w - rate_w - per_w - disc_w
     const totH = 5.5
     const cgstLW2 = labelW - qty_w - rate_w - per_w
     cx = x0
-    cell(cx, y, cgstLW2, totH, 'Total', { align: 'R' }); cx += cgstLW2
-    cell(cx, y, qty_w,   totH, `${totalQty} NOS`, { bold: true, align: 'C' }); cx += qty_w
-    cell(cx, y, rate_w,  totH, ''); cx += rate_w
-    cell(cx, y, per_w,   totH, ''); cx += per_w
-    cell(cx, y, disc_w,  totH, ''); cx += disc_w
-    cell(cx, y, amt_w,   totH, `\u20b9 ${totalAmt.toFixed(2)}`, { bold: true, align: 'R', size: 7 })
+    const totLabelW = labelW  // full label width including rate/per/disc
+    cx = x0
+    cell(cx, y, totLabelW - qty_w, totH, 'Total', { align: 'R' }); cx += totLabelW - qty_w
+    cell(cx, y, qty_w, totH, `${totalQty} NOS`, { bold: true, align: 'C' }); cx += qty_w
+    cell(cx, y, amt_w, totH, `\u20b9 ${totalAmt.toFixed(2)}`, { bold: true, align: 'R', size: 7 })
     y += totH
 
     // ── AMOUNT IN WORDS ────────────────────────────────────────
