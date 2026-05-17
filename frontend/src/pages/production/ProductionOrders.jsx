@@ -83,6 +83,16 @@ export default function ProductionOrders() {
     } catch (err) { console.error(err) }
   }
 
+  const handleDelete = async (orderId, orderNumber) => {
+    if (!confirm(`Delete ${orderNumber}? This cannot be undone.`)) return
+    try {
+      await api.delete(`/production/orders/${orderId}`)
+      fetchAll()
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Error deleting order')
+    }
+  }
+
   const rawMaterials = items.filter(i => i.item_type === 'raw_material')
   const finishedGoods = items.filter(i => i.item_type === 'finished_good')
   const getBOMName = (id) => boms.find(b => b.id === id)?.finished_good || '—'
@@ -201,6 +211,12 @@ export default function ProductionOrders() {
                     {order.status === 'completed' && (
                       <button onClick={() => handleViewQR(order.id)} className="px-3 py-1 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg text-xs font-medium">View QR</button>
                     )}
+                    <button
+                      onClick={() => handleDelete(order.id, order.order_number)}
+                      className="px-3 py-1 border border-red-300 hover:bg-red-50 text-red-500 rounded-lg text-xs font-medium transition-colors"
+                    >
+                      Delete
+                    </button>
                   </div>
                 </td>
               </tr>
@@ -257,4 +273,4 @@ export default function ProductionOrders() {
       )}
     </div>
   )
-}
+}// updated
