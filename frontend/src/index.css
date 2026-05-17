@@ -3,28 +3,22 @@
 
 
 @media print {
-  /* Hide everything first */
+  /* Hide everything */
   body * {
     visibility: hidden;
   }
-
-  /* Show only invoice */
+  
+  /* Show only the invoice preview */
   #invoice-preview,
   #invoice-preview * {
     visibility: visible;
   }
-
-  /* Position invoice properly */
+  
+  /* Position it at top-left */
   #invoice-preview {
     position: absolute;
     left: 0;
     top: 0;
     width: 100%;
-    background: white;
-  }
-
-  /* Hide buttons while printing */
-  button {
-    display: none !important;
   }
 }
