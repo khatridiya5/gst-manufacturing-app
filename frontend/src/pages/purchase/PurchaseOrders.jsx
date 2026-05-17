@@ -283,8 +283,6 @@ export default function PurchaseOrders() {
                     <StatusBadge status={po.status} />
                   </td>
                   <td className="px-5 py-3 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      <td className="px-5 py-3 text-center">
   <div className="flex items-center justify-center gap-2">
     {po.status === 'draft' && role === 'admin' && (
       <button
@@ -320,6 +318,9 @@ export default function PurchaseOrders() {
     )}
   </div>
 </td>
+  
+       
+   
                       {po.status === 'draft' && role === 'admin' && (
                         <button
                           onClick={() => handleApprove(po.id)}
