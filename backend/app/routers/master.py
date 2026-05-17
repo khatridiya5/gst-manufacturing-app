@@ -97,10 +97,11 @@ def delete_item(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin"))
 ):
-    from app.models.purchase import POLineItem, PurchaseLineItem, PurchaseInvoice
+    from app.models.purchase import POLineItem, PurchaseLineItem
     from app.models.production import BOMLineItem, BOMHeader, ProductionOrder
     from app.models.stock import StockLedger, PartInstance
     from app.models.wip_scan import WIPScan
+    from app.models.sales import SalesLineItem
 
     item = db.query(Item).filter(
         Item.id == item_id,
@@ -109,63 +110,45 @@ def delete_item(
     if not item:
         raise HTTPException(status_code=404, detail="Item not found")
 
-    # 1. Delete wip_scans → part_instances
+    # 1. wip_scans → part_instances
     parts = db.query(PartInstance).filter(PartInstance.item_id == item_id).all()
     part_ids = [p.id for p in parts]
     if part_ids:
         db.query(WIPScan).filter(WIPScan.part_instance_id.in_(part_ids)).delete(synchronize_session=False)
         db.query(PartInstance).filter(PartInstance.id.in_(part_ids)).delete(synchronize_session=False)
 
-    # 2. Delete BOM headers (finished good) → first delete their line items and production orders
+    # 2. BOM headers (finished good) → line items + production orders
     boms = db.query(BOMHeader).filter(BOMHeader.finished_good_id == item_id).all()
     bom_ids = [b.id for b in boms]
     if bom_ids:
         db.query(BOMLineItem).filter(BOMLineItem.bom_id.in_(bom_ids)).delete(synchronize_session=False)
-        prod_orders = db.query(ProductionOrder).filter(ProductionOrder.bom_id.in_(bom_ids)).all()
-        prod_order_ids = [o.id for o in prod_orders]
-        if prod_order_ids:
+        orders = db.query(ProductionOrder).filter(ProductionOrder.bom_id.in_(bom_ids)).all()
+        order_ids = [o.id for o in orders]
+        if order_ids:
             db.query(StockLedger).filter(
-                StockLedger.reference_id.in_(prod_order_ids),
+                StockLedger.reference_id.in_(order_ids),
                 StockLedger.reference_type == "production_order"
             ).delete(synchronize_session=False)
         db.query(ProductionOrder).filter(ProductionOrder.bom_id.in_(bom_ids)).delete(synchronize_session=False)
         db.query(BOMHeader).filter(BOMHeader.id.in_(bom_ids)).delete(synchronize_session=False)
 
-    # 3. Delete BOM line items where item is raw material
+    # 3. BOM line items (raw material)
     db.query(BOMLineItem).filter(BOMLineItem.raw_material_id == item_id).delete()
 
-    # 4. Delete purchase line items and stock ledger
+    # 4. Purchase line items
     db.query(POLineItem).filter(POLineItem.item_id == item_id).delete()
     db.query(PurchaseLineItem).filter(PurchaseLineItem.item_id == item_id).delete()
+
+    # 5. Sales line items
+    db.query(SalesLineItem).filter(SalesLineItem.item_id == item_id).delete()
+
+    # 6. Stock ledger
     db.query(StockLedger).filter(StockLedger.item_id == item_id).delete()
 
-    # 5. Delete item
+    # 7. Delete item
     db.delete(item)
     db.commit()
-    return {"message": "Item deleted successfully"} 
-
-# ─── VENDOR SCHEMAS ──────────────────────────────────────────
-class VendorCreate(BaseModel):
-    name: str
-    gstin: Optional[str] = None
-    pan: Optional[str] = None
-    address: Optional[str] = None
-    state: Optional[str] = None
-    state_code: Optional[str] = None
-    phone: Optional[str] = None
-    email: Optional[str] = None
-
-class VendorOut(BaseModel):
-    id: int
-    name: str
-    gstin: Optional[str]
-    state: Optional[str]
-    state_code: Optional[str]
-    phone: Optional[str]
-    email: Optional[str]
-    is_active: bool
-    class Config:
-        from_attributes = True
+    return {"message": "Item deleted successfully"}
 
 # ─── VENDOR ENDPOINTS ────────────────────────────────────────
 @router.post("/vendors", response_model=VendorOut)
