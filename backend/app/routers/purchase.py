@@ -326,12 +326,16 @@ def get_itc_summary(
 
 # ─── DELETE PO ───────────────────────────────────────────────
 
+
+
 @router.delete("/po/{po_id}")
 def delete_po(
     po_id: int,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin"))
 ):
+    from app.models.wip_scan import WIPScan
+
     po = db.query(PurchaseOrder).filter(
         PurchaseOrder.id == po_id,
         PurchaseOrder.company_id == current_user.company_id
@@ -339,14 +343,23 @@ def delete_po(
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
 
-    # Delete in correct order to avoid FK violations
+    # 1. Delete wip_scans linked to part_instances of this PO
+    parts = db.query(PartInstance).filter(PartInstance.purchase_order_id == po_id).all()
+    part_ids = [p.id for p in parts]
+    if part_ids:
+        db.query(WIPScan).filter(WIPScan.part_instance_id.in_(part_ids)).delete(synchronize_session=False)
+
+    # 2. Delete purchase invoice line items + invoices
     invoices = db.query(PurchaseInvoice).filter(PurchaseInvoice.po_id == po_id).all()
     for inv in invoices:
         db.query(PurchaseLineItem).filter(PurchaseLineItem.purchase_invoice_id == inv.id).delete()
         db.delete(inv)
 
+    # 3. Delete PO line items and part instances
     db.query(POLineItem).filter(POLineItem.po_id == po_id).delete()
     db.query(PartInstance).filter(PartInstance.purchase_order_id == po_id).delete()
+
+    # 4. Delete the PO itself
     db.delete(po)
     db.commit()
     return {"message": "PO deleted successfully"}
