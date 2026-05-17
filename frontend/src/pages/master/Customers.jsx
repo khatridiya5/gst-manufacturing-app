@@ -27,6 +27,16 @@ export default function Customers() {
     } catch (err) { alert(err.response?.data?.detail || 'Error') }
   }
 
+  const handleDelete = async (customerId, customerName) => {
+    if (!confirm(`Delete "${customerName}"? This cannot be undone.`)) return
+    try {
+      await api.delete(`/master/customers/${customerId}`)
+      fetchCustomers()
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Error deleting customer')
+    }
+  }
+
   if (loading) return <div className="text-slate-400 p-8">Loading...</div>
 
   return (
@@ -75,10 +85,11 @@ export default function Customers() {
               <th className="px-5 py-3 text-left">State</th>
               <th className="px-5 py-3 text-left">Phone</th>
               <th className="px-5 py-3 text-center">Status</th>
+              <th className="px-5 py-3 text-center">Actions</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-50">
-            {customers.length === 0 && <tr><td colSpan={5} className="px-5 py-8 text-center text-slate-400">No customers yet.</td></tr>}
+            {customers.length === 0 && <tr><td colSpan={6} className="px-5 py-8 text-center text-slate-400">No customers yet.</td></tr>}
             {customers.map(c => (
               <tr key={c.id} className="hover:bg-slate-50">
                 <td className="px-5 py-3 font-medium text-slate-700">{c.name}</td>
@@ -87,6 +98,14 @@ export default function Customers() {
                 <td className="px-5 py-3 text-slate-500">{c.phone || '—'}</td>
                 <td className="px-5 py-3 text-center">
                   <span className={`px-2.5 py-0.5 rounded-full text-xs font-medium ${c.is_active ? 'bg-green-50 text-green-700' : 'bg-red-50 text-red-600'}`}>{c.is_active ? 'Active' : 'Inactive'}</span>
+                </td>
+                <td className="px-5 py-3 text-center">
+                  <button
+                    onClick={() => handleDelete(c.id, c.name)}
+                    className="px-3 py-1 border border-red-300 hover:bg-red-50 text-red-500 rounded-lg text-xs font-medium transition-colors"
+                  >
+                    Delete
+                  </button>
                 </td>
               </tr>
             ))}

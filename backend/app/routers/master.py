@@ -241,6 +241,30 @@ def get_customers(
         Customer.is_active == True
     ).all()
 
+@router.delete("/customers/{customer_id}")
+def delete_customer(
+    customer_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    from app.models.sales import SalesInvoice, SalesLineItem
+
+    customer = db.query(Customer).filter(
+        Customer.id == customer_id,
+        Customer.company_id == current_user.company_id
+    ).first()
+    if not customer:
+        raise HTTPException(status_code=404, detail="Customer not found")
+
+    # Delete sales invoice line items then invoices
+    invoices = db.query(SalesInvoice).filter(SalesInvoice.customer_id == customer_id).all()
+    for inv in invoices:
+        db.query(SalesLineItem).filter(SalesLineItem.sales_invoice_id == inv.id).delete()
+        db.delete(inv)
+
+    db.delete(customer)
+    db.commit()
+    return {"message": "Customer deleted successfully"}
 
 @router.delete("/vendors/{vendor_id}")
 def delete_vendor(vendor_id: int, db: Session = Depends(get_db)):
