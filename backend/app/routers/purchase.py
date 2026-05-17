@@ -64,10 +64,10 @@ def create_po(
     current_user: User = Depends(require_role("admin", "accountant"))
 ):
     from sqlalchemy import func
-last_id = db.query(func.max(PurchaseOrder.id)).filter(
-    PurchaseOrder.company_id == current_user.company_id
-).scalar() or 0
-po_number = f"PO-{current_user.company_id}-{str(last_id + 1).zfill(4)}"
+    last_id = db.query(func.max(PurchaseOrder.id)).filter(
+        PurchaseOrder.company_id == current_user.company_id
+    ).scalar() or 0
+    po_number = f"PO-{current_user.company_id}-{str(last_id + 1).zfill(4)}"
 
     po = PurchaseOrder(
         company_id=current_user.company_id,
