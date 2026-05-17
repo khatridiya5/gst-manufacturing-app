@@ -433,3 +433,23 @@ def delete_production_order(
     db.delete(order)
     db.commit()
     return {"message": "Production order deleted successfully"}
+
+
+
+# ─── DELETE WIP SCAN ─────────────────────────────────────────
+
+@router.delete("/wip/{scan_id}")
+def delete_wip_scan(
+    scan_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    scan = db.query(WIPScan).filter(
+        WIPScan.id == scan_id,
+        WIPScan.company_id == current_user.company_id
+    ).first()
+    if not scan:
+        raise HTTPException(status_code=404, detail="Scan not found")
+    db.delete(scan)
+    db.commit()
+    return {"message": "Scan deleted successfully"}
