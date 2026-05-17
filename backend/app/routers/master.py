@@ -34,6 +34,28 @@ class ItemOut(BaseModel):
     class Config:
         from_attributes = True
 
+
+# ─── VENDOR SCHEMAS ──────────────────────────────────────────
+class VendorCreate(BaseModel):
+    name: str
+    gstin: Optional[str] = None
+    state_code: Optional[str] = None
+    phone: Optional[str] = None
+    email: Optional[str] = None
+    address: Optional[str] = None
+
+class VendorOut(BaseModel):
+    id: int
+    name: str
+    gstin: Optional[str]
+    state_code: Optional[str]
+    phone: Optional[str]
+    email: Optional[str]
+    address: Optional[str]
+    is_active: bool
+    class Config:
+        from_attributes = True
+
 # ─── ITEM ENDPOINTS ──────────────────────────────────────────
 @router.post("/items", response_model=ItemOut)
 def create_item(
