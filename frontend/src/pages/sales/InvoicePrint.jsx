@@ -383,7 +383,7 @@ const amt_w  = TW - si_w - desc_w - hsn_w - qty_w - rate_w - per_w - disc_w
     cx = x0
     cell(cx, y, totLabelW - qty_w, totH, 'Total', { align: 'R' }); cx += totLabelW - qty_w
     cell(cx, y, qty_w, totH, `${totalQty} NOS`, { bold: true, align: 'C' }); cx += qty_w
-    cell(cx, y, amt_w, totH, `\u20b9 ${totalAmt.toFixed(2)}`, { bold: true, align: 'R', size: 7 })
+    cell(cx, y, amt_w, totH, `Rs. ${totalAmt.toFixed(2)}`, { bold: true, align: 'R', size: 7 })
     y += totH
 
     // ── AMOUNT IN WORDS ────────────────────────────────────────
