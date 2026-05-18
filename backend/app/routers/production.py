@@ -15,6 +15,7 @@ from app.models.wip_scan import WIPScan
 from app.models.worker import Worker
 from app.models.stock import PartInstance
 from datetime import datetime
+from app.utils.otp import verify_delete_otp
 
 router = APIRouter(prefix="/production", tags=["Production"])
 
