@@ -8,6 +8,7 @@ from app.utils.auth import get_current_user, require_role
 from app.models.user import User
 from app.services.qr import generate_qr_base64, generate_worker_qr_data
 from app.utils.otp import verify_delete_otp
+from app.models.wip_scan import WIPScan
 
 router = APIRouter(prefix="/workers", tags=["Workers"])
 
