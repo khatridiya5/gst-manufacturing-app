@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../../api/client'
+import DeleteConfirmModal from '../../components/DeleteConfirmModal'
 
 export default function Workers() {
   const [workers, setWorkers] = useState([])
@@ -9,6 +10,7 @@ export default function Workers() {
   const [name, setName] = useState('')
   const [department, setDepartment] = useState('')
   const [phone, setPhone] = useState('')
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   const departments = ['Assembly', 'Welding', 'Cutting', 'Quality Check', 'Packaging', 'Dispatch']
 
@@ -48,15 +50,15 @@ export default function Workers() {
     }
   }
 
-  const handleDeactivate = async (workerId) => {
-    if (!confirm('Deactivate this worker?')) return
-    try {
-      await api.patch(`/workers/${workerId}/deactivate`)
-      fetchWorkers()
-    } catch (err) {
-      alert(err.response?.data?.detail || 'Error')
-    }
+  const handleDelete = async (otp) => {
+  try {
+    await api.delete(`/workers/${deleteTarget.id}?otp=${otp}`)
+    setDeleteTarget(null)
+    fetchWorkers()
+  } catch (err) {
+    alert(err.response?.data?.detail || 'Error deleting worker')
   }
+}
 
   const deptColors = {
     'Assembly': 'bg-teal-50 text-teal-700',
@@ -199,7 +201,7 @@ export default function Workers() {
                 🖨️ Print QR Card
               </button>
               <button
-                onClick={() => handleDeactivate(worker.id)}
+                onClick={() => setDeleteTarget({ id: worker.id, name: worker.name })}
                 className="py-2 px-3 bg-slate-50 hover:bg-red-50 text-slate-400 hover:text-red-500 rounded-lg text-xs transition-colors"
               >
                 ✕
@@ -247,6 +249,7 @@ export default function Workers() {
                     className="w-48 h-48 mx-auto mb-3"
                   />
                 )}
+                
 
                 {/* Worker details */}
                 <p className="text-xl font-bold text-slate-800 mb-1">{selectedWorker.name}</p>
@@ -265,6 +268,13 @@ export default function Workers() {
             </div>
           </div>
         </div>
+      )}
+      {deleteTarget && (
+        <DeleteConfirmModal
+          itemName={deleteTarget.name}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
       )}
     </div>
   )

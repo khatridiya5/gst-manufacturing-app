@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../../api/client'
+import DeleteConfirmModal from '../../components/DeleteConfirmModal'
 
 const StatusBadge = ({ status }) => {
   const colors = { planned: 'bg-amber-50 text-amber-700', in_progress: 'bg-blue-50 text-blue-700', completed: 'bg-green-50 text-green-700', cancelled: 'bg-red-50 text-red-600' }
@@ -16,6 +17,7 @@ export default function ProductionOrders() {
   const [completeModal, setCompleteModal] = useState(null)
   const [qrModal, setQrModal] = useState(null)
   const [qrCodes, setQrCodes] = useState([])
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   const [bomForm, setBomForm] = useState({ finished_good_id: '', version: '1.0', line_items: [{ raw_material_id: '', quantity_required: '', unit: 'kg', scrap_percentage: 0 }] })
   const [orderForm, setOrderForm] = useState({ bom_id: '', planned_quantity: '' })
@@ -83,15 +85,15 @@ export default function ProductionOrders() {
     } catch (err) { console.error(err) }
   }
 
-  const handleDelete = async (orderId, orderNumber) => {
-    if (!confirm(`Delete ${orderNumber}? This cannot be undone.`)) return
-    try {
-      await api.delete(`/production/orders/${orderId}`)
-      fetchAll()
-    } catch (err) {
-      alert(err.response?.data?.detail || 'Error deleting order')
-    }
+  const handleDelete = async (otp) => {
+  try {
+    await api.delete(`/production/orders/${deleteTarget.id}?otp=${otp}`)
+    setDeleteTarget(null)
+    fetchAll()
+  } catch (err) {
+    alert(err.response?.data?.detail || 'Error deleting order')
   }
+}
 
   const rawMaterials = items.filter(i => i.item_type === 'raw_material')
   const finishedGoods = items.filter(i => i.item_type === 'finished_good')
@@ -212,7 +214,7 @@ export default function ProductionOrders() {
                       <button onClick={() => handleViewQR(order.id)} className="px-3 py-1 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg text-xs font-medium">View QR</button>
                     )}
                     <button
-                      onClick={() => handleDelete(order.id, order.order_number)}
+                      onClick={() => setDeleteTarget({ id: order.id, name: order.order_number })}
                       className="px-3 py-1 border border-red-300 hover:bg-red-50 text-red-500 rounded-lg text-xs font-medium transition-colors"
                     >
                       Delete
@@ -270,6 +272,13 @@ export default function ProductionOrders() {
             </div>
           </div>
         </div>
+      )}
+      {deleteTarget && (
+      <DeleteConfirmModal
+      itemName={deleteTarget.name}
+      onConfirm={handleDelete}
+      onCancel={() => setDeleteTarget(null)}
+      />
       )}
     </div>
   )

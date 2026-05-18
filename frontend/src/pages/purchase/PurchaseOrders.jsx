@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../../api/client'
+import DeleteConfirmModal from '../../components/DeleteConfirmModal'
 
 const StatusBadge = ({ status }) => {
   const colors = {
@@ -23,6 +24,7 @@ export default function PurchaseOrders() {
   const [showForm, setShowForm] = useState(false)
   const [qrModal, setQrModal] = useState(null)
   const [qrCodes, setQrCodes] = useState([])
+  const [deleteTarget, setDeleteTarget] = useState(null)
   const role = localStorage.getItem('role')
 
   const [vendorId, setVendorId] = useState('')
@@ -112,15 +114,15 @@ export default function PurchaseOrders() {
     }
   }
 
-  const handleDelete = async (poId, poNumber) => {
-    if (!confirm(`Delete ${poNumber}? This cannot be undone.`)) return
-    try {
-      await api.delete(`/purchase/po/${poId}`)
-      fetchPOs()
-    } catch (err) {
-      alert(err.response?.data?.detail || 'Error deleting PO')
-    }
+  const handleDelete = async (otp) => {
+  try {
+    await api.delete(`/purchase/po/${deleteTarget.id}?otp=${otp}`)
+    setDeleteTarget(null)
+    fetchPOs()
+  } catch (err) {
+    alert(err.response?.data?.detail || 'Error deleting PO')
   }
+}
 
   const handlePrint = () => {
     window.print()
@@ -310,12 +312,12 @@ export default function PurchaseOrders() {
                       )}
                       {role === 'admin' && (
                         <button
-                          onClick={() => handleDelete(po.id, po.po_number)}
-                          className="px-3 py-1 border border-red-300 hover:bg-red-50 text-red-500 rounded-lg text-xs font-medium transition-colors"
+                        onClick={() => setDeleteTarget({ id: po.id, name: po.po_number })}
+                        className="px-3 py-1 border border-red-300 hover:bg-red-50 text-red-500 rounded-lg text-xs font-medium transition-colors"
                         >
-                          Delete
+                        Delete
                         </button>
-                      )}
+                        )}
                     </div>
                   </td>
                 </tr>
@@ -367,6 +369,13 @@ export default function PurchaseOrders() {
             </div>
           </div>
         </div>
+      )}
+      {deleteTarget && (
+        <DeleteConfirmModal
+          itemName={deleteTarget.name}
+          onConfirm={handleDelete}
+          onCancel={() => setDeleteTarget(null)}
+        />
       )}
     </div>
   )

@@ -398,9 +398,14 @@ def verify_worker(data: WorkerQRIn, db: Session = Depends(get_db)):
 @router.delete("/orders/{order_id}")
 def delete_production_order(
     order_id: int,
+    otp: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin"))
 ):
+    # 1. Verify OTP first
+    if not verify_delete_otp(otp):
+        raise HTTPException(status_code=403, detail="Invalid OTP")
+
     order = db.query(ProductionOrder).filter(
         ProductionOrder.id == order_id,
         ProductionOrder.company_id == current_user.company_id
@@ -408,7 +413,7 @@ def delete_production_order(
     if not order:
         raise HTTPException(status_code=404, detail="Production order not found")
 
-    # 1. Find part instances linked to this order's finished good via order_number in serial
+    # 2. Find part instances linked to this order
     bom = db.query(BOMHeader).filter(BOMHeader.id == order.bom_id).first()
     fg = db.query(Item).filter(Item.id == bom.finished_good_id).first()
     parts = db.query(PartInstance).filter(
@@ -418,21 +423,25 @@ def delete_production_order(
     ).all()
     part_ids = [p.id for p in parts]
 
-    # 2. Delete wip_scans for those parts
+    # 3. Delete wip_scans and part instances
     if part_ids:
         db.query(WIPScan).filter(WIPScan.part_instance_id.in_(part_ids)).delete(synchronize_session=False)
         db.query(PartInstance).filter(PartInstance.id.in_(part_ids)).delete(synchronize_session=False)
 
-    # 3. Delete stock ledger entries
+    # 4. Delete stock ledger entries
     db.query(StockLedger).filter(
         StockLedger.reference_id == order_id,
         StockLedger.reference_type == "production_order"
     ).delete()
 
-    # 4. Delete the order
+    # 5. Delete the order
     db.delete(order)
     db.commit()
     return {"message": "Production order deleted successfully"}
+ 
+
+ 
+
 
 
 

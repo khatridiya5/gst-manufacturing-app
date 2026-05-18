@@ -93,22 +93,32 @@ def get_worker_qr(
 
 # ─── DEACTIVATE WORKER ────────────────────────────────────────
 
-@router.patch("/{worker_id}/deactivate", response_model=WorkerOut)
-def deactivate_worker(
+@router.delete("/{worker_id}")
+def delete_worker(
     worker_id: int,
+    otp: str,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin"))
 ):
+    # 1. Verify OTP first
+    if not verify_delete_otp(otp):
+        raise HTTPException(status_code=403, detail="Invalid OTP")
+
     worker = db.query(Worker).filter(
         Worker.id == worker_id,
         Worker.company_id == current_user.company_id
     ).first()
     if not worker:
         raise HTTPException(status_code=404, detail="Worker not found")
-    worker.is_active = False
+
+    # 2. Delete related WIP scans
+    db.query(WIPScan).filter(WIPScan.worker_id == worker_id).delete(synchronize_session=False)
+
+    # 3. Delete the worker
+    db.delete(worker)
     db.commit()
-    db.refresh(worker)
-    return worker
+    return {"message": "Worker deleted successfully"}
+  
 
 # ─── LOOKUP BY QR SCAN ────────────────────────────────────────
 
@@ -129,3 +139,4 @@ def lookup_by_qr(
         "worker_code": worker.worker_code,
         "department": worker.department
     }
+
