@@ -711,7 +711,7 @@ const amt_w  = TW - si_w - desc_w - hsn_w - qty_w - rate_w - per_w - disc_w
       {(invoice || manualMode) && (
         <div id="invoice-preview" className="bg-white rounded-xl border border-slate-200 shadow-sm">
           {/* Action buttons */}
-          <div className="flex gap-2 p-4 border-b border-slate-100 justify-end">
+          <div className="flex gap-2 p-4 border-b border-slate-100 justify-end" print:hidden>
             <button onClick={() => window.print()} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium">🖨️ Print</button>
             <button onClick={handleDownloadPDF} className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-sm font-medium">⬇️ Download PDF</button>
           </div>
