@@ -2,62 +2,103 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 
+function passwordStrength(p) {
+  let s = 0
+  if (p.length >= 8) s++
+  if (/[A-Z]/.test(p)) s++
+  if (/[0-9]/.test(p)) s++
+  if (/[^A-Za-z0-9]/.test(p)) s++
+  return s
+}
+
 export default function Login() {
   const [tab, setTab] = useState('login')
   const navigate = useNavigate()
 
   return (
-    <div className="min-h-screen bg-slate-900 flex items-center justify-center">
-      <div className="w-full max-w-md">
+    <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
+      <div className="w-full max-w-sm">
+
         {/* Logo */}
-        <div className="text-center mb-8">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-teal-600 rounded-2xl mb-4">
-            <span className="text-white text-2xl font-bold">G</span>
+        <div className="text-center mb-7">
+          <div className="inline-flex items-center justify-center w-13 h-13 rounded-2xl bg-teal-600 mb-3 p-3">
+            <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round">
+              <path d="M12 2L2 7l10 5 10-5-10-5z"/><path d="M2 17l10 5 10-5"/><path d="M2 12l10 5 10-5"/>
+            </svg>
           </div>
-          <h1 className="text-2xl font-bold text-white">GST Manufacturing</h1>
-          <p className="text-slate-400 mt-1">Production & Inventory System</p>
+          <h1 className="text-xl font-semibold text-white tracking-tight">GST Manufacturing</h1>
+          <p className="text-sm text-slate-500 mt-1">Production & inventory system</p>
         </div>
 
         {/* Card */}
-        <div className="bg-slate-800 rounded-2xl shadow-xl overflow-hidden">
+        <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
+
           {/* Tabs */}
-          <div className="flex border-b border-slate-700">
-            <button
-              onClick={() => setTab('login')}
-              className={`flex-1 py-3.5 text-sm font-medium transition-colors ${
-                tab === 'login'
-                  ? 'text-teal-400 border-b-2 border-teal-400'
-                  : 'text-slate-400 hover:text-slate-300'
-              }`}
-            >
-              Sign In
-            </button>
-            <button
-              onClick={() => setTab('signup')}
-              className={`flex-1 py-3.5 text-sm font-medium transition-colors ${
-                tab === 'signup'
-                  ? 'text-teal-400 border-b-2 border-teal-400'
-                  : 'text-slate-400 hover:text-slate-300'
-              }`}
-            >
-              Create Account
-            </button>
+          <div className="flex border-b border-slate-800">
+            {[['login','Sign in'],['signup','Create account']].map(([key, label]) => (
+              <button key={key} onClick={() => setTab(key)}
+                className={`flex-1 py-3.5 text-sm font-medium transition-colors border-b-2 ${
+                  tab === key
+                    ? 'text-teal-400 border-teal-400'
+                    : 'text-slate-500 border-transparent hover:text-slate-300'
+                }`}>
+                {label}
+              </button>
+            ))}
           </div>
 
-          <div className="p-8">
+          <div className="p-6">
             {tab === 'login'
-              ? <LoginForm navigate={navigate} />
-              : <SignupForm onSuccess={() => setTab('login')} />
+              ? <LoginForm navigate={navigate} onSignup={() => setTab('signup')} />
+              : <SignupForm onSuccess={() => setTab('login')} onLogin={() => setTab('login')} />
             }
           </div>
         </div>
+
+        <p className="text-center text-xs text-slate-700 mt-5">
+          © {new Date().getFullYear()} GST Manufacturing · All rights reserved
+        </p>
       </div>
     </div>
   )
 }
 
-// ── LOGIN ────────────────────────────────────────────────────
-function LoginForm({ navigate }) {
+function Field({ label, icon, ...props }) {
+  return (
+    <div className="mb-4">
+      <label className="block text-xs font-medium text-slate-400 mb-1.5 tracking-wide">{label}</label>
+      <div className="relative">
+        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 text-sm">{icon}</span>
+        <input
+          {...props}
+          className="w-full pl-9 pr-4 py-2.5 bg-slate-800 border border-slate-700 rounded-lg text-white text-sm placeholder-slate-600 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500/40 transition-all"
+        />
+      </div>
+    </div>
+  )
+}
+
+function ErrorMsg({ msg }) {
+  if (!msg) return null
+  return (
+    <div className="flex items-center gap-2 bg-red-500/10 border border-red-500/20 rounded-lg px-3 py-2.5 mb-4">
+      <span className="text-red-400 text-xs">✕</span>
+      <p className="text-red-400 text-xs">{msg}</p>
+    </div>
+  )
+}
+
+function SuccessMsg({ msg }) {
+  if (!msg) return null
+  return (
+    <div className="flex items-center gap-2 bg-teal-500/10 border border-teal-500/20 rounded-lg px-3 py-2.5 mb-4">
+      <span className="text-teal-400 text-xs">✓</span>
+      <p className="text-teal-400 text-xs">{msg}</p>
+    </div>
+  )
+}
+
+function LoginForm({ navigate, onSignup }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -65,8 +106,7 @@ function LoginForm({ navigate }) {
 
   const handleLogin = async (e) => {
     e.preventDefault()
-    setLoading(true)
-    setError('')
+    setLoading(true); setError('')
     try {
       const form = new FormData()
       form.append('username', email)
@@ -76,47 +116,37 @@ function LoginForm({ navigate }) {
       localStorage.setItem('role', res.data.role)
       navigate('/')
     } catch {
-      setError('Invalid email or password')
+      setError('Invalid email or password. Please try again.')
     } finally {
       setLoading(false)
     }
   }
 
   return (
-    <form onSubmit={handleLogin} className="space-y-5">
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-1.5">Email</label>
-        <input
-          type="email" value={email} placeholder="you@company.com" required
-          onChange={e => setEmail(e.target.value)}
-          className="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-        />
+    <form onSubmit={handleLogin}>
+      <Field label="Email address" icon="✉" type="email" value={email} placeholder="you@company.com" required onChange={e => setEmail(e.target.value)} />
+      <Field label="Password" icon="🔒" type="password" value={password} placeholder="••••••••" required onChange={e => setPassword(e.target.value)} />
+      <div className="flex justify-end -mt-2 mb-4">
+        <span className="text-xs text-teal-500 cursor-pointer hover:text-teal-400">Forgot password?</span>
       </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-1.5">Password</label>
-        <input
-          type="password" value={password} placeholder="••••••••" required
-          onChange={e => setPassword(e.target.value)}
-          className="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-        />
-      </div>
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3">
-          <p className="text-red-400 text-sm">{error}</p>
-        </div>
-      )}
-      <button
-        type="submit" disabled={loading}
-        className="w-full py-2.5 bg-teal-600 hover:bg-teal-500 disabled:bg-teal-800 text-white font-semibold rounded-lg transition-colors"
-      >
-        {loading ? 'Signing in...' : 'Sign In'}
+      <ErrorMsg msg={error} />
+      <button type="submit" disabled={loading}
+        className="w-full py-2.5 bg-teal-600 hover:bg-teal-500 disabled:bg-teal-900 disabled:text-teal-700 text-white text-sm font-medium rounded-lg transition-colors">
+        {loading ? 'Signing in...' : 'Sign in'}
       </button>
+      <div className="flex items-center gap-3 my-5">
+        <div className="flex-1 h-px bg-slate-800" />
+        <span className="text-xs text-slate-600">or</span>
+        <div className="flex-1 h-px bg-slate-800" />
+      </div>
+      <p className="text-center text-sm text-slate-500">
+        No account? <button type="button" onClick={onSignup} className="text-teal-400 hover:text-teal-300 font-medium">Create one</button>
+      </p>
     </form>
   )
 }
 
-// ── SIGNUP ───────────────────────────────────────────────────
-function SignupForm({ onSuccess }) {
+function SignupForm({ onSuccess, onLogin }) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -125,12 +155,15 @@ function SignupForm({ onSuccess }) {
   const [success, setSuccess] = useState('')
   const [loading, setLoading] = useState(false)
 
+  const strength = passwordStrength(password)
+  const strengthColors = ['bg-red-500','bg-orange-400','bg-teal-400','bg-teal-500']
+  const strengthLabels = ['Weak','Fair','Good','Strong']
+
   const handleSignup = async (e) => {
     e.preventDefault()
     if (password !== confirm) { setError('Passwords do not match'); return }
     if (password.length < 8) { setError('Password must be at least 8 characters'); return }
-    setLoading(true)
-    setError('')
+    setLoading(true); setError('')
     try {
       await api.post('/auth/register', { name, email, password })
       setSuccess('Account created! Redirecting to sign in...')
@@ -143,55 +176,35 @@ function SignupForm({ onSuccess }) {
   }
 
   return (
-    <form onSubmit={handleSignup} className="space-y-5">
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-1.5">Full Name</label>
-        <input
-          type="text" value={name} placeholder="Your name" required
-          onChange={e => setName(e.target.value)}
-          className="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-1.5">Work Email</label>
-        <input
-          type="email" value={email} placeholder="you@company.com" required
-          onChange={e => setEmail(e.target.value)}
-          className="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-1.5">Password</label>
-        <input
-          type="password" value={password} placeholder="Min. 8 characters" required
-          onChange={e => setPassword(e.target.value)}
-          className="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-        />
-      </div>
-      <div>
-        <label className="block text-sm font-medium text-slate-300 mb-1.5">Confirm Password</label>
-        <input
-          type="password" value={confirm} placeholder="Re-enter password" required
-          onChange={e => setConfirm(e.target.value)}
-          className="w-full px-4 py-2.5 bg-slate-700 border border-slate-600 rounded-lg text-white placeholder-slate-400 focus:outline-none focus:border-teal-500 focus:ring-1 focus:ring-teal-500"
-        />
-      </div>
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3">
-          <p className="text-red-400 text-sm">{error}</p>
+    <form onSubmit={handleSignup}>
+      <Field label="Full name" icon="👤" type="text" value={name} placeholder="Your full name" required onChange={e => setName(e.target.value)} />
+      <Field label="Work email" icon="✉" type="email" value={email} placeholder="you@company.com" required onChange={e => setEmail(e.target.value)} />
+      <Field label="Password" icon="🔒" type="password" value={password} placeholder="Min. 8 characters" required onChange={e => setPassword(e.target.value)} />
+
+      {/* Strength bar */}
+      {password && (
+        <div className="-mt-2 mb-4">
+          <div className="flex gap-1 mb-1">
+            {[0,1,2,3].map(i => (
+              <div key={i} className={`h-0.5 flex-1 rounded-full transition-all ${i < strength ? strengthColors[strength-1] : 'bg-slate-700'}`} />
+            ))}
+          </div>
+          <span className={`text-xs ${strength > 0 ? strengthColors[strength-1].replace('bg-','text-') : 'text-slate-500'}`}>
+            {strengthLabels[strength-1]}
+          </span>
         </div>
       )}
-      {success && (
-        <div className="bg-teal-500/10 border border-teal-500/30 rounded-lg px-4 py-3">
-          <p className="text-teal-400 text-sm">{success}</p>
-        </div>
-      )}
-      <button
-        type="submit" disabled={loading}
-        className="w-full py-2.5 bg-teal-600 hover:bg-teal-500 disabled:bg-teal-800 text-white font-semibold rounded-lg transition-colors"
-      >
-        {loading ? 'Creating account...' : 'Create Account'}
+
+      <Field label="Confirm password" icon="🔒" type="password" value={confirm} placeholder="Re-enter password" required onChange={e => setConfirm(e.target.value)} />
+      <ErrorMsg msg={error} />
+      <SuccessMsg msg={success} />
+      <button type="submit" disabled={loading}
+        className="w-full py-2.5 bg-teal-600 hover:bg-teal-500 disabled:bg-teal-900 disabled:text-teal-700 text-white text-sm font-medium rounded-lg transition-colors mt-1">
+        {loading ? 'Creating account...' : 'Create account'}
       </button>
+      <p className="text-center text-sm text-slate-500 mt-5">
+        Already have an account? <button type="button" onClick={onLogin} className="text-teal-400 hover:text-teal-300 font-medium">Sign in</button>
+      </p>
     </form>
   )
 }
