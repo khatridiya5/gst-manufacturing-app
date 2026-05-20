@@ -1,10 +1,10 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import api from "../api/client";
 
 const sections = [
-  { key: "purchase", label: "Purchase", color: "#185FA5", bg: "#E6F1FB" },
-  { key: "sales",    label: "Sales",    color: "#3B6D11", bg: "#EAF3DE" },
+  { key: "purchase",   label: "Purchase",   color: "#185FA5", bg: "#E6F1FB" },
+  { key: "sales",      label: "Sales",      color: "#3B6D11", bg: "#EAF3DE" },
   { key: "production", label: "Production", color: "#854F0B", bg: "#FAEEDA" },
 ];
 
@@ -21,15 +21,17 @@ export default function SetupCredentials() {
   const handleSave = async (section) => {
     const { username, password } = forms[section];
     if (!username || !password) { setError("Fill both fields"); return; }
+    setError("");
     try {
-      await api.post("/api/setup/section-credentials", null, {
-        params: { section, username, password },
-        headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
-      });
+      await api.post(
+        "/auth/setup/section-credentials",   // ← fixed URL
+        { section, username, password },      // ← fixed: JSON body not params
+        { headers: { Authorization: `Bearer ${localStorage.getItem("token")}` } }
+      );
       setSaved(prev => [...new Set([...prev, section])]);
-      setError("");
-    } catch {
-      setError("Failed to save. Try again.");
+    } catch (err) {
+      const detail = err?.response?.data?.detail;
+      setError(typeof detail === "string" ? detail : "Failed to save. Try again.");
     }
   };
 
@@ -63,7 +65,8 @@ export default function SetupCredentials() {
 
         {sections.map(({ key, label, color, bg }) => (
           <div key={key} style={{
-            background: "#161b22", border: `${saved.includes(key) ? "2px solid #1abc9c" : "1px solid #2a3444"}`,
+            background: "#161b22",
+            border: saved.includes(key) ? "2px solid #1abc9c" : "1px solid #2a3444",
             borderRadius: 12, padding: "1.25rem", marginBottom: "1rem"
           }}>
             <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 14 }}>
@@ -107,7 +110,7 @@ export default function SetupCredentials() {
         {error && <p style={{ color: "#e74c3c", textAlign: "center", fontSize: 13 }}>{error}</p>}
 
         {allDone && (
-          <button onClick={() => navigate("/dashboard")} style={{
+          <button onClick={() => navigate("/")} style={{
             width: "100%", padding: 12, background: "#1abc9c", color: "#fff",
             border: "none", borderRadius: 8, fontSize: 15, fontWeight: 600,
             cursor: "pointer", marginTop: "0.5rem"
@@ -117,7 +120,7 @@ export default function SetupCredentials() {
         )}
 
         <p style={{ textAlign: "center", color: "#4a5568", fontSize: 13, marginTop: "1rem", cursor: "pointer" }}
-          onClick={() => navigate("/dashboard")}>
+          onClick={() => navigate("/")}>
           Skip for now — set up later in settings
         </p>
       </div>
