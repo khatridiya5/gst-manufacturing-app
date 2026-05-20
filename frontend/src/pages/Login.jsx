@@ -11,7 +11,6 @@ function passwordStrength(p) {
   return s
 }
 
-// ← fixed: safely extract string from Pydantic v2 error (array or string)
 function extractError(err, fallback) {
   const detail = err?.response?.data?.detail
   if (!detail) return fallback
@@ -28,7 +27,6 @@ export default function Login() {
     <div className="min-h-screen bg-slate-950 flex items-center justify-center px-4">
       <div className="w-full max-w-sm">
 
-        {/* Logo */}
         <div className="text-center mb-7">
           <div className="inline-flex items-center justify-center w-13 h-13 rounded-2xl bg-teal-600 mb-3 p-3">
             <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.8" strokeLinecap="round">
@@ -39,10 +37,7 @@ export default function Login() {
           <p className="text-sm text-slate-500 mt-1">Production & inventory system</p>
         </div>
 
-        {/* Card */}
         <div className="bg-slate-900 border border-slate-800 rounded-2xl overflow-hidden">
-
-          {/* Tabs */}
           <div className="flex border-b border-slate-800">
             {[['login','Sign in'],['signup','Create account']].map(([key, label]) => (
               <button key={key} onClick={() => setTab(key)}
@@ -59,7 +54,7 @@ export default function Login() {
           <div className="p-6">
             {tab === 'login'
               ? <LoginForm navigate={navigate} onSignup={() => setTab('signup')} />
-              : <SignupForm onSuccess={() => setTab('login')} onLogin={() => setTab('login')} />
+              : <SignupForm navigate={navigate} onLogin={() => setTab('login')} />
             }
           </div>
         </div>
@@ -117,7 +112,6 @@ function LoginForm({ navigate, onSignup }) {
     e.preventDefault()
     setLoading(true)
     setError('')
-
     try {
       const form = new FormData()
       form.append('username', email)
@@ -127,7 +121,7 @@ function LoginForm({ navigate, onSignup }) {
       localStorage.setItem('token', res.data.access_token)
       localStorage.setItem('role', res.data.role)
 
-      // Only admin goes through setup check
+      // admin → check setup, staff → go straight to dashboard
       if (res.data.role === 'admin') {
         try {
           const setupRes = await api.get('/auth/setup/status', {
@@ -138,16 +132,14 @@ function LoginForm({ navigate, onSignup }) {
             return
           }
         } catch {
-          // Setup check failed — don't block login, just go to dashboard
+          // setup check failed, don't block — go to dashboard
         }
       }
 
       navigate('/')
-
     } catch (err) {
       localStorage.removeItem('token')
       localStorage.removeItem('role')
-      // ← fixed: use extractError so we never pass object to setError
       setError(extractError(err, 'Invalid email or password. Please try again.'))
     } finally {
       setLoading(false)
@@ -178,7 +170,8 @@ function LoginForm({ navigate, onSignup }) {
   )
 }
 
-function SignupForm({ onSuccess, onLogin }) {
+// ── SignupForm: after register → auto login → go to /setup ───
+function SignupForm({ navigate, onLogin }) {
   const [name, setName] = useState('')
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -195,13 +188,27 @@ function SignupForm({ onSuccess, onLogin }) {
     e.preventDefault()
     if (password !== confirm) { setError('Passwords do not match'); return }
     if (password.length < 8) { setError('Password must be at least 8 characters'); return }
-    setLoading(true); setError('')
+    setLoading(true)
+    setError('')
     try {
+      // Step 1 — register
       await api.post('/auth/register', { name, email, password })
-      setSuccess('Account created! Redirecting to sign in...')
-      setTimeout(onSuccess, 2000)
+
+      // Step 2 — auto login with same credentials
+      const form = new FormData()
+      form.append('username', email)
+      form.append('password', password)
+      const res = await api.post('/auth/login', form)
+
+      localStorage.setItem('token', res.data.access_token)
+      localStorage.setItem('role', res.data.role)
+
+      setSuccess('Account created! Setting up your workspace...')
+
+      // Step 3 — go to /setup after short delay
+      setTimeout(() => navigate('/setup'), 1200)
+
     } catch (err) {
-      // ← fixed: use extractError so Pydantic v2 array errors render as string
       setError(extractError(err, 'Registration failed. Email may already exist.'))
     } finally {
       setLoading(false)
@@ -214,7 +221,6 @@ function SignupForm({ onSuccess, onLogin }) {
       <Field label="Work email" icon="✉" type="email" value={email} placeholder="you@company.com" required onChange={e => setEmail(e.target.value)} />
       <Field label="Password" icon="🔒" type="password" value={password} placeholder="Min. 8 characters" required onChange={e => setPassword(e.target.value)} />
 
-      {/* Strength bar */}
       {password && (
         <div className="-mt-2 mb-4">
           <div className="flex gap-1 mb-1">
