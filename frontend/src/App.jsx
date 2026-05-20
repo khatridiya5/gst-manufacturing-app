@@ -14,9 +14,7 @@ import Reports from './pages/accounting/Reports'
 import InvoicePrint from './pages/sales/InvoicePrint'
 import MobileScanner from './pages/production/MobileScanner'
 import WIPDashboard from './pages/production/WIPDashboard'
-import SetupCredentials from "./pages/SetupCredentials";
-
-
+import SetupCredentials from './pages/SetupCredentials'
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token')
@@ -26,7 +24,20 @@ const PrivateRoute = ({ children }) => {
 export default function App() {
   return (
     <Routes>
+      {/* Public routes */}
       <Route path="/login" element={<Login />} />
+
+      {/* /setup is outside Layout — full screen, no sidebar */}
+      <Route
+        path="/setup"
+        element={
+          <PrivateRoute>
+            <SetupCredentials />
+          </PrivateRoute>
+        }
+      />
+
+      {/* All app routes inside sidebar Layout */}
       <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
         <Route index element={<Dashboard />} />
         <Route path="items" element={<Items />} />
@@ -39,11 +50,12 @@ export default function App() {
         <Route path="gst" element={<GSTReturns />} />
         <Route path="reports" element={<Reports />} />
         <Route path="invoice-print" element={<InvoicePrint />} />
-        <Route path="/scan" element={<MobileScanner />} />
-        <Route path="/wip" element={<WIPDashboard />} />
-        <Route path="/setup" element={<SetupCredentials />} />
-        
+        <Route path="scan" element={<MobileScanner />} />
+        <Route path="wip" element={<WIPDashboard />} />
       </Route>
+
+      {/* Catch-all */}
+      <Route path="*" element={<Navigate to="/" />} />
     </Routes>
   )
 }
