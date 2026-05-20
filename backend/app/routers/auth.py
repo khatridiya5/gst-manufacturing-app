@@ -7,11 +7,11 @@ from passlib.context import CryptContext
 
 from app.database import get_db
 from app.models.user import User
+from app.models.company import Company
 from app.models.section_credentials import SectionCredential
 from app.utils.auth import create_access_token, get_current_user
 
 router = APIRouter(prefix="/auth", tags=["auth"])
-
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 # ── Schemas ──────────────────────────────────────────────────
@@ -19,7 +19,7 @@ class RegisterRequest(BaseModel):
     name: str
     email: EmailStr
     password: str
-    company_id: Optional[int] = None
+    company_name: Optional[str] = None
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -56,23 +56,29 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     if len(body.password) < 8:
         raise HTTPException(status_code=422, detail="Password must be at least 8 characters")
 
-    # First user per company becomes admin, everyone else is staff
-    if body.company_id is None:
-        user_count = db.query(User).count()
-    else:
-        user_count = db.query(User).filter(User.company_id == body.company_id).count()
+    # Auto-create a company for this user
+    company_name = body.company_name or f"{body.name}'s Company"
+    company = Company(
+        name=company_name,
+        gstin="PENDING",        # admin fills this in settings later
+        state="PENDING",
+        state_code="00",
+    )
+    db.add(company)
+    db.flush()  # get company.id without committing
 
+    # First user of this company = admin, always
     user = User(
         name=body.name,
         email=body.email,
         hashed_password=hash_password(body.password),
-        company_id=body.company_id,
-        role="admin" if user_count == 0 else "staff",
+        company_id=company.id,
+        role="admin",           # signup always creates admin
     )
     db.add(user)
     db.commit()
     db.refresh(user)
-    return {"message": "User created successfully", "id": user.id}
+    return {"message": "User created successfully", "id": user.id, "company_id": company.id}
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -109,7 +115,8 @@ def setup_status(
     current_user: User = Depends(get_current_user),
 ):
     required = {"purchase", "sales", "production"}
-    saved = db.query(SectionCredential).all()
+    # Per-company credentials
+    saved = db.query(SectionCredential).filter_by(company_id=current_user.company_id).all()
     saved_sections = {s.section for s in saved}
     complete = required.issubset(saved_sections)
     return {
@@ -132,7 +139,10 @@ def save_section_credential(
     if len(body.password) < 6:
         raise HTTPException(status_code=422, detail="Password must be at least 6 characters")
 
-    existing = db.query(SectionCredential).filter_by(section=body.section).first()
+    existing = db.query(SectionCredential).filter_by(
+        section=body.section,
+        company_id=current_user.company_id
+    ).first()
     hashed = hash_password(body.password)
 
     if existing:
@@ -143,6 +153,7 @@ def save_section_credential(
             section=body.section,
             username=body.username,
             hashed_password=hashed,
+            company_id=current_user.company_id,
         )
         db.add(cred)
 
@@ -151,10 +162,7 @@ def save_section_credential(
 
 
 @router.post("/section-login")
-def section_login(
-    body: SectionLoginRequest,
-    db: Session = Depends(get_db),
-):
+def section_login(body: SectionLoginRequest, db: Session = Depends(get_db)):
     allowed = {"purchase", "sales", "production"}
     if body.section not in allowed:
         raise HTTPException(status_code=422, detail=f"section must be one of {allowed}")
@@ -165,15 +173,8 @@ def section_login(
     if cred.username != body.username or not verify_password(body.password, cred.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid section credentials")
 
-    token = create_access_token({
-        "section": body.section,
-        "role": body.section,
-    })
-    return {
-        "access_token": token,
-        "token_type": "bearer",
-        "section": body.section,
-    }
+    token = create_access_token({"section": body.section, "role": body.section})
+    return {"access_token": token, "token_type": "bearer", "section": body.section}
 
 
 @router.get("/setup/section-credentials")
@@ -181,7 +182,7 @@ def list_section_credentials(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin),
 ):
-    creds = db.query(SectionCredential).all()
+    creds = db.query(SectionCredential).filter_by(company_id=current_user.company_id).all()
     return [{"section": c.section, "username": c.username} for c in creds]
 
 
@@ -191,7 +192,10 @@ def delete_section_credential(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin),
 ):
-    cred = db.query(SectionCredential).filter_by(section=section).first()
+    cred = db.query(SectionCredential).filter_by(
+        section=section,
+        company_id=current_user.company_id
+    ).first()
     if not cred:
         raise HTTPException(status_code=404, detail="Section not found")
     db.delete(cred)
