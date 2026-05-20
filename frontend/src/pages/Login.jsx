@@ -98,6 +98,7 @@ function SuccessMsg({ msg }) {
   )
 }
 
+// ── Only change is inside LoginForm ──────────────────────────
 function LoginForm({ navigate, onSignup }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -106,16 +107,38 @@ function LoginForm({ navigate, onSignup }) {
 
   const handleLogin = async (e) => {
     e.preventDefault()
-    setLoading(true); setError('')
+    setLoading(true)
+    setError('')
+
     try {
+      // Step 1 — login and store token
       const form = new FormData()
       form.append('username', email)
       form.append('password', password)
       const res = await api.post('/auth/login', form)
+
       localStorage.setItem('token', res.data.access_token)
       localStorage.setItem('role', res.data.role)
+
+      // Step 2 — check if section credentials are set up
+      // Only admin needs to go through /setup
+      if (res.data.role === 'admin') {
+        const setupRes = await api.get('/auth/setup/status', {
+          headers: { Authorization: `Bearer ${res.data.access_token}` }
+        })
+        if (!setupRes.data.setup_complete) {
+          navigate('/setup')
+          return
+        }
+      }
+
+      // Step 3 — all good, go to dashboard
       navigate('/')
-    } catch {
+
+    } catch (err) {
+      // Clear token if something went wrong mid-flow
+      localStorage.removeItem('token')
+      localStorage.removeItem('role')
       setError('Invalid email or password. Please try again.')
     } finally {
       setLoading(false)
