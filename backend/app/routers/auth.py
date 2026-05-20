@@ -194,3 +194,12 @@ def delete_section_credential(
     db.delete(cred)
     db.commit()
     return {"message": f"{section} credentials removed"}
+
+@router.post("/fix-admin")
+def fix_admin(email: str, db: Session = Depends(get_db)):
+    user = db.query(User).filter(User.email == email).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    user.role = "admin"
+    db.commit()
+    return {"message": f"{email} is now admin"}
