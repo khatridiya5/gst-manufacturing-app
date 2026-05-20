@@ -57,7 +57,10 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
         raise HTTPException(status_code=422, detail="Password must be at least 8 characters")
 
     # First user per company becomes admin, everyone else is staff
-    user_count = db.query(User).filter(User.company_id == body.company_id).count()
+    if body.company_id is None:
+        user_count = db.query(User).count()
+    else:
+        user_count = db.query(User).filter(User.company_id == body.company_id).count()
 
     user = User(
         name=body.name,
