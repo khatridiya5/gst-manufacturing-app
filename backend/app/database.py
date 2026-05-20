@@ -18,3 +18,17 @@ def get_db():
         yield db
     finally:
         db.close()
+
+def make_first_user_admin():
+    db = SessionLocal()
+    try:
+        from app.models.user import User
+        users = db.query(User).order_by(User.id).all()
+        if users:
+            first_user = users[0]
+            if first_user.role != "admin":
+                first_user.role = "admin"
+                db.commit()
+                print(f"✅ {first_user.email} set as admin")
+    finally:
+        db.close()
