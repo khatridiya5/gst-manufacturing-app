@@ -22,7 +22,7 @@ export default function SetupCredentials() {
     const { username, password } = forms[section];
     if (!username || !password) { setError("Fill both fields"); return; }
     try {
-      await axios.post("/api/setup/section-credentials", null, {
+      await api.post("/api/setup/section-credentials", null, {
         params: { section, username, password },
         headers: { Authorization: `Bearer ${localStorage.getItem("token")}` }
       });
