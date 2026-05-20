@@ -1,5 +1,5 @@
 from typing import Optional
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
 from pydantic import BaseModel, EmailStr
@@ -19,7 +19,7 @@ class RegisterRequest(BaseModel):
     name: str
     email: EmailStr
     password: str
-    company_id: Optional[int] = None          # ← fixed: was int | None
+    company_id: Optional[int] = None
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -56,15 +56,15 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     if len(body.password) < 8:
         raise HTTPException(status_code=422, detail="Password must be at least 8 characters")
 
-    # First user ever becomes admin, everyone after is staff
-    user_count = db.query(User).count()
+    # First user per company becomes admin, everyone else is staff
+    user_count = db.query(User).filter(User.company_id == body.company_id).count()
 
     user = User(
         name=body.name,
         email=body.email,
         hashed_password=hash_password(body.password),
         company_id=body.company_id,
-        role="admin" if user_count == 0 else "staff",   # ← fixed: first user = admin
+        role="admin" if user_count == 0 else "staff",
     )
     db.add(user)
     db.commit()
@@ -194,6 +194,7 @@ def delete_section_credential(
     db.delete(cred)
     db.commit()
     return {"message": f"{section} credentials removed"}
+
 
 @router.post("/fix-admin")
 def fix_admin(email: str, db: Session = Depends(get_db)):
