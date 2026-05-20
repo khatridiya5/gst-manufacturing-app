@@ -1,3 +1,4 @@
+from typing import Optional
 from fastapi import APIRouter, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordRequestForm
 from sqlalchemy.orm import Session
@@ -18,7 +19,7 @@ class RegisterRequest(BaseModel):
     name: str
     email: EmailStr
     password: str
-    company_id: int | None = None
+    company_id: Optional[int] = None          # ← fixed: was int | None
 
 class TokenResponse(BaseModel):
     access_token: str
@@ -26,7 +27,7 @@ class TokenResponse(BaseModel):
     role: str
 
 class SectionCredentialRequest(BaseModel):
-    section: str        # "purchase", "sales", "production"
+    section: str
     username: str
     password: str
 
@@ -55,12 +56,15 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
     if len(body.password) < 8:
         raise HTTPException(status_code=422, detail="Password must be at least 8 characters")
 
+    # First user ever becomes admin, everyone after is staff
+    user_count = db.query(User).count()
+
     user = User(
         name=body.name,
         email=body.email,
         hashed_password=hash_password(body.password),
         company_id=body.company_id,
-        role="staff",
+        role="admin" if user_count == 0 else "staff",   # ← fixed: first user = admin
     )
     db.add(user)
     db.commit()
@@ -99,12 +103,8 @@ def get_me(current_user: User = Depends(get_current_user)):
 @router.get("/setup/status")
 def setup_status(
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
+    current_user: User = Depends(get_current_user),
 ):
-    """
-    Called right after admin login to decide whether to show
-    /setup page or go straight to /dashboard.
-    """
     required = {"purchase", "sales", "production"}
     saved = db.query(SectionCredential).all()
     saved_sections = {s.section for s in saved}
@@ -121,12 +121,8 @@ def setup_status(
 def save_section_credential(
     body: SectionCredentialRequest,
     db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_admin),   # admin only
+    current_user: User = Depends(get_current_admin),
 ):
-    """
-    Admin sets username+password for a section (purchase/sales/production).
-    Upserts — safe to call again if admin wants to change credentials.
-    """
     allowed = {"purchase", "sales", "production"}
     if body.section not in allowed:
         raise HTTPException(status_code=422, detail=f"section must be one of {allowed}")
@@ -156,10 +152,6 @@ def section_login(
     body: SectionLoginRequest,
     db: Session = Depends(get_db),
 ):
-    """
-    Workers log in to a specific section using the section credentials.
-    Returns a scoped token that only grants access to that section.
-    """
     allowed = {"purchase", "sales", "production"}
     if body.section not in allowed:
         raise HTTPException(status_code=422, detail=f"section must be one of {allowed}")
@@ -170,10 +162,9 @@ def section_login(
     if cred.username != body.username or not verify_password(body.password, cred.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid section credentials")
 
-    # Scoped token — role is the section name so frontend can gate routes
     token = create_access_token({
         "section": body.section,
-        "role": body.section,        # e.g. "purchase", "sales", "production"
+        "role": body.section,
     })
     return {
         "access_token": token,
@@ -187,9 +178,6 @@ def list_section_credentials(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin),
 ):
-    """
-    Admin can see which sections are configured (never returns passwords).
-    """
     creds = db.query(SectionCredential).all()
     return [{"section": c.section, "username": c.username} for c in creds]
 
@@ -200,9 +188,6 @@ def delete_section_credential(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin),
 ):
-    """
-    Admin can reset credentials for a section.
-    """
     cred = db.query(SectionCredential).filter_by(section=section).first()
     if not cred:
         raise HTTPException(status_code=404, detail="Section not found")

@@ -11,6 +11,15 @@ function passwordStrength(p) {
   return s
 }
 
+// ← fixed: safely extract string from Pydantic v2 error (array or string)
+function extractError(err, fallback) {
+  const detail = err?.response?.data?.detail
+  if (!detail) return fallback
+  if (typeof detail === 'string') return detail
+  if (Array.isArray(detail)) return detail[0]?.msg || fallback
+  return fallback
+}
+
 export default function Login() {
   const [tab, setTab] = useState('login')
   const navigate = useNavigate()
@@ -98,7 +107,6 @@ function SuccessMsg({ msg }) {
   )
 }
 
-// ── Only change is inside LoginForm ──────────────────────────
 function LoginForm({ navigate, onSignup }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -111,7 +119,6 @@ function LoginForm({ navigate, onSignup }) {
     setError('')
 
     try {
-      // Step 1 — login and store token
       const form = new FormData()
       form.append('username', email)
       form.append('password', password)
@@ -120,26 +127,28 @@ function LoginForm({ navigate, onSignup }) {
       localStorage.setItem('token', res.data.access_token)
       localStorage.setItem('role', res.data.role)
 
-      // Step 2 — check if section credentials are set up
-      // Only admin needs to go through /setup
+      // Only admin goes through setup check
       if (res.data.role === 'admin') {
-        const setupRes = await api.get('/auth/setup/status', {
-          headers: { Authorization: `Bearer ${res.data.access_token}` }
-        })
-        if (!setupRes.data.setup_complete) {
-          navigate('/setup')
-          return
+        try {
+          const setupRes = await api.get('/auth/setup/status', {
+            headers: { Authorization: `Bearer ${res.data.access_token}` }
+          })
+          if (!setupRes.data.setup_complete) {
+            navigate('/setup')
+            return
+          }
+        } catch {
+          // Setup check failed — don't block login, just go to dashboard
         }
       }
 
-      // Step 3 — all good, go to dashboard
       navigate('/')
 
     } catch (err) {
-      // Clear token if something went wrong mid-flow
       localStorage.removeItem('token')
       localStorage.removeItem('role')
-      setError('Invalid email or password. Please try again.')
+      // ← fixed: use extractError so we never pass object to setError
+      setError(extractError(err, 'Invalid email or password. Please try again.'))
     } finally {
       setLoading(false)
     }
@@ -192,7 +201,8 @@ function SignupForm({ onSuccess, onLogin }) {
       setSuccess('Account created! Redirecting to sign in...')
       setTimeout(onSuccess, 2000)
     } catch (err) {
-      setError(err?.response?.data?.detail || 'Registration failed. Email may already exist.')
+      // ← fixed: use extractError so Pydantic v2 array errors render as string
+      setError(extractError(err, 'Registration failed. Email may already exist.'))
     } finally {
       setLoading(false)
     }
