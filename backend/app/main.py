@@ -10,6 +10,8 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://gst-manufacturing-app.vercel.app",
+        "https://gst-manufacturing-app-git-main-khatridiya5s-projects.vercel.app",
+        "https://gst-manufacturing-41urtcy92-khatridiya5s-projects.vercel.app",
         "https://wip-scan.vercel.app",
         "http://localhost:5501",
         "http://127.0.0.1:5501",
