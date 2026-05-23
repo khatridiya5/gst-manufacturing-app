@@ -2,7 +2,6 @@ import { useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import api from '../api/client'
 
-/* ─── tiny animation helper injected once ─── */
 const style = document.createElement('style')
 style.textContent = `
   @import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600&family=Space+Grotesk:wght@600;700&display=swap');
@@ -12,8 +11,6 @@ style.textContent = `
   .auth-input:focus { outline: none; border-color: #14b8a6; box-shadow: 0 0 0 3px rgba(20,184,166,0.18); }
   .auth-btn:hover:not(:disabled) { background: #0d9488; }
   .auth-btn:active:not(:disabled) { transform: scale(0.98); }
-  .tab-active { color: #14b8a6; border-bottom: 2px solid #14b8a6; }
-  .tab-inactive { color: #64748b; border-bottom: 2px solid transparent; }
 `
 if (!document.head.querySelector('[data-auth-style]')) {
   style.setAttribute('data-auth-style', '')
@@ -21,7 +18,6 @@ if (!document.head.querySelector('[data-auth-style]')) {
 }
 
 export default function AuthPage() {
-  const [tab, setTab] = useState('login') // 'login' | 'signup'
   const navigate = useNavigate()
 
   return (
@@ -36,7 +32,6 @@ export default function AuthPage() {
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* Decorative background rings */}
       <div style={{
         position: 'absolute', top: '-120px', right: '-120px',
         width: '400px', height: '400px', borderRadius: '50%',
@@ -54,7 +49,6 @@ export default function AuthPage() {
       }} />
 
       <div className="auth-card" style={{ width: '100%', maxWidth: '420px' }}>
-        {/* Logo */}
         <div style={{ textAlign: 'center', marginBottom: '2rem' }}>
           <div style={{
             display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
@@ -76,33 +70,14 @@ export default function AuthPage() {
           <p style={{ fontSize: '14px', color: '#64748b', margin: 0 }}>Production & Inventory System</p>
         </div>
 
-        {/* Card */}
         <div style={{
           background: '#1e293b',
           borderRadius: '20px',
           border: '1px solid rgba(255,255,255,0.07)',
           overflow: 'hidden',
         }}>
-          {/* Tabs */}
-          <div style={{ display: 'flex', borderBottom: '1px solid rgba(255,255,255,0.07)' }}>
-            {['login', 'signup'].map(t => (
-              <button key={t} onClick={() => setTab(t)} style={{
-                flex: 1, padding: '1rem',
-                background: 'none', border: 'none', cursor: 'pointer',
-                fontSize: '14px', fontWeight: 500,
-                transition: 'all 0.2s',
-                fontFamily: "'DM Sans', sans-serif",
-              }} className={tab === t ? 'tab-active' : 'tab-inactive'}>
-                {t === 'login' ? 'Sign In' : 'Create Account'}
-              </button>
-            ))}
-          </div>
-
           <div style={{ padding: '2rem' }}>
-            {tab === 'login'
-              ? <LoginForm navigate={navigate} />
-              : <SignupForm onSuccess={() => setTab('login')} />
-            }
+            <LoginForm navigate={navigate} />
           </div>
         </div>
 
@@ -114,7 +89,6 @@ export default function AuthPage() {
   )
 }
 
-/* ─── LOGIN FORM ─── */
 function LoginForm({ navigate }) {
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
@@ -175,94 +149,6 @@ function LoginForm({ navigate }) {
   )
 }
 
-/* ─── SIGNUP FORM ─── */
-function SignupForm({ onSuccess }) {
-  const [name, setName] = useState('')
-  const [email, setEmail] = useState('')
-  const [password, setPassword] = useState('')
-  const [confirm, setConfirm] = useState('')
-  const [showPass, setShowPass] = useState(false)
-  const [error, setError] = useState('')
-  const [success, setSuccess] = useState('')
-  const [loading, setLoading] = useState(false)
-
-  const handleSignup = async (e) => {
-    e.preventDefault()
-    if (password !== confirm) { setError('Passwords do not match.'); return }
-    if (password.length < 8) { setError('Password must be at least 8 characters.'); return }
-    setLoading(true)
-    setError('')
-    try {
-      await api.post('/auth/register', { name, email, password })
-      setSuccess('Account created! You can now sign in.')
-      setTimeout(onSuccess, 2000)
-    } catch (err) {
-      setError(err?.response?.data?.detail || 'Registration failed. Email may already exist.')
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const strength = passwordStrength(password)
-
-  return (
-    <form onSubmit={handleSignup}>
-      <FieldLabel>Full name</FieldLabel>
-      <AuthInput
-        type="text" value={name} placeholder="Your name" required
-        onChange={e => setName(e.target.value)}
-        icon={<UserIcon />}
-      />
-
-      <FieldLabel style={{ marginTop: '1.25rem' }}>Work email</FieldLabel>
-      <AuthInput
-        type="email" value={email} placeholder="you@company.com" required
-        onChange={e => setEmail(e.target.value)}
-        icon={<EmailIcon />}
-      />
-
-      <FieldLabel style={{ marginTop: '1.25rem' }}>Password</FieldLabel>
-      <AuthInput
-        type={showPass ? 'text' : 'password'} value={password}
-        placeholder="Min. 8 characters" required
-        onChange={e => setPassword(e.target.value)}
-        icon={<LockIcon />}
-        suffix={
-          <button type="button" onClick={() => setShowPass(s => !s)} style={{
-            background: 'none', border: 'none', cursor: 'pointer',
-            color: '#475569', padding: '0 2px', lineHeight: 1,
-          }}>
-            {showPass ? <EyeOffIcon /> : <EyeIcon />}
-          </button>
-        }
-      />
-      {password && <StrengthBar strength={strength} />}
-
-      <FieldLabel style={{ marginTop: '1.25rem' }}>Confirm password</FieldLabel>
-      <AuthInput
-        type={showPass ? 'text' : 'password'} value={confirm}
-        placeholder="Re-enter password" required
-        onChange={e => setConfirm(e.target.value)}
-        icon={<LockIcon />}
-      />
-
-      {error && <ErrorBox>{error}</ErrorBox>}
-      {success && (
-        <div style={{
-          marginTop: '1rem', padding: '12px 16px',
-          background: 'rgba(20,184,166,0.12)', border: '1px solid rgba(20,184,166,0.3)',
-          borderRadius: '10px', color: '#14b8a6', fontSize: '14px',
-        }}>{success}</div>
-      )}
-
-      <AuthButton loading={loading} style={{ marginTop: '1.75rem' }}>
-        {loading ? <Spinner /> : 'Create Account'}
-      </AuthButton>
-    </form>
-  )
-}
-
-/* ─── SHARED COMPONENTS ─── */
 function FieldLabel({ children, style: s }) {
   return <label style={{
     display: 'block', fontSize: '13px', fontWeight: 500,
@@ -326,27 +212,6 @@ function ErrorBox({ children }) {
   )
 }
 
-function StrengthBar({ strength }) {
-  const colors = ['#ef4444', '#f97316', '#eab308', '#14b8a6']
-  const labels = ['Weak', 'Fair', 'Good', 'Strong']
-  return (
-    <div style={{ marginTop: '8px' }}>
-      <div style={{ display: 'flex', gap: '4px', marginBottom: '4px' }}>
-        {[0,1,2,3].map(i => (
-          <div key={i} style={{
-            flex: 1, height: '3px', borderRadius: '2px',
-            background: i < strength ? colors[strength - 1] : '#1e293b',
-            transition: 'background 0.3s',
-          }} />
-        ))}
-      </div>
-      <span style={{ fontSize: '12px', color: colors[strength - 1] || '#475569' }}>
-        {strength > 0 ? labels[strength - 1] : ''}
-      </span>
-    </div>
-  )
-}
-
 function Spinner() {
   return <span style={{
     display: 'inline-block', width: '16px', height: '16px',
@@ -355,42 +220,29 @@ function Spinner() {
   }} />
 }
 
-function passwordStrength(p) {
-  if (!p) return 0
-  let s = 0
-  if (p.length >= 8) s++
-  if (/[A-Z]/.test(p)) s++
-  if (/[0-9]/.test(p)) s++
-  if (/[^A-Za-z0-9]/.test(p)) s++
-  return s
-}
-
-/* ─── INLINE SVG ICONS ─── */
 const iconStyle = { width: 16, height: 16, display: 'block' }
+
 function EmailIcon() {
   return <svg style={iconStyle} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
     <rect x="1" y="3" width="14" height="10" rx="2"/>
     <path d="M1 5l7 5 7-5"/>
   </svg>
 }
+
 function LockIcon() {
   return <svg style={iconStyle} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
     <rect x="3" y="7" width="10" height="8" rx="2"/>
     <path d="M5 7V5a3 3 0 016 0v2"/>
   </svg>
 }
-function UserIcon() {
-  return <svg style={iconStyle} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-    <circle cx="8" cy="5" r="3"/>
-    <path d="M2 14c0-3.314 2.686-6 6-6s6 2.686 6 6"/>
-  </svg>
-}
+
 function EyeIcon() {
   return <svg style={iconStyle} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
     <path d="M1 8s2.5-5 7-5 7 5 7 5-2.5 5-7 5-7-5-7-5z"/>
     <circle cx="8" cy="8" r="2"/>
   </svg>
 }
+
 function EyeOffIcon() {
   return <svg style={iconStyle} viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
     <path d="M2 2l12 12M6.5 6.6A2 2 0 0010 10M4 4.5C2.5 5.8 1 8 1 8s2.5 5 7 5c1.3 0 2.4-.3 3.4-.8M7 3.1C7.3 3 7.6 3 8 3c4.5 0 7 5 7 5s-.7 1.3-2 2.6"/>
