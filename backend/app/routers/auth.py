@@ -14,6 +14,9 @@ from app.utils.auth import create_access_token, get_current_user
 router = APIRouter(prefix="/auth", tags=["auth"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
+ALLOWED_EMAIL = "diyakhatri5408@gmail.com"
+ALLOWED_PASSWORD="me"
+
 # ── Schemas ──────────────────────────────────────────────────
 class RegisterRequest(BaseModel):
     name: str
@@ -51,29 +54,29 @@ def get_current_admin(current_user: User = Depends(get_current_user)):
 # ── Auth Routes ───────────────────────────────────────────────
 @router.post("/register", status_code=201)
 def register(body: RegisterRequest, db: Session = Depends(get_db)):
+    if body.email != ALLOWED_EMAIL:
+        raise HTTPException(status_code=403, detail="Registration is not open")
     if db.query(User).filter(User.email == body.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
     if len(body.password) < 8:
         raise HTTPException(status_code=422, detail="Password must be at least 8 characters")
 
-    # Auto-create a company for this user
     company_name = body.company_name or f"{body.name}'s Company"
     company = Company(
         name=company_name,
-        gstin="PENDING",        # admin fills this in settings later
+        gstin="PENDING",
         state="PENDING",
         state_code="00",
     )
     db.add(company)
-    db.flush()  # get company.id without committing
+    db.flush()
 
-    # First user of this company = admin, always
     user = User(
         name=body.name,
         email=body.email,
         hashed_password=hash_password(body.password),
         company_id=company.id,
-        role="admin",           # signup always creates admin
+        role="admin",
     )
     db.add(user)
     db.commit()
@@ -83,8 +86,10 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
+    if form.username != ALLOWED_EMAIL or form.password != ALLOWED_PASSWORD:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
     user = db.query(User).filter(User.email == form.username).first()
-    if not user or not verify_password(form.password, user.hashed_password):
+    if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is disabled")
@@ -115,7 +120,6 @@ def setup_status(
     current_user: User = Depends(get_current_user),
 ):
     required = {"purchase", "sales", "production"}
-    # Per-company credentials
     saved = db.query(SectionCredential).filter_by(company_id=current_user.company_id).all()
     saved_sections = {s.section for s in saved}
     complete = required.issubset(saved_sections)
