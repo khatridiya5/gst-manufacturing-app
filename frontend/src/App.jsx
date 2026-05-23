@@ -25,7 +25,7 @@ export default function App() {
   return (
     <Routes>
       {/* Public routes */}
-      <Route path="/login" element={<AuthPage />} />
+      <Route path="/login" element={<authPage />} />
 
       {/* /setup is outside Layout — full screen, no sidebar */}
       <Route
