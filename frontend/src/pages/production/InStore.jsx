@@ -46,6 +46,7 @@ export default function InStore() {
       setManualForm({ item_id: "", quantity: "", reason: "" });
       fetchItems();
     } catch (e) {
+        console.error("Manual entry error:", e.response?.data);
       alert(e.response?.data?.detail || "Failed to submit");
     } finally {
       setManualSubmitting(false);
