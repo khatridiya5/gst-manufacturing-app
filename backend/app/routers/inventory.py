@@ -2,38 +2,39 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.database import get_db
-from app.models.purchase import PurchaseOrder, PurchaseOrderItem
-from app.models.production import WIPScan
-from app.models.master import Item
+from app.models.purchase import PurchaseOrder, POLineItem
+from app.models.wip_scan import WIPScan
+from app.models.stock import PartInstance, StockLedger
+from app.models.item import Item
 
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
 
+
 @router.get("/in-store")
 def get_in_store(db: Session = Depends(get_db)):
-    # Total received per item (from completed POs)
+    # Total received per item (sum from stock_ledger where transaction_type = 'purchase')
     received = (
         db.query(
-            PurchaseOrderItem.item_id,
-            func.sum(PurchaseOrderItem.quantity).label("total_received")
+            StockLedger.item_id,
+            func.sum(StockLedger.quantity).label("total_received")
         )
-        .join(PurchaseOrder, PurchaseOrder.id == PurchaseOrderItem.po_id)
-        .filter(PurchaseOrder.status == "received")
-        .group_by(PurchaseOrderItem.item_id)
+        .filter(StockLedger.transaction_type == "purchase")
+        .group_by(StockLedger.item_id)
         .subquery()
     )
 
-    # Total consumed per item (start scans only)
+    # Total consumed = count of 'start' scans per item (via PartInstance)
     consumed = (
         db.query(
-            WIPScan.item_id,
+            PartInstance.item_id,
             func.count(WIPScan.id).label("total_consumed")
         )
+        .join(WIPScan, WIPScan.part_instance_id == PartInstance.id)
         .filter(WIPScan.scan_type == "start")
-        .group_by(WIPScan.item_id)
+        .group_by(PartInstance.item_id)
         .subquery()
     )
 
-    # Join with items table
     results = (
         db.query(
             Item.id,
@@ -52,10 +53,10 @@ def get_in_store(db: Session = Depends(get_db)):
             "item_id": r.id,
             "name": r.name,
             "part_code": r.part_code,
-            "total_received": r.total_received,
-            "total_consumed": r.total_consumed,
-            "in_stock": r.total_received - r.total_consumed,
-            "low_stock": (r.total_received - r.total_consumed) <= (r.total_received * 0.2),
+            "total_received": float(r.total_received),
+            "total_consumed": int(r.total_consumed),
+            "in_stock": float(r.total_received) - int(r.total_consumed),
+            "low_stock": (float(r.total_received) - int(r.total_consumed)) <= (float(r.total_received) * 0.2),
         }
         for r in results
     ]
@@ -63,18 +64,23 @@ def get_in_store(db: Session = Depends(get_db)):
 
 @router.get("/in-store/{item_id}/scans")
 def get_item_scan_history(item_id: int, db: Session = Depends(get_db)):
-    scans = (
-        db.query(WIPScan)
-        .filter(WIPScan.item_id == item_id, WIPScan.scan_type == "start")
+    # Get start scans for this item via PartInstance
+    rows = (
+        db.query(WIPScan, PartInstance)
+        .join(PartInstance, WIPScan.part_instance_id == PartInstance.id)
+        .filter(PartInstance.item_id == item_id, WIPScan.scan_type == "start")
         .order_by(WIPScan.scanned_at.desc())
         .limit(10)
         .all()
     )
+
     return [
         {
-            "worker": s.worker.name,
-            "part_instance": s.part_instance_code,
-            "scanned_at": s.scanned_at,
+            "part_instance": scan.part_instance_id,
+            "serial_number": instance.serial_number,
+            "scanned_at": scan.scanned_at,
+            "workstation": scan.workstation,
+            "worker_id": scan.worker_id,
         }
-        for s in scans
+        for scan, instance in rows
     ]
