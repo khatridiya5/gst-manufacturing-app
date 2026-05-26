@@ -334,4 +334,4 @@ function ReceivedVsConsumed({ items }) {
       </div>
     </div>
   );
-}
+} 
