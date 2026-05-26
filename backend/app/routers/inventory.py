@@ -39,7 +39,7 @@ def get_in_store(db: Session = Depends(get_db)):
         db.query(
             Item.id,
             Item.name,
-            Item.part_code,
+            Item.code,
             received.c.total_received,
             func.coalesce(consumed.c.total_consumed, 0).label("total_consumed"),
         )
@@ -52,7 +52,7 @@ def get_in_store(db: Session = Depends(get_db)):
         {
             "item_id": r.id,
             "name": r.name,
-            "part_code": r.part_code,
+            "part_code": r.code,
             "total_received": float(r.total_received),
             "total_consumed": int(r.total_consumed),
             "in_stock": float(r.total_received) - int(r.total_consumed),
