@@ -12,7 +12,7 @@ export default function InStore() {
   const fetchItems = async () => {
     try {
       const res = await axios.get("/api/inventory/in-store");
-      setItems(res.data);
+      setItems(Array.isArray(res.data) ? res.data : []); 
     } catch (e) {
       console.error(e);
     } finally {
@@ -37,7 +37,7 @@ export default function InStore() {
     setScanHistory(res.data);
   };
 
-  const lowStockItems = items.filter((i) => i.low_stock);
+  const lowStockItems = Array.isArray(items) ? items.filter((i) => i.low_stock) : [];
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
