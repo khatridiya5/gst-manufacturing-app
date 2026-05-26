@@ -14,7 +14,7 @@ from app.utils.auth import create_access_token, get_current_user
 router = APIRouter(prefix="/auth", tags=["auth"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-ALLOWED_EMAIL = "diyakhatri5408@gmail.com"
+ALLOWED_EMAIL = "admin"
 ALLOWED_PASSWORD="me"
 
 # ── Schemas ──────────────────────────────────────────────────
@@ -88,18 +88,20 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
 def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
     if form.username != ALLOWED_EMAIL or form.password != ALLOWED_PASSWORD:
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    user = db.query(User).filter(User.email == form.username).first()
+    
+    # Get the first admin user in DB (don't look up by email)
+    user = db.query(User).filter(User.role == "admin").first()
     if not user:
-        raise HTTPException(status_code=401, detail="Invalid credentials")
+        raise HTTPException(status_code=401, detail="No admin user found in DB")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is disabled")
 
     token = create_access_token({
         "user_id": user.id,
-        "role": user.role,
+        "role": "admin",
         "company_id": user.company_id,
     })
-    return {"access_token": token, "token_type": "bearer", "role": user.role}
+    return {"access_token": token, "token_type": "bearer", "role": "admin"}
 
 
 @router.get("/me")

