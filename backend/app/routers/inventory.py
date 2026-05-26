@@ -92,3 +92,24 @@ def debug_stock(db: Session = Depends(get_db)):
         {"id": r.id, "item_id": r.item_id, "transaction_type": r.transaction_type, "quantity": str(r.quantity)}
         for r in rows
     ]
+
+@router.get("/debug/in-store-raw")
+def debug_in_store(db: Session = Depends(get_db)):
+    # Check what's in stock_ledger with purchase_in
+    received_rows = db.query(StockLedger).filter(
+        StockLedger.transaction_type == "purchase_in"
+    ).all()
+    
+    # Check items
+    items = db.query(Item).all()
+    
+    return {
+        "stock_ledger_purchase_in": [
+            {"item_id": r.item_id, "quantity": str(r.quantity)} 
+            for r in received_rows
+        ],
+        "items": [
+            {"id": i.id, "name": i.name} 
+            for i in items
+        ]
+    }
