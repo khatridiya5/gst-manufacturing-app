@@ -2,35 +2,43 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from sqlalchemy import func
 from app.database import get_db
-from app.models.purchase import PurchaseOrder, POLineItem
-from app.models.wip_scan import WIPScan
 from app.models.stock import PartInstance, StockLedger
 from app.models.item import Item
+from app.models.wip_scan import WIPScan
+from app.utils.auth import get_current_user
+from app.models.user import User
 
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
 
 
 @router.get("/in-store")
-def get_in_store(db: Session = Depends(get_db)):
-    # Total received per item (sum from stock_ledger where transaction_type = 'purchase')
+def get_in_store(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)   # ← ADD THIS
+):
     received = (
         db.query(
             StockLedger.item_id,
             func.sum(StockLedger.quantity).label("total_received")
         )
-        .filter(StockLedger.transaction_type == "purchase_in")
+        .filter(
+            StockLedger.transaction_type == "purchase_in",
+            StockLedger.company_id == current_user.company_id  # ← ADD THIS
+        )
         .group_by(StockLedger.item_id)
         .subquery()
     )
 
-    # Total consumed = count of 'start' scans per item (via PartInstance)
     consumed = (
         db.query(
             PartInstance.item_id,
             func.count(WIPScan.id).label("total_consumed")
         )
         .join(WIPScan, WIPScan.part_instance_id == PartInstance.id)
-        .filter(WIPScan.scan_type == "start")
+        .filter(
+            WIPScan.scan_type == "start",
+            PartInstance.company_id == current_user.company_id  # ← ADD THIS
+        )
         .group_by(PartInstance.item_id)
         .subquery()
     )
@@ -43,8 +51,9 @@ def get_in_store(db: Session = Depends(get_db)):
             received.c.total_received,
             func.coalesce(consumed.c.total_consumed, 0).label("total_consumed"),
         )
-        .join(received, received.c.item_id == Item.id)
+        .join(received, received.c.item_id == Item.id)  # still INNER JOIN — only items with stock
         .outerjoin(consumed, consumed.c.item_id == Item.id)
+        .filter(Item.company_id == current_user.company_id)  # ← ADD THIS
         .all()
     )
 
@@ -56,19 +65,27 @@ def get_in_store(db: Session = Depends(get_db)):
             "total_received": float(r.total_received),
             "total_consumed": int(r.total_consumed),
             "in_stock": float(r.total_received) - int(r.total_consumed),
-            "low_stock": (float(r.total_received) - int(r.total_consumed)) <= (float(r.total_received) * 0.2),
+            "low_stock": (float(r.total_received) - int(r.total_consumed))
+                         <= (float(r.total_received) * 0.2),
         }
         for r in results
     ]
 
 
 @router.get("/in-store/{item_id}/scans")
-def get_item_scan_history(item_id: int, db: Session = Depends(get_db)):
-    # Get start scans for this item via PartInstance
+def get_item_scan_history(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)   # ← ADD THIS
+):
     rows = (
         db.query(WIPScan, PartInstance)
         .join(PartInstance, WIPScan.part_instance_id == PartInstance.id)
-        .filter(PartInstance.item_id == item_id, WIPScan.scan_type == "start")
+        .filter(
+            PartInstance.item_id == item_id,
+            PartInstance.company_id == current_user.company_id,  # ← ADD THIS
+            WIPScan.scan_type == "start"
+        )
         .order_by(WIPScan.scanned_at.desc())
         .limit(10)
         .all()
@@ -84,32 +101,37 @@ def get_item_scan_history(item_id: int, db: Session = Depends(get_db)):
         }
         for scan, instance in rows
     ]
+
+
+# ── debug endpoints (keep for now, remove before prod) ────────
+
 @router.get("/debug/stock-ledger")
 def debug_stock(db: Session = Depends(get_db)):
-    from app.models.stock import StockLedger
     rows = db.query(StockLedger).all()
     return [
-        {"id": r.id, "item_id": r.item_id, "transaction_type": r.transaction_type, "quantity": str(r.quantity)}
+        {
+            "id": r.id,
+            "company_id": r.company_id,
+            "item_id": r.item_id,
+            "transaction_type": r.transaction_type,
+            "quantity": str(r.quantity)
+        }
         for r in rows
     ]
 
 @router.get("/debug/in-store-raw")
 def debug_in_store(db: Session = Depends(get_db)):
-    # Check what's in stock_ledger with purchase_in
     received_rows = db.query(StockLedger).filter(
         StockLedger.transaction_type == "purchase_in"
     ).all()
-    
-    # Check items
     items = db.query(Item).all()
-    
     return {
         "stock_ledger_purchase_in": [
-            {"item_id": r.item_id, "quantity": str(r.quantity)} 
+            {"item_id": r.item_id, "company_id": r.company_id, "quantity": str(r.quantity)}
             for r in received_rows
         ],
         "items": [
-            {"id": i.id, "name": i.name} 
+            {"id": i.id, "name": i.name}
             for i in items
         ]
     }

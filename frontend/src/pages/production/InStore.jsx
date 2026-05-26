@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from "../../api/client";
 
 const LOW_STOCK_THRESHOLD = 0.2;
 
@@ -11,7 +11,7 @@ export default function InStore() {
 
   const fetchItems = async () => {
     try {
-      const res = await axios.get("/api/inventory/in-store");
+        const res = await api.get("/api/inventory/in-store");
       setItems(Array.isArray(res.data) ? res.data : []); 
     } catch (e) {
       console.error(e);
@@ -33,7 +33,7 @@ export default function InStore() {
       return;
     }
     setSelected(item);
-    const res = await axios.get(`/api/inventory/in-store/${item.item_id}/scans`);
+    const res = await api.get(`/api/inventory/in-store/${item.item_id}/scans`);
     setScanHistory(res.data);
   };
 
