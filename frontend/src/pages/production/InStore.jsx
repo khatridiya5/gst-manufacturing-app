@@ -8,11 +8,18 @@ export default function InStore() {
   const [selected, setSelected] = useState(null);
   const [scanHistory, setScanHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showManualEntry, setShowManualEntry] = useState(false);
+  const [manualForm, setManualForm] = useState({
+    item_id: "",
+    quantity: "",
+    reason: ""
+  });
+  const [manualSubmitting, setManualSubmitting] = useState(false);
 
   const fetchItems = async () => {
     try {
-        const res = await api.get("/api/inventory/in-store");
-      setItems(Array.isArray(res.data) ? res.data : []); 
+      const res = await api.get("/api/inventory/in-store");
+      setItems(Array.isArray(res.data) ? res.data : []);
     } catch (e) {
       console.error(e);
     } finally {
@@ -22,9 +29,28 @@ export default function InStore() {
 
   useEffect(() => {
     fetchItems();
-    const interval = setInterval(fetchItems, 10000); // refresh every 10s
+    const interval = setInterval(fetchItems, 10000);
     return () => clearInterval(interval);
   }, []);
+
+  const handleManualSubmit = async () => {
+    if (!manualForm.item_id || !manualForm.quantity) return;
+    setManualSubmitting(true);
+    try {
+      await api.post("/api/inventory/in-store/manual-entry", {
+        item_id: parseInt(manualForm.item_id),
+        quantity: parseFloat(manualForm.quantity),
+        reason: manualForm.reason
+      });
+      setShowManualEntry(false);
+      setManualForm({ item_id: "", quantity: "", reason: "" });
+      fetchItems();
+    } catch (e) {
+      alert(e.response?.data?.detail || "Failed to submit");
+    } finally {
+      setManualSubmitting(false);
+    }
+  };
 
   const handleRowClick = async (item) => {
     if (selected?.item_id === item.item_id) {
@@ -41,13 +67,101 @@ export default function InStore() {
 
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
+
       {/* Header */}
-      <div className="mb-6">
-        <h1 className="text-3xl font-bold text-gray-800">In-Store Inventory</h1>
-        <p className="text-sm text-gray-500 mt-1">
-          Stock updates from received POs · Deducted on worker start scans
-        </p>
+      <div className="mb-6 flex items-center justify-between">
+        <div>
+          <h1 className="text-3xl font-bold text-gray-800">In-Store Inventory</h1>
+          <p className="text-sm text-gray-500 mt-1">
+            Stock updates from received POs · Deducted on worker start scans
+          </p>
+        </div>
+        <button
+          onClick={() => setShowManualEntry(true)}
+          className="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition"
+        >
+          + Manual Entry
+        </button>
       </div>
+
+      {/* Manual Entry Modal */}
+      {showManualEntry && (
+        <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-xl shadow-xl p-6 w-full max-w-md">
+            <h2 className="text-lg font-semibold text-gray-800 mb-4">Manual Stock Entry</h2>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-gray-600 block mb-1">Item</label>
+                <select
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  value={manualForm.item_id}
+                  onChange={(e) => setManualForm({ ...manualForm, item_id: e.target.value })}
+                >
+                  <option value="">Select item...</option>
+                  {items.map((i) => (
+                    <option key={i.item_id} value={i.item_id}>{i.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="text-sm text-gray-600 block mb-1">
+                  Quantity <span className="text-gray-400">(negative to deduct)</span>
+                </label>
+                <input
+                  type="number"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  placeholder="e.g. 10 or -5"
+                  value={manualForm.quantity}
+                  onChange={(e) => setManualForm({ ...manualForm, quantity: e.target.value })}
+                />
+                {manualForm.quantity && (
+                  <p className={`text-xs mt-1 font-medium ${
+                    parseFloat(manualForm.quantity) > 0 ? "text-green-600" : "text-red-500"
+                  }`}>
+                    {parseFloat(manualForm.quantity) > 0
+                      ? `+${manualForm.quantity} units will be added`
+                      : `${manualForm.quantity} units will be deducted`}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label className="text-sm text-gray-600 block mb-1">
+                  Reason <span className="text-gray-400">(optional)</span>
+                </label>
+                <input
+                  type="text"
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
+                  placeholder="e.g. damaged, opening stock, correction"
+                  value={manualForm.reason}
+                  onChange={(e) => setManualForm({ ...manualForm, reason: e.target.value })}
+                />
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                onClick={() => {
+                  setShowManualEntry(false);
+                  setManualForm({ item_id: "", quantity: "", reason: "" });
+                }}
+                className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleManualSubmit}
+                disabled={manualSubmitting || !manualForm.item_id || !manualForm.quantity}
+                className="flex-1 px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 disabled:opacity-50"
+              >
+                {manualSubmitting ? "Saving..." : "Submit"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Low stock banner */}
       {lowStockItems.length > 0 && (
@@ -105,9 +219,7 @@ export default function InStore() {
                     key={item.item_id}
                     onClick={() => handleRowClick(item)}
                     className={`border-b border-gray-50 cursor-pointer transition-colors ${
-                      selected?.item_id === item.item_id
-                        ? "bg-teal-50"
-                        : "hover:bg-gray-50"
+                      selected?.item_id === item.item_id ? "bg-teal-50" : "hover:bg-gray-50"
                     }`}
                   >
                     <td className="px-5 py-4 font-medium text-gray-800">{item.name}</td>
@@ -128,7 +240,7 @@ export default function InStore() {
                     </td>
                   </tr>
 
-                  {/* Inline scan history expansion */}
+                  {/* Inline scan history */}
                   {selected?.item_id === item.item_id && (
                     <tr key={`${item.item_id}-history`}>
                       <td colSpan={6} className="px-5 py-4 bg-teal-50 border-b border-teal-100">
@@ -167,7 +279,7 @@ export default function InStore() {
         </table>
       </div>
 
-      {/* Received vs Consumed bar chart */}
+      {/* Received vs Consumed chart */}
       <ReceivedVsConsumed items={items} />
     </div>
   );
@@ -199,12 +311,10 @@ function ReceivedVsConsumed({ items }) {
               <span>{item.in_stock} remaining</span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-3 relative overflow-hidden">
-              {/* Received bar (background) */}
               <div
                 className="absolute h-3 bg-teal-100 rounded-full"
                 style={{ width: `${(item.total_received / maxVal) * 100}%` }}
               />
-              {/* Consumed bar (foreground) */}
               <div
                 className="absolute h-3 bg-teal-500 rounded-full"
                 style={{ width: `${(item.total_consumed / maxVal) * 100}%` }}
@@ -214,8 +324,12 @@ function ReceivedVsConsumed({ items }) {
         ))}
       </div>
       <div className="flex gap-4 mt-3 text-xs text-gray-400">
-        <span className="flex items-center gap-1"><span className="w-3 h-3 bg-teal-100 rounded-full inline-block"/> Received</span>
-        <span className="flex items-center gap-1"><span className="w-3 h-3 bg-teal-500 rounded-full inline-block"/> Consumed</span>
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 bg-teal-100 rounded-full inline-block"/> Received
+        </span>
+        <span className="flex items-center gap-1">
+          <span className="w-3 h-3 bg-teal-500 rounded-full inline-block"/> Consumed
+        </span>
       </div>
     </div>
   );
