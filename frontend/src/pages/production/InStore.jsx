@@ -37,7 +37,7 @@ export default function InStore() {
     if (!manualForm.item_id || !manualForm.quantity) return;
     setManualSubmitting(true);
     try {
-      await api.post("/api/inventory/in-store/manual-entry", {
+        await api.post("/api/inventory/in-store/manual-entry", {
         item_id: parseInt(manualForm.item_id),
         quantity: parseFloat(manualForm.quantity),
         reason: manualForm.reason
