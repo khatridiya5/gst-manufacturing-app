@@ -148,7 +148,7 @@ function LoginForm({ navigate, onSignup }) {
 
   return (
     <form onSubmit={handleLogin}>
-      <Field label="Email address" icon="✉" type="email" value={email} placeholder="you@company.com" required onChange={e => setEmail(e.target.value)} />
+      <Field label="Email address" icon="✉" type="text" value={email} placeholder="you@company.com" required onChange={e => setEmail(e.target.value)} />
       <Field label="Password" icon="🔒" type="password" value={password} placeholder="••••••••" required onChange={e => setPassword(e.target.value)} />
       <div className="flex justify-end -mt-2 mb-4">
         <span className="text-xs text-teal-500 cursor-pointer hover:text-teal-400">Forgot password?</span>
@@ -218,7 +218,7 @@ function SignupForm({ navigate, onLogin }) {
   return (
     <form onSubmit={handleSignup}>
       <Field label="Full name" icon="👤" type="text" value={name} placeholder="Your full name" required onChange={e => setName(e.target.value)} />
-      <Field label="Work email" icon="✉" type="email" value={email} placeholder="you@company.com" required onChange={e => setEmail(e.target.value)} />
+      <Field label="Work email" icon="✉" type="text" value={email} placeholder="you@company.com" required onChange={e => setEmail(e.target.value)} />
       <Field label="Password" icon="🔒" type="password" value={password} placeholder="Min. 8 characters" required onChange={e => setPassword(e.target.value)} />
 
       {password && (
