@@ -1,8 +1,7 @@
-from fastapi import APIRouter, Depends
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from database import get_db
-from models import PurchaseOrderItem, PurchaseOrder, WIPScan, Item
+from app.database import get_db
+from app.models.purchase import PurchaseOrder, PurchaseOrderItem
+from app.models.production import WIPScan
+from app.models.master import Item
 
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
 
