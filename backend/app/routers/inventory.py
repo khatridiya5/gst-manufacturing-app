@@ -66,7 +66,7 @@ def get_in_store(
             "total_consumed": int(r.total_consumed),
             "in_stock": float(r.total_received) - int(r.total_consumed),
             "low_stock": (float(r.total_received) - int(r.total_consumed))
-                         <= (float(r.total_received) * 0.2),
+                         <= (float(r.total_received) * 0.1),
         }
         for r in results
     ]

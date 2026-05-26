@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../../api/client";
 
-const LOW_STOCK_THRESHOLD = 0.2;
+const LOW_STOCK_THRESHOLD = 0.1;
 
 export default function InStore() {
   const [items, setItems] = useState([]);
