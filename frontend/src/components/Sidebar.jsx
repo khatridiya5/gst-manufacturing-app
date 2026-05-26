@@ -13,7 +13,7 @@ const links = [
   { to: '/workers', label: 'Workers', icon: '👷' },
   { to: '/invoice-print', label: 'Invoice Print', icon: '🖨️' },
   { to: '/wip', label: 'WIP Tracking', icon: '📡' },
-  
+  { to: '/in-store', label: 'In-Store', icon: '🏪' },
 ]
 
 export default function Sidebar() {
