@@ -84,3 +84,11 @@ def get_item_scan_history(item_id: int, db: Session = Depends(get_db)):
         }
         for scan, instance in rows
     ]
+@router.get("/debug/stock-ledger")
+def debug_stock(db: Session = Depends(get_db)):
+    from app.models.stock import StockLedger
+    rows = db.query(StockLedger).all()
+    return [
+        {"id": r.id, "item_id": r.item_id, "transaction_type": r.transaction_type, "quantity": str(r.quantity)}
+        for r in rows
+    ]
