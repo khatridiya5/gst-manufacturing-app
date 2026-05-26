@@ -1,8 +1,8 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import auth, master, purchase, workers, production, sales, gst, accounting
+from app.routers import auth, master, purchase, workers, production, sales, gst, accounting, inventory
 from app.database import SessionLocal
-from routers import inventory
+
 
 
 

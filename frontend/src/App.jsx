@@ -15,7 +15,7 @@ import InvoicePrint from './pages/sales/InvoicePrint'
 import MobileScanner from './pages/production/MobileScanner'
 import WIPDashboard from './pages/production/WIPDashboard'
 import SetupCredentials from './pages/SetupCredentials'
-import InStore from "./pages/InStore";
+import InStore from "./pages/production/InStore";  
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token')
