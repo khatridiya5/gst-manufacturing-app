@@ -18,7 +18,7 @@ def get_in_store(db: Session = Depends(get_db)):
             StockLedger.item_id,
             func.sum(StockLedger.quantity).label("total_received")
         )
-        .filter(StockLedger.transaction_type == "purchase")
+        .filter(StockLedger.transaction_type == "purchase_in")
         .group_by(StockLedger.item_id)
         .subquery()
     )
