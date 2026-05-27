@@ -264,7 +264,18 @@ export default function InStore() {
                                 <tr key={i} className="text-gray-700">
                                   <td className="py-1">{s.worker}</td>
                                   <td className="py-1 font-mono">{s.part_instance}</td>
-                                  <td className="py-1">{new Date(s.scanned_at).toLocaleString()}</td>
+                                  <td className="py-1">
+  {new Date(s.scanned_at).toLocaleString("en-GB", {
+    day: "2-digit",
+    month: "short",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true
+  })}
+</td>
+This will render as 26 May 2026, 04:55:03 pm. If you want the AM/PM in uppercase, chain a .toUpperCase() or use hour12: false for 24-hour format — up to you.
                                 </tr>
                               ))}
                             </tbody>
