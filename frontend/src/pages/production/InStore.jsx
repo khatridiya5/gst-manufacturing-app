@@ -275,7 +275,7 @@ export default function InStore() {
     hour12: true
   })}
 </td>
-This will render as 26 May 2026, 04:55:03 pm. If you want the AM/PM in uppercase, chain a .toUpperCase() or use hour12: false for 24-hour format — up to you.
+
                                 </tr>
                               ))}
                             </tbody>
