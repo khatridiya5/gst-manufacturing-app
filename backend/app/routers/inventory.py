@@ -7,10 +7,10 @@ from app.models.item import Item
 from app.models.wip_scan import WIPScan
 from app.utils.auth import get_current_user, require_role
 from app.models.user import User
+from app.models.worker import Worker
 from pydantic import BaseModel
 from typing import Optional
 from datetime import date
-from app.models.worker import Worker
 
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
 
@@ -152,120 +152,31 @@ def get_item_scan_history(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    Claude finished the responseYou said: in this is want date to be like day moth n yearimport { useEffect, useState } from "react";
-import api from "../../api/client";
-
-const LOW_STOCK_THRESHOLD = 0.1;
-
-export default function InStore() {
-  const [items, setItems] = useState([]);
-  const [selected, setSelected] = useState(null);
-  const [scanHistory, setScanHistory] = useState([]);
-  pastedfrom fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from app.database import get_db
-from app.models.stock import PartInstance, StockLedger
-from app.models.item import Item
-from app.models.wip_scan import WIPScan
-from app.utils.auth imppastedin this is want date to be like day moth n year1:37 PMClaude responded: Looking at the screenshot, the "Scanned At" column shows dates like 5/26/2026, 4:55:03 PM — you want it formatted as 26 May 2026, 4:55:03 PM.Looking at the screenshot, the "Scanned At" column shows dates like 5/26/2026, 4:55:03 PM — you want it formatted as 26 May 2026, 4:55:03 PM.
-Just change the toLocaleString() call in the scan history table:
-jsx// In the scan history table, find this line:
-<td className="py-1">{new Date(s.scanned_at).toLocaleString()}</td>
-
-// Replace with:
-<td className="py-1">
-  {new Date(s.scanned_at).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true
-  })}
-</td>
-This will render as 26 May 2026, 04:55:03 pm. If you want the AM/PM in uppercase, chain a .toUpperCase() or use hour12: false for 24-hour format — up to you.You said: In this i want workers name also to be shown tell me which else file do u needfrom fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from sqlalchemy import func
-from app.database import get_db
-from app.models.stock import PartInstance, StockLedger
-from app.models.item import Item
-from app.models.wip_scan import WIPScan
-from app.utils.auth imppastedimport { useEffect, useState } from "react";
-import api from "../../api/client";
-
-const LOW_STOCK_THRESHOLD = 0.1;
-
-export default function InStore() {
-  const [items, setItems] = useState([]);
-  const [selected, setSelected] = useState(null);
-  const [scanHistory, setScanHistory] = useState([]);
-  pastedIn this i want workers name also to be shown tell me which else file do u need11:20 AMClaude responded: Looking at the scan history table, the Worker column is empty because the backend returns worker_id but not the worker's name.Looking at the scan history table, the Worker column is empty because the backend returns worker_id but not the worker's name. You need to join the User or Worker model in the backend.
-Tell me — which model holds worker names? Looking at your file tree I can see worker.py in models. Share these two files:
-
-app/models/worker.py — to see the Worker model fields
-app/models/wip_scan.py — to see how worker_id relates (foreign key to User or Worker?)
-
-That's all I need to fix the backend query to join and return the name.
-    id = Column(Integer, primary_key=True, index=True)
-    company_id = Column(Integer, ForeignKey("companies.id"))
-    name = Column(String(100), nullable=False)
-    worker_code = Column(String(20), unique=True, nullable=False)
-    department = Column(String(50))
-    phone = Column(String(15))
-    qr_code_data = Column(String(100))
-    qr_code_image = Column(String, nullable=True)
-    is_active = Column(Boolean, default=True)
-    created_at = Column(DateTime, server_default=func.now())
-
-
-from sqlalchemy import Column, Integer, String, DateTime, Text, ForeignKey
-from datetime import datetime
-from app.database import Base
-
-class WIPScan(Base):
-    __tablename__ = "wip_scans"
-
-    id = Column(Integer, primary_key=True, index=True)
-    company_id = Column(Integer, ForeignKey("companies.id"))
-    worker_id = Column(Integer, ForeignKey("workers.id"))
-    part_instance_id = Column(Integer, ForeignKey("part_instances.id"))
-    scan_type = Column(String(20), nullable=False)
-    scanned_at = Column(DateTime, default=datetime.utcnow)
-    duration_minutes = Column(Integer)
-    workstation = Column(String(50))
-    notes = Column(Text)Show more11:21 AMClaude responded: worker_id is a FK to workers.worker_id is a FK to workers.id. So you just need to join the Worker model in the scan history query.
-Backend fix — inventory.py:
-python# add this import at the top
-from app.models.worker import Worker
-
-# replace the get_item_scan_history function's query and return:
-rows = (
-    db.query(WIPScan, PartInstance, Worker)
-    .join(PartInstance, WIPScan.part_instance_id == PartInstance.id)
-    .join(Worker, WIPScan.worker_id == Worker.id)        # ← add this
-    .filter(
-        PartInstance.item_id == item_id,
-        PartInstance.company_id == current_user.company_id,
-        WIPScan.scan_type == "start"
+    rows = (
+        db.query(WIPScan, PartInstance, Worker)
+        .join(PartInstance, WIPScan.part_instance_id == PartInstance.id)
+        .outerjoin(Worker, WIPScan.worker_id == Worker.id)
+        .filter(
+            PartInstance.item_id == item_id,
+            PartInstance.company_id == current_user.company_id,
+            WIPScan.scan_type == "start"
+        )
+        .order_by(WIPScan.scanned_at.desc())
+        .limit(10)
+        .all()
     )
-    .order_by(WIPScan.scanned_at.desc())
-    .limit(10)
-    .all()
-)
 
-return [
-    {
-        "part_instance": scan.part_instance_id,
-        "serial_number": instance.serial_number,
-        "scanned_at": scan.scanned_at,
-        "workstation": scan.workstation,
-        "worker_id": scan.worker_id,
-        "worker": worker.name,        # ← add this
-    }
-    for scan, instance, worker in rows   # ← unpack worker too
-]
+    return [
+        {
+            "part_instance": scan.part_instance_id,
+            "serial_number": instance.serial_number,
+            "scanned_at": scan.scanned_at,
+            "workstation": scan.workstation,
+            "worker_id": scan.worker_id,
+            "worker": worker.name if worker else "—",
+        }
+        for scan, instance, worker in rows
+    ]
 
 
 # ─── DEBUG ENDPOINTS ──────────────────────────────────────────
