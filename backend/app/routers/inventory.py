@@ -133,7 +133,7 @@ def manual_stock_entry(
     )
     db.add(entry)
 
-    item.current_stock += data.quantity
+    
 
     db.commit()
     return {

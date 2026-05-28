@@ -34,8 +34,20 @@ def get_current_user(
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id: int = payload.get("user_id")
+        
+        # ── Section token (purchase/production/sales) ──
         if user_id is None:
-            raise credentials_exception
+            section = payload.get("section")
+            if section not in ("purchase", "production", "sales"):
+                raise credentials_exception
+            # Return a dummy user object so routes don't break
+            dummy = User()
+            dummy.id = 0
+            dummy.role = section
+            dummy.company_id = 1
+            dummy.is_active = True
+            return dummy
+
     except JWTError:
         raise credentials_exception
 
