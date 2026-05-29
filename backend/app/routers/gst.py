@@ -11,42 +11,41 @@ from app.models.item import Item
 from app.models.customer import Customer
 from app.utils.auth import get_current_user, require_role
 from app.models.user import User
+from datetime import date
 
 router = APIRouter(prefix="/gst", tags=["GST Compliance"])
 
 # ─── BUILD GSTR-1 ─────────────────────────────────────────────
 
+from datetime import date
+
+# ─── BUILD GSTR-1 ─────────────────────────────────────────────
+
 @router.get("/gstr1")
 def build_gstr1(
-    month: int,
-    year: int,
+    from_date: date,
+    to_date: date,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    Auto-build GSTR-1 from sales invoices for a given month/year.
-    GSTR-1 = report of all outward supplies (sales).
-    """
-    # Get all sales invoices for the period
     invoices = db.query(SalesInvoice).filter(
         SalesInvoice.company_id == current_user.company_id,
-        SalesInvoice.invoice_date >= f"{year}-{month:02d}-01",
-        SalesInvoice.invoice_date <= f"{year}-{month:02d}-31"
+        SalesInvoice.invoice_date >= from_date,
+        SalesInvoice.invoice_date <= to_date
     ).all()
 
     if not invoices:
         return {
-            "message": f"No sales invoices found for {month}/{year}",
-            "period": f"{month:02d}/{year}",
-            "b2b": [],
+            "message": f"No sales invoices found for {from_date} to {to_date}",
+            "period": f"{from_date} to {to_date}",
+            "b2b_invoices": [],
             "hsn_summary": [],
-            "totals": {}
+            "totals": {},
+            "total_invoices": 0
         }
 
-    # B2B invoices (sales to GST registered customers)
     b2b = []
     hsn_data = {}
-
     total_taxable = Decimal("0")
     total_cgst = Decimal("0")
     total_sgst = Decimal("0")
@@ -54,11 +53,8 @@ def build_gstr1(
 
     for inv in invoices:
         customer = db.query(Customer).filter(Customer.id == inv.customer_id).first()
-        lines = db.query(SalesLineItem).filter(
-            SalesLineItem.sales_invoice_id == inv.id
-        ).all()
+        lines = db.query(SalesLineItem).filter(SalesLineItem.sales_invoice_id == inv.id).all()
 
-        # B2B entry
         if customer and customer.gstin:
             b2b.append({
                 "customer_name": customer.name,
@@ -74,7 +70,6 @@ def build_gstr1(
                 "igst": str(inv.igst_amount),
             })
 
-        # HSN summary
         for line in lines:
             item = db.query(Item).filter(Item.id == line.item_id).first()
             hsn = item.hsn_code if item else "0000"
@@ -84,14 +79,12 @@ def build_gstr1(
                     "description": item.name if item else "",
                     "uom": item.unit if item else "",
                     "total_quantity": Decimal("0"),
-                    "total_value": Decimal("0"),
                     "taxable_value": Decimal("0"),
                     "cgst": Decimal("0"),
                     "sgst": Decimal("0"),
                     "igst": Decimal("0"),
                 }
             hsn_data[hsn]["total_quantity"] += line.quantity
-            hsn_data[hsn]["total_value"] += line.total
             hsn_data[hsn]["taxable_value"] += line.subtotal
             hsn_data[hsn]["cgst"] += line.cgst
             hsn_data[hsn]["sgst"] += line.sgst
@@ -102,23 +95,14 @@ def build_gstr1(
         total_sgst += inv.sgst_amount
         total_igst += inv.igst_amount
 
-    # Convert HSN data to list
-    hsn_summary = []
-    for hsn, data in hsn_data.items():
-        hsn_summary.append({
-            "hsn_code": data["hsn_code"],
-            "description": data["description"],
-            "uom": data["uom"],
-            "total_quantity": str(data["total_quantity"]),
-            "taxable_value": str(data["taxable_value"]),
-            "cgst": str(data["cgst"]),
-            "sgst": str(data["sgst"]),
-            "igst": str(data["igst"]),
-        })
+    hsn_summary = [
+        {**{k: str(v) if isinstance(v, Decimal) else v for k, v in data.items()}}
+        for data in hsn_data.values()
+    ]
 
     return {
         "return_type": "GSTR-1",
-        "period": f"{month:02d}/{year}",
+        "period": f"{from_date} to {to_date}",
         "total_invoices": len(invoices),
         "b2b_invoices": b2b,
         "hsn_summary": hsn_summary,
@@ -131,24 +115,20 @@ def build_gstr1(
         }
     }
 
+
 # ─── BUILD GSTR-3B ────────────────────────────────────────────
 
 @router.get("/gstr3b")
 def build_gstr3b(
-    month: int,
-    year: int,
+    from_date: date,
+    to_date: date,
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    """
-    Auto-build GSTR-3B for a given month/year.
-    GSTR-3B = Net GST payable = Tax collected - ITC
-    """
-    # Tax collected from sales
     sales = db.query(SalesInvoice).filter(
         SalesInvoice.company_id == current_user.company_id,
-        SalesInvoice.invoice_date >= f"{year}-{month:02d}-01",
-        SalesInvoice.invoice_date <= f"{year}-{month:02d}-31"
+        SalesInvoice.invoice_date >= from_date,
+        SalesInvoice.invoice_date <= to_date
     ).all()
 
     sales_cgst = sum(i.cgst_amount for i in sales)
@@ -156,11 +136,10 @@ def build_gstr3b(
     sales_igst = sum(i.igst_amount for i in sales)
     total_tax_collected = sales_cgst + sales_sgst + sales_igst
 
-    # ITC from purchases
     purchases = db.query(PurchaseInvoice).filter(
         PurchaseInvoice.company_id == current_user.company_id,
-        PurchaseInvoice.invoice_date >= f"{year}-{month:02d}-01",
-        PurchaseInvoice.invoice_date <= f"{year}-{month:02d}-31",
+        PurchaseInvoice.invoice_date >= from_date,
+        PurchaseInvoice.invoice_date <= to_date,
         PurchaseInvoice.itc_eligible == True
     ).all()
 
@@ -169,7 +148,6 @@ def build_gstr3b(
     itc_igst = sum(i.igst_amount for i in purchases)
     total_itc = itc_cgst + itc_sgst + itc_igst
 
-    # Net payable
     net_cgst = max(sales_cgst - itc_cgst, Decimal("0"))
     net_sgst = max(sales_sgst - itc_sgst, Decimal("0"))
     net_igst = max(sales_igst - itc_igst, Decimal("0"))
@@ -177,26 +155,20 @@ def build_gstr3b(
 
     return {
         "return_type": "GSTR-3B",
-        "period": f"{month:02d}/{year}",
+        "period": f"{from_date} to {to_date}",
         "tax_collected": {
-            "cgst": str(sales_cgst),
-            "sgst": str(sales_sgst),
-            "igst": str(sales_igst),
-            "total": str(total_tax_collected)
+            "cgst": str(sales_cgst), "sgst": str(sales_sgst),
+            "igst": str(sales_igst), "total": str(total_tax_collected)
         },
         "itc_available": {
-            "cgst": str(itc_cgst),
-            "sgst": str(itc_sgst),
-            "igst": str(itc_igst),
-            "total": str(total_itc)
+            "cgst": str(itc_cgst), "sgst": str(itc_sgst),
+            "igst": str(itc_igst), "total": str(total_itc)
         },
         "net_payable": {
-            "cgst": str(net_cgst),
-            "sgst": str(net_sgst),
-            "igst": str(net_igst),
-            "total": str(net_payable)
+            "cgst": str(net_cgst), "sgst": str(net_sgst),
+            "igst": str(net_igst), "total": str(net_payable)
         },
-        "summary": f"You collected ₹{total_tax_collected} GST and have ₹{total_itc} ITC. Net payable to government: ₹{net_payable}"
+        "summary": f"You collected ₹{total_tax_collected} GST and have ₹{total_itc} ITC. Net payable: ₹{net_payable}"
     }
 
 # ─── SAVE RETURN SNAPSHOT ─────────────────────────────────────
@@ -204,20 +176,19 @@ def build_gstr3b(
 @router.post("/save/{return_type}")
 def save_return(
     return_type: str,
-    month: int,
-    year: int,
+    from_date: date,
+    to_date: date,
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "accountant"))
 ):
     if return_type not in ["GSTR1", "GSTR3B"]:
         raise HTTPException(status_code=400, detail="Invalid return type")
 
-    # Check if already saved
     existing = db.query(GSTReturn).filter(
         GSTReturn.company_id == current_user.company_id,
         GSTReturn.return_type == return_type,
-        GSTReturn.period_month == month,
-        GSTReturn.period_year == year
+        GSTReturn.from_date == from_date,
+        GSTReturn.to_date == to_date
     ).first()
 
     if existing:
@@ -226,14 +197,14 @@ def save_return(
     gst_return = GSTReturn(
         company_id=current_user.company_id,
         return_type=return_type,
-        period_month=month,
-        period_year=year,
+        from_date=from_date,
+        to_date=to_date,
         status="draft"
     )
     db.add(gst_return)
     db.commit()
     db.refresh(gst_return)
-    return {"message": f"{return_type} saved for {month}/{year}", "id": gst_return.id}
+    return {"message": f"{return_type} saved for {from_date} to {to_date}", "id": gst_return.id}
 
 # ─── MARK AS FILED ────────────────────────────────────────────
 

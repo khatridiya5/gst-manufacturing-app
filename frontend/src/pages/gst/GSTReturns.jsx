@@ -2,24 +2,27 @@ import { useState } from 'react'
 import api from '../../api/client'
 
 export default function GSTReturns() {
-  const [month, setMonth] = useState(new Date().getMonth() + 1)
-  const [year, setYear] = useState(new Date().getFullYear())
+  const today = new Date().toISOString().split('T')[0]
+  const firstOfMonth = new Date(new Date().getFullYear(), new Date().getMonth(), 1)
+    .toISOString().split('T')[0]
+
+  const [fromDate, setFromDate] = useState(firstOfMonth)
+  const [toDate, setToDate] = useState(today)
   const [gstr1, setGstr1] = useState(null)
   const [gstr3b, setGstr3b] = useState(null)
   const [activeTab, setActiveTab] = useState('gstr1')
   const [loading, setLoading] = useState(false)
 
-  const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ]
-
   const handleFetch = async () => {
+    if (fromDate > toDate) {
+      alert('"From" date cannot be after "To" date')
+      return
+    }
     setLoading(true)
     try {
       const [r1, r3b] = await Promise.all([
-        api.get(`/gst/gstr1?month=${month}&year=${year}`),
-        api.get(`/gst/gstr3b?month=${month}&year=${year}`),
+        api.get(`/gst/gstr1?from_date=${fromDate}&to_date=${toDate}`),
+        api.get(`/gst/gstr3b?from_date=${fromDate}&to_date=${toDate}`),
       ])
       setGstr1(r1.data)
       setGstr3b(r3b.data)
@@ -32,8 +35,8 @@ export default function GSTReturns() {
 
   const handleSave = async (type) => {
     try {
-      await api.post(`/gst/save/${type}?month=${month}&year=${year}`)
-      alert(`${type} saved successfully for ${months[month - 1]} ${year}`)
+      await api.post(`/gst/save/${type}?from_date=${fromDate}&to_date=${toDate}`)
+      alert(`${type} saved successfully for ${fromDate} to ${toDate}`)
     } catch (err) {
       alert(err.response?.data?.detail || 'Error saving return')
     }
@@ -41,39 +44,65 @@ export default function GSTReturns() {
 
   return (
     <div>
-      {/* Header */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold text-slate-800">GST Returns</h1>
         <p className="text-slate-500 text-sm mt-1">Auto-generated from your transactions</p>
       </div>
 
-      {/* Period selector */}
+      {/* Date range selector */}
       <div className="bg-white rounded-xl border border-slate-200 p-5 mb-6 shadow-sm">
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-4 flex-wrap">
           <div>
-            <label className="block text-sm font-medium text-slate-600 mb-1">Month</label>
-            <select
-              value={month}
-              onChange={(e) => setMonth(parseInt(e.target.value))}
-              className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500 w-36"
-            >
-              {months.map((m, i) => (
-                <option key={i + 1} value={i + 1}>{m}</option>
-              ))}
-            </select>
+            <label className="block text-sm font-medium text-slate-600 mb-1">From Date</label>
+            <input
+              type="date"
+              value={fromDate}
+              onChange={(e) => setFromDate(e.target.value)}
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+            />
           </div>
           <div>
-            <label className="block text-sm font-medium text-slate-600 mb-1">Year</label>
-            <select
-              value={year}
-              onChange={(e) => setYear(parseInt(e.target.value))}
-              className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500 w-28"
-            >
-              {[2024, 2025, 2026, 2027].map(y => (
-                <option key={y} value={y}>{y}</option>
-              ))}
-            </select>
+            <label className="block text-sm font-medium text-slate-600 mb-1">To Date</label>
+            <input
+              type="date"
+              value={toDate}
+              onChange={(e) => setToDate(e.target.value)}
+              className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+            />
           </div>
+
+          {/* Quick presets */}
+          <div className="pt-5 flex gap-2">
+            {[
+              { label: 'This Month', fn: () => {
+                  const now = new Date()
+                  setFromDate(new Date(now.getFullYear(), now.getMonth(), 1).toISOString().split('T')[0])
+                  setToDate(now.toISOString().split('T')[0])
+              }},
+              { label: 'Last Month', fn: () => {
+                  const now = new Date()
+                  const first = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+                  const last = new Date(now.getFullYear(), now.getMonth(), 0)
+                  setFromDate(first.toISOString().split('T')[0])
+                  setToDate(last.toISOString().split('T')[0])
+              }},
+              { label: 'This Quarter', fn: () => {
+                  const now = new Date()
+                  const qStart = Math.floor(now.getMonth() / 3) * 3
+                  setFromDate(new Date(now.getFullYear(), qStart, 1).toISOString().split('T')[0])
+                  setToDate(now.toISOString().split('T')[0])
+              }},
+            ].map(({ label, fn }) => (
+              <button
+                key={label}
+                onClick={fn}
+                className="px-3 py-2 text-xs bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg transition-colors"
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+
           <div className="pt-5">
             <button
               onClick={handleFetch}
@@ -85,7 +114,8 @@ export default function GSTReturns() {
           </div>
         </div>
       </div>
-
+    
+    
       {/* Tabs */}
       {(gstr1 || gstr3b) && (
         <>
