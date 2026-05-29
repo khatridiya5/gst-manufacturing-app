@@ -42,10 +42,17 @@ def create_worker(
     current_user: User = Depends(require_role("admin"))
 ):
     # Auto-generate worker code
-    count = db.query(Worker).filter(
+    last_worker = db.query(Worker).filter(
         Worker.company_id == current_user.company_id
-    ).count()
-    worker_code = f"W{str(count + 1).zfill(3)}"
+    ).order_by(Worker.id.desc()).first()
+
+    if last_worker:
+        last_num = int(last_worker.worker_code[1:])  # strip the "W"
+        next_num = last_num + 1
+    else:
+        next_num = 1
+
+    worker_code = f"W{str(next_num).zfill(3)}"
 
     # Generate QR
     qr_data = generate_worker_qr_data(worker_code, data.name)
