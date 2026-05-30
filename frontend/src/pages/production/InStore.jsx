@@ -193,7 +193,7 @@ export default function InStore() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
-              {["Item", "Part Code", "Received", "Consumed", "In Stock", "Status"].map((h) => (
+            {["Item", "Part Code", "Received", "Consumed", "In Stock", "Status", "Tracking"].map((h) => (
                 <th key={h} className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">
                   {h}
                 </th>
@@ -238,6 +238,14 @@ export default function InStore() {
                           OK
                         </span>
                       )}
+                    </td>
+                    {/* ← ADD THIS */}
+                        <td className="px-5 py-4">
+                            {item.track_qr ? (
+                                <span className="px-2 py-0.5 bg-violet-50 text-violet-600 rounded-full text-xs font-medium">QR</span>
+                            ) : (
+                            <span className="px-2 py-0.5 bg-slate-100 text-slate-400 rounded-full text-xs">Manual</span>
+                                )}
                     </td>
                   </tr>
 

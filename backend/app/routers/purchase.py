@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 from pydantic import BaseModel
 from decimal import Decimal
-from datetime import date
+from datetime import date, datetime
 from app.database import get_db
 from app.models.purchase import PurchaseOrder, PurchaseInvoice, PurchaseLineItem, POLineItem
 from app.models.stock import StockLedger, PartInstance
@@ -29,6 +29,7 @@ class POCreate(BaseModel):
     vendor_id: int
     po_date: date
     expected_delivery: Optional[date] = None
+    track_qr: bool = True                          # ← NEW
     line_items: List[POLineItemIn]
 
 class POOut(BaseModel):
@@ -38,6 +39,9 @@ class POOut(BaseModel):
     po_date: date
     status: str
     total_amount: Optional[Decimal]
+    track_qr: bool                                 # ← NEW
+    created_at: Optional[datetime]                 # ← NEW
+    received_at: Optional[datetime]                # ← NEW
     class Config:
         from_attributes = True
 
@@ -79,12 +83,12 @@ def create_po(
         expected_delivery=data.expected_delivery,
         status="draft",
         total_amount=total,
+        track_qr=data.track_qr,                   # ← NEW
         created_by=current_user.id
     )
     db.add(po)
     db.flush()
 
-    # Save PO line items
     for li in data.line_items:
         po_line = POLineItem(
             po_id=po.id,
@@ -98,7 +102,7 @@ def create_po(
     db.refresh(po)
     return po
 
-# ─── APPROVE PO (admin only) ──────────────────────────────────
+# ─── APPROVE PO ──────────────────────────────────────────────
 
 @router.patch("/po/{po_id}/approve", response_model=POOut)
 def approve_po(
@@ -119,7 +123,7 @@ def approve_po(
     db.refresh(po)
     return po
 
-# ─── RECEIVE PO → invoice + QR codes ─────────────────────────
+# ─── RECEIVE PO ──────────────────────────────────────────────
 
 @router.patch("/po/{po_id}/receive")
 def receive_po(
@@ -173,7 +177,6 @@ def receive_po(
 
     total_amount = subtotal + total_cgst + total_sgst + total_igst
 
-    # Create invoice
     invoice = PurchaseInvoice(
         company_id=current_user.company_id,
         vendor_id=po.vendor_id,
@@ -197,7 +200,6 @@ def receive_po(
         item = pl["item"]
         qty = int(pl["quantity"])
 
-        # Invoice line item
         inv_line = PurchaseLineItem(
             purchase_invoice_id=invoice.id,
             item_id=item.id,
@@ -212,32 +214,31 @@ def receive_po(
         )
         db.add(inv_line)
 
-        # Generate one QR per unit
-        for unit_num in range(1, qty + 1):
-            qr_data = generate_part_qr_data(
-                item.item_type,
-                item.code or item.name,
-                po.po_number,
-                unit_num
-            )
-            qr_image = generate_qr_base64(qr_data)
-            part = PartInstance(
-                company_id=current_user.company_id,
-                purchase_order_id=po.id,
-                item_id=item.id,
-                serial_number=qr_data,
-                qr_code_data=qr_data,
-                qr_code_image=qr_image,
-                current_status="in_stock"
-            )
-            db.add(part)
-            all_qr_codes.append({
-                "serial": qr_data,
-                "item": item.name,
-                "unit": unit_num
-            })
+        if po.track_qr:                            # ← NEW: only generate QRs if opted in
+            for unit_num in range(1, qty + 1):
+                qr_data = generate_part_qr_data(
+                    item.item_type,
+                    item.code or item.name,
+                    po.po_number,
+                    unit_num
+                )
+                qr_image = generate_qr_base64(qr_data)
+                part = PartInstance(
+                    company_id=current_user.company_id,
+                    purchase_order_id=po.id,
+                    item_id=item.id,
+                    serial_number=qr_data,
+                    qr_code_data=qr_data,
+                    qr_code_image=qr_image,
+                    current_status="in_stock"
+                )
+                db.add(part)
+                all_qr_codes.append({
+                    "serial": qr_data,
+                    "item": item.name,
+                    "unit": unit_num
+                })
 
-        # Stock ledger
         stock_entry = StockLedger(
             company_id=current_user.company_id,
             item_id=item.id,
@@ -252,6 +253,8 @@ def receive_po(
         item.current_stock += pl["quantity"]
 
     po.status = "received"
+    po.received_at = datetime.utcnow()             # ← NEW
+
     db.commit()
 
     return {
@@ -259,9 +262,14 @@ def receive_po(
         "invoice_id": invoice.id,
         "invoice_number": invoice.invoice_number,
         "total_amount": str(total_amount),
+        "track_qr": po.track_qr,
         "qr_codes_generated": len(all_qr_codes),
         "parts_preview": all_qr_codes[:5],
-        "note": f"{len(all_qr_codes)} QR codes generated. Fetch /purchase/po/{po_id}/qr-codes to get all with images."
+        "note": (
+            f"{len(all_qr_codes)} QR codes generated. Fetch /purchase/po/{po_id}/qr-codes to get all."
+            if po.track_qr
+            else "QR tracking was disabled for this PO. Stock updated without QR codes."
+        )
     }
 
 # ─── GET QR CODES FOR A PO ────────────────────────────────────
@@ -272,6 +280,15 @@ def get_po_qr_codes(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
+    po = db.query(PurchaseOrder).filter(
+        PurchaseOrder.id == po_id,
+        PurchaseOrder.company_id == current_user.company_id
+    ).first()
+    if not po:
+        raise HTTPException(status_code=404, detail="PO not found")
+    if not po.track_qr:
+        return {"message": "QR tracking was not enabled for this PO", "parts": []}
+
     parts = db.query(PartInstance).filter(
         PartInstance.purchase_order_id == po_id,
         PartInstance.company_id == current_user.company_id
@@ -328,8 +345,6 @@ def get_itc_summary(
 
 # ─── DELETE PO ───────────────────────────────────────────────
 
-
-
 @router.delete("/po/{po_id}")
 def delete_po(
     po_id: int,
@@ -339,7 +354,6 @@ def delete_po(
 ):
     from app.models.wip_scan import WIPScan
 
-    # 1. Verify OTP first
     if not verify_delete_otp(otp):
         raise HTTPException(status_code=403, detail="Invalid OTP")
 
@@ -350,23 +364,18 @@ def delete_po(
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
 
-    # 2. Delete wip_scans linked to part_instances of this PO
     parts = db.query(PartInstance).filter(PartInstance.purchase_order_id == po_id).all()
     part_ids = [p.id for p in parts]
     if part_ids:
         db.query(WIPScan).filter(WIPScan.part_instance_id.in_(part_ids)).delete(synchronize_session=False)
 
-    # 3. Delete purchase invoice line items + invoices
     invoices = db.query(PurchaseInvoice).filter(PurchaseInvoice.po_id == po_id).all()
     for inv in invoices:
         db.query(PurchaseLineItem).filter(PurchaseLineItem.purchase_invoice_id == inv.id).delete()
         db.delete(inv)
 
-    # 4. Delete PO line items and part instances
     db.query(POLineItem).filter(POLineItem.po_id == po_id).delete()
     db.query(PartInstance).filter(PartInstance.purchase_order_id == po_id).delete()
-
-    # 5. Delete the PO itself
     db.delete(po)
     db.commit()
     return {"message": "PO deleted successfully"}

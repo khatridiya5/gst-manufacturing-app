@@ -11,10 +11,12 @@ class PurchaseOrder(Base):
     po_number = Column(String(50), unique=True, nullable=False)
     po_date = Column(Date, nullable=False)
     expected_delivery = Column(Date)
-    status = Column(String(20), default="open")
+    status = Column(String(20), default="draft")
     total_amount = Column(Numeric(12, 2))
+    track_qr = Column(Boolean, default=True)          # ← NEW
     created_by = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime, server_default=func.now())
+    created_at = Column(DateTime, server_default=func.now())  # already exists
+    received_at = Column(DateTime, nullable=True)
 
 class PurchaseInvoice(Base):
     __tablename__ = "purchase_invoices"

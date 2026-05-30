@@ -2,6 +2,18 @@ import { useEffect, useState } from 'react'
 import api from '../../api/client'
 import DeleteConfirmModal from '../../components/DeleteConfirmModal'
 
+// ── helpers ──────────────────────────────────────────────────
+const fmtDateTime = (iso) => {
+  if (!iso) return '—'
+  const d = new Date(iso)
+  const dd = String(d.getDate()).padStart(2, '0')
+  const mm = String(d.getMonth() + 1).padStart(2, '0')
+  const yyyy = d.getFullYear()
+  const hh = String(d.getHours()).padStart(2, '0')
+  const min = String(d.getMinutes()).padStart(2, '0')
+  return `${dd}/${mm}/${yyyy} ${hh}:${min}`
+}
+
 const StatusBadge = ({ status }) => {
   const colors = {
     draft: 'bg-slate-100 text-slate-600',
@@ -27,8 +39,10 @@ export default function PurchaseOrders() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const role = localStorage.getItem('role')
 
+  // form state
   const [vendorId, setVendorId] = useState('')
   const [poDate, setPoDate] = useState(new Date().toISOString().split('T')[0])
+  const [trackQr, setTrackQr] = useState(true)           // ← NEW
   const [lineItems, setLineItems] = useState([{ item_id: '', quantity: '', unit_price: '' }])
 
   const fetchPOs = async () => {
@@ -50,9 +64,7 @@ export default function PurchaseOrders() {
 
   useEffect(() => { fetchPOs() }, [])
 
-  const handleAddLine = () => {
-    setLineItems([...lineItems, { item_id: '', quantity: '', unit_price: '' }])
-  }
+  const handleAddLine = () => setLineItems([...lineItems, { item_id: '', quantity: '', unit_price: '' }])
 
   const handleLineChange = (i, field, value) => {
     const updated = [...lineItems]
@@ -60,9 +72,7 @@ export default function PurchaseOrders() {
     setLineItems(updated)
   }
 
-  const handleRemoveLine = (i) => {
-    setLineItems(lineItems.filter((_, idx) => idx !== i))
-  }
+  const handleRemoveLine = (i) => setLineItems(lineItems.filter((_, idx) => idx !== i))
 
   const handleCreatePO = async (e) => {
     e.preventDefault()
@@ -70,6 +80,7 @@ export default function PurchaseOrders() {
       await api.post('/purchase/po', {
         vendor_id: parseInt(vendorId),
         po_date: poDate,
+        track_qr: trackQr,                          // ← NEW
         line_items: lineItems.map(li => ({
           item_id: parseInt(li.item_id),
           quantity: parseInt(li.quantity),
@@ -78,6 +89,7 @@ export default function PurchaseOrders() {
       })
       setShowForm(false)
       setVendorId('')
+      setTrackQr(true)
       setLineItems([{ item_id: '', quantity: '', unit_price: '' }])
       fetchPOs()
     } catch (err) {
@@ -94,11 +106,11 @@ export default function PurchaseOrders() {
     }
   }
 
-  const handleReceive = async (poId) => {
+  const handleReceive = async (poId, trackQrFlag) => {
     try {
       await api.patch(`/purchase/po/${poId}/receive`)
       fetchPOs()
-      handleViewQR(poId)
+      if (trackQrFlag) handleViewQR(poId)
     } catch (err) {
       alert(err.response?.data?.detail || 'Error receiving PO')
     }
@@ -107,7 +119,7 @@ export default function PurchaseOrders() {
   const handleViewQR = async (poId) => {
     try {
       const res = await api.get(`/purchase/po/${poId}/qr-codes`)
-      setQrCodes(res.data)
+      setQrCodes(Array.isArray(res.data) ? res.data : res.data.parts || [])
       setQrModal(poId)
     } catch (err) {
       console.error(err)
@@ -115,17 +127,13 @@ export default function PurchaseOrders() {
   }
 
   const handleDelete = async (otp) => {
-  try {
-    await api.delete(`/purchase/po/${deleteTarget.id}?otp=${otp}`)
-    setDeleteTarget(null)
-    fetchPOs()
-  } catch (err) {
-    alert(err.response?.data?.detail || 'Error deleting PO')
-  }
-}
-
-  const handlePrint = () => {
-    window.print()
+    try {
+      await api.delete(`/purchase/po/${deleteTarget.id}?otp=${otp}`)
+      setDeleteTarget(null)
+      fetchPOs()
+    } catch (err) {
+      alert(err.response?.data?.detail || 'Error deleting PO')
+    }
   }
 
   const getVendorName = (id) => vendors.find(v => v.id === id)?.name || '—'
@@ -177,6 +185,38 @@ export default function PurchaseOrders() {
                   className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
                   required
                 />
+              </div>
+            </div>
+
+            {/* ── QR Tracking Toggle ── */}
+            <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
+              <button
+                type="button"
+                onClick={() => setTrackQr(!trackQr)}
+                className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors focus:outline-none ${
+                  trackQr ? 'bg-teal-600' : 'bg-slate-300'
+                }`}
+              >
+                <span
+                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                    trackQr ? 'translate-x-6' : 'translate-x-1'
+                  }`}
+                />
+              </button>
+              <div>
+                <p className="text-sm font-medium text-slate-700">
+                  QR Code Tracking
+                  <span className={`ml-2 text-xs font-semibold px-2 py-0.5 rounded-full ${
+                    trackQr ? 'bg-teal-100 text-teal-700' : 'bg-slate-200 text-slate-500'
+                  }`}>
+                    {trackQr ? 'Enabled' : 'Disabled'}
+                  </span>
+                </p>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {trackQr
+                    ? 'A QR code will be generated for each unit received'
+                    : 'Stock will be updated without individual QR codes'}
+                </p>
               </div>
             </div>
 
@@ -259,8 +299,10 @@ export default function PurchaseOrders() {
               <tr className="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-100">
                 <th className="px-5 py-3 text-left">PO Number</th>
                 <th className="px-5 py-3 text-left">Vendor</th>
-                <th className="px-5 py-3 text-left">Date</th>
+                <th className="px-5 py-3 text-left">Created</th>
+                <th className="px-5 py-3 text-left">Received</th>
                 <th className="px-5 py-3 text-right">Amount</th>
+                <th className="px-5 py-3 text-center">QR</th>
                 <th className="px-5 py-3 text-center">Status</th>
                 <th className="px-5 py-3 text-center">Actions</th>
               </tr>
@@ -268,7 +310,7 @@ export default function PurchaseOrders() {
             <tbody className="divide-y divide-slate-50">
               {pos.length === 0 && (
                 <tr>
-                  <td colSpan={6} className="px-5 py-8 text-center text-slate-400">
+                  <td colSpan={8} className="px-5 py-8 text-center text-slate-400">
                     No purchase orders yet. Create your first PO.
                   </td>
                 </tr>
@@ -277,9 +319,17 @@ export default function PurchaseOrders() {
                 <tr key={po.id} className="hover:bg-slate-50">
                   <td className="px-5 py-3 font-medium text-slate-700">{po.po_number}</td>
                   <td className="px-5 py-3 text-slate-600">{getVendorName(po.vendor_id)}</td>
-                  <td className="px-5 py-3 text-slate-500">{po.po_date}</td>
+                  <td className="px-5 py-3 text-slate-500 text-xs">{fmtDateTime(po.created_at)}</td>
+                  <td className="px-5 py-3 text-slate-500 text-xs">{fmtDateTime(po.received_at)}</td>
                   <td className="px-5 py-3 text-right font-semibold text-slate-700">
                     ₹{Number(po.total_amount).toLocaleString('en-IN')}
+                  </td>
+                  <td className="px-5 py-3 text-center">
+                    {po.track_qr ? (
+                      <span className="px-2 py-0.5 bg-violet-50 text-violet-600 rounded-full text-xs font-medium">QR</span>
+                    ) : (
+                      <span className="px-2 py-0.5 bg-slate-100 text-slate-400 rounded-full text-xs">No QR</span>
+                    )}
                   </td>
                   <td className="px-5 py-3 text-center">
                     <StatusBadge status={po.status} />
@@ -296,13 +346,13 @@ export default function PurchaseOrders() {
                       )}
                       {po.status === 'approved' && (
                         <button
-                          onClick={() => handleReceive(po.id)}
+                          onClick={() => handleReceive(po.id, po.track_qr)}
                           className="px-3 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg text-xs font-medium transition-colors"
                         >
                           Mark Received
                         </button>
                       )}
-                      {po.status === 'received' && (
+                      {po.status === 'received' && po.track_qr && (
                         <button
                           onClick={() => handleViewQR(po.id)}
                           className="px-3 py-1 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg text-xs font-medium transition-colors"
@@ -312,12 +362,12 @@ export default function PurchaseOrders() {
                       )}
                       {role === 'admin' && (
                         <button
-                        onClick={() => setDeleteTarget({ id: po.id, name: po.po_number })}
-                        className="px-3 py-1 border border-red-300 hover:bg-red-50 text-red-500 rounded-lg text-xs font-medium transition-colors"
+                          onClick={() => setDeleteTarget({ id: po.id, name: po.po_number })}
+                          className="px-3 py-1 border border-red-300 hover:bg-red-50 text-red-500 rounded-lg text-xs font-medium transition-colors"
                         >
-                        Delete
+                          Delete
                         </button>
-                        )}
+                      )}
                     </div>
                   </td>
                 </tr>
@@ -327,7 +377,7 @@ export default function PurchaseOrders() {
         </div>
       </div>
 
-      {/* QR Code Modal */}
+      {/* QR Modal */}
       {qrModal && (
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl w-full max-w-3xl max-h-[80vh] overflow-y-auto">
@@ -337,7 +387,7 @@ export default function PurchaseOrders() {
               </h2>
               <div className="flex gap-2">
                 <button
-                  onClick={handlePrint}
+                  onClick={() => window.print()}
                   className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-sm font-medium"
                 >
                   🖨️ Print All
@@ -370,6 +420,7 @@ export default function PurchaseOrders() {
           </div>
         </div>
       )}
+
       {deleteTarget && (
         <DeleteConfirmModal
           itemName={deleteTarget.name}
