@@ -396,3 +396,30 @@ def delete_po(
     db.delete(po)
     db.commit()
     return {"message": "PO deleted successfully"}
+
+
+
+
+@router.get("/po/{po_id}/items")
+def get_po_items(
+    po_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    po = db.query(PurchaseOrder).filter(
+        PurchaseOrder.id == po_id,
+        PurchaseOrder.company_id == current_user.company_id
+    ).first()
+    if not po:
+        raise HTTPException(status_code=404, detail="PO not found")
+    
+    lines = db.query(POLineItem).filter(POLineItem.po_id == po_id).all()
+    return [
+        {
+            "item_name": li.item_name,
+            "quantity": li.quantity,
+            "unit_price": str(li.unit_price),
+            "total": str(li.quantity * li.unit_price)
+        }
+        for li in lines
+    ]

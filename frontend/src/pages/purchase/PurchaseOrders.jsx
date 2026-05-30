@@ -42,7 +42,7 @@ export default function PurchaseOrders() {
   // form state
   const [vendorId, setVendorId] = useState('')
   const [poDate, setPoDate] = useState(new Date().toISOString().split('T')[0])
-  const [trackQr, setTrackQr] = useState(true)           // ← NEW
+  const [trackQr, setTrackQr] = useState(false)           // ← NEW
   const [lineItems, setLineItems] = useState([{ item_name: '', quantity: '', unit_price: '' }])
 
   const fetchPOs = async () => {
