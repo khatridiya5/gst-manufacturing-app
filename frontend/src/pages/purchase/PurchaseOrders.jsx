@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react'
 import api from '../../api/client'
 import DeleteConfirmModal from '../../components/DeleteConfirmModal'
 
-// ── helpers ──────────────────────────────────────────────────
 const fmtDateTime = (iso) => {
   if (!iso) return '—'
   const d = new Date(iso)
@@ -31,30 +30,29 @@ const StatusBadge = ({ status }) => {
 export default function PurchaseOrders() {
   const [pos, setPOs] = useState([])
   const [vendors, setVendors] = useState([])
-  const [items, setItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [qrModal, setQrModal] = useState(null)
   const [qrCodes, setQrCodes] = useState([])
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [expandedPO, setExpandedPO] = useState(null)
+  const [poItems, setPoItems] = useState({})
   const role = localStorage.getItem('role')
 
   // form state
   const [vendorId, setVendorId] = useState('')
   const [poDate, setPoDate] = useState(new Date().toISOString().split('T')[0])
-  const [trackQr, setTrackQr] = useState(false)           // ← NEW
+  const [trackQr, setTrackQr] = useState(false)
   const [lineItems, setLineItems] = useState([{ item_name: '', quantity: '', unit_price: '' }])
 
   const fetchPOs = async () => {
     try {
-      const [posRes, vendorsRes, itemsRes] = await Promise.all([
+      const [posRes, vendorsRes] = await Promise.all([
         api.get('/purchase/po'),
         api.get('/master/vendors'),
-        api.get('/master/items'),
       ])
       setPOs(posRes.data)
       setVendors(vendorsRes.data)
-      setItems(itemsRes.data)
     } catch (err) {
       console.error(err)
     } finally {
@@ -64,7 +62,7 @@ export default function PurchaseOrders() {
 
   useEffect(() => { fetchPOs() }, [])
 
-  const handleAddLine = () => setLineItems([...lineItems, { item_id: '', quantity: '', unit_price: '' }])
+  const handleAddLine = () => setLineItems([...lineItems, { item_name: '', quantity: '', unit_price: '' }])
 
   const handleLineChange = (i, field, value) => {
     const updated = [...lineItems]
@@ -80,7 +78,7 @@ export default function PurchaseOrders() {
       await api.post('/purchase/po', {
         vendor_id: parseInt(vendorId),
         po_date: poDate,
-        track_qr: trackQr,                          // ← NEW
+        track_qr: trackQr,
         line_items: lineItems.map(li => ({
           item_name: li.item_name,
           quantity: parseInt(li.quantity),
@@ -89,8 +87,8 @@ export default function PurchaseOrders() {
       })
       setShowForm(false)
       setVendorId('')
-      setTrackQr(true)
-      setLineItems([{ item_id: '', quantity: '', unit_price: '' }])
+      setTrackQr(false)
+      setLineItems([{ item_name: '', quantity: '', unit_price: '' }])
       fetchPOs()
     } catch (err) {
       alert(err.response?.data?.detail || 'Error creating PO')
@@ -121,6 +119,20 @@ export default function PurchaseOrders() {
       const res = await api.get(`/purchase/po/${poId}/qr-codes`)
       setQrCodes(Array.isArray(res.data) ? res.data : res.data.parts || [])
       setQrModal(poId)
+    } catch (err) {
+      console.error(err)
+    }
+  }
+
+  const handleExpandPO = async (poId) => {
+    if (expandedPO === poId) {
+      setExpandedPO(null)
+      return
+    }
+    try {
+      const res = await api.get(`/purchase/po/${poId}/items`)
+      setPoItems(prev => ({ ...prev, [poId]: res.data }))
+      setExpandedPO(poId)
     } catch (err) {
       console.error(err)
     }
@@ -188,7 +200,7 @@ export default function PurchaseOrders() {
               </div>
             </div>
 
-            {/* ── QR Tracking Toggle ── */}
+            {/* QR Tracking Toggle */}
             <div className="flex items-center gap-3 p-3 bg-slate-50 rounded-lg border border-slate-200">
               <button
                 type="button"
@@ -197,11 +209,9 @@ export default function PurchaseOrders() {
                   trackQr ? 'bg-teal-600' : 'bg-slate-300'
                 }`}
               >
-                <span
-                  className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
-                    trackQr ? 'translate-x-6' : 'translate-x-1'
-                  }`}
-                />
+                <span className={`inline-block h-4 w-4 transform rounded-full bg-white shadow transition-transform ${
+                  trackQr ? 'translate-x-6' : 'translate-x-1'
+                }`} />
               </button>
               <div>
                 <p className="text-sm font-medium text-slate-700">
@@ -227,12 +237,12 @@ export default function PurchaseOrders() {
                 {lineItems.map((li, i) => (
                   <div key={i} className="grid grid-cols-4 gap-2 items-center">
                     <input
-                     type="text"
-                     placeholder="Material name"
+                      type="text"
+                      placeholder="Material name"
                       value={li.item_name}
-                    onChange={(e) => handleLineChange(i, 'item_name', e.target.value)}
-                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
-                    required
+                      onChange={(e) => handleLineChange(i, 'item_name', e.target.value)}
+                      className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+                      required
                     />
                     <input
                       type="number"
@@ -270,17 +280,10 @@ export default function PurchaseOrders() {
             </div>
 
             <div className="flex gap-3 pt-2">
-              <button
-                type="submit"
-                className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-sm font-medium"
-              >
+              <button type="submit" className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-sm font-medium">
                 Create PO
               </button>
-              <button
-                type="button"
-                onClick={() => setShowForm(false)}
-                className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-sm font-medium"
-              >
+              <button type="button" onClick={() => setShowForm(false)} className="px-4 py-2 bg-slate-100 hover:bg-slate-200 text-slate-600 rounded-lg text-sm font-medium">
                 Cancel
               </button>
             </div>
@@ -313,61 +316,98 @@ export default function PurchaseOrders() {
                 </tr>
               )}
               {pos.map((po) => (
-                <tr key={po.id} className="hover:bg-slate-50">
-                  <td className="px-5 py-3 font-medium text-slate-700">{po.po_number}</td>
-                  <td className="px-5 py-3 text-slate-600">{getVendorName(po.vendor_id)}</td>
-                  <td className="px-5 py-3 text-slate-500 text-xs">{fmtDateTime(po.created_at)}</td>
-                  <td className="px-5 py-3 text-slate-500 text-xs">{fmtDateTime(po.received_at)}</td>
-                  <td className="px-5 py-3 text-right font-semibold text-slate-700">
-                    ₹{Number(po.total_amount).toLocaleString('en-IN')}
-                  </td>
-                  <td className="px-5 py-3 text-center">
-                    {po.track_qr ? (
-                      <span className="px-2 py-0.5 bg-violet-50 text-violet-600 rounded-full text-xs font-medium">QR</span>
-                    ) : (
-                      <span className="px-2 py-0.5 bg-slate-100 text-slate-400 rounded-full text-xs">No QR</span>
-                    )}
-                  </td>
-                  <td className="px-5 py-3 text-center">
-                    <StatusBadge status={po.status} />
-                  </td>
-                  <td className="px-5 py-3 text-center">
-                    <div className="flex items-center justify-center gap-2">
-                      {po.status === 'draft' && role === 'admin' && (
-                        <button
-                          onClick={() => handleApprove(po.id)}
-                          className="px-3 py-1 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-xs font-medium transition-colors"
-                        >
-                          Approve
-                        </button>
+                <>
+                  <tr
+                    key={po.id}
+                    className="hover:bg-slate-50 cursor-pointer"
+                    onClick={() => handleExpandPO(po.id)}
+                  >
+                    <td className="px-5 py-3 font-medium text-slate-700">
+                      <span className="text-slate-400 text-xs mr-2">{expandedPO === po.id ? '▼' : '▶'}</span>
+                      {po.po_number}
+                    </td>
+                    <td className="px-5 py-3 text-slate-600">{getVendorName(po.vendor_id)}</td>
+                    <td className="px-5 py-3 text-slate-500 text-xs">{fmtDateTime(po.created_at)}</td>
+                    <td className="px-5 py-3 text-slate-500 text-xs">{fmtDateTime(po.received_at)}</td>
+                    <td className="px-5 py-3 text-right font-semibold text-slate-700">
+                      ₹{Number(po.total_amount).toLocaleString('en-IN')}
+                    </td>
+                    <td className="px-5 py-3 text-center">
+                      {po.track_qr ? (
+                        <span className="px-2 py-0.5 bg-violet-50 text-violet-600 rounded-full text-xs font-medium">QR</span>
+                      ) : (
+                        <span className="px-2 py-0.5 bg-slate-100 text-slate-400 rounded-full text-xs">No QR</span>
                       )}
-                      {po.status === 'approved' && (
-                        <button
-                          onClick={() => handleReceive(po.id, po.track_qr)}
-                          className="px-3 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg text-xs font-medium transition-colors"
-                        >
-                          Mark Received
-                        </button>
-                      )}
-                      {po.status === 'received' && po.track_qr && (
-                        <button
-                          onClick={() => handleViewQR(po.id)}
-                          className="px-3 py-1 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg text-xs font-medium transition-colors"
-                        >
-                          View QR Codes
-                        </button>
-                      )}
-                      {role === 'admin' && (
-                        <button
-                          onClick={() => setDeleteTarget({ id: po.id, name: po.po_number })}
-                          className="px-3 py-1 border border-red-300 hover:bg-red-50 text-red-500 rounded-lg text-xs font-medium transition-colors"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
+                    </td>
+                    <td className="px-5 py-3 text-center">
+                      <StatusBadge status={po.status} />
+                    </td>
+                    <td className="px-5 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                      <div className="flex items-center justify-center gap-2">
+                        {po.status === 'draft' && role === 'admin' && (
+                          <button
+                            onClick={() => handleApprove(po.id)}
+                            className="px-3 py-1 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-xs font-medium transition-colors"
+                          >
+                            Approve
+                          </button>
+                        )}
+                        {po.status === 'approved' && (
+                          <button
+                            onClick={() => handleReceive(po.id, po.track_qr)}
+                            className="px-3 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg text-xs font-medium transition-colors"
+                          >
+                            Mark Received
+                          </button>
+                        )}
+                        {po.status === 'received' && po.track_qr && (
+                          <button
+                            onClick={() => handleViewQR(po.id)}
+                            className="px-3 py-1 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg text-xs font-medium transition-colors"
+                          >
+                            View QR Codes
+                          </button>
+                        )}
+                        {role === 'admin' && (
+                          <button
+                            onClick={() => setDeleteTarget({ id: po.id, name: po.po_number })}
+                            className="px-3 py-1 border border-red-300 hover:bg-red-50 text-red-500 rounded-lg text-xs font-medium transition-colors"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+
+                  {/* Expanded line items */}
+                  {expandedPO === po.id && poItems[po.id] && (
+                    <tr key={`${po.id}-items`}>
+                      <td colSpan={8} className="px-8 py-3 bg-slate-50 border-b border-slate-100">
+                        <table className="w-full text-sm">
+                          <thead>
+                            <tr className="text-xs text-slate-400 uppercase">
+                              <th className="text-left py-1">Item</th>
+                              <th className="text-right py-1">Qty</th>
+                              <th className="text-right py-1">Unit Price</th>
+                              <th className="text-right py-1">Total</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {poItems[po.id].map((item, i) => (
+                              <tr key={i} className="border-t border-slate-100">
+                                <td className="py-1.5 text-slate-700 font-medium">{item.item_name}</td>
+                                <td className="py-1.5 text-right text-slate-600">{item.quantity}</td>
+                                <td className="py-1.5 text-right text-slate-600">₹{item.unit_price}</td>
+                                <td className="py-1.5 text-right font-semibold text-slate-700">₹{item.total}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </td>
+                    </tr>
+                  )}
+                </>
               ))}
             </tbody>
           </table>
