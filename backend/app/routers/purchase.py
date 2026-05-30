@@ -21,7 +21,7 @@ router = APIRouter(prefix="/purchase", tags=["Purchase"])
 # ─── SCHEMAS ─────────────────────────────────────────────────
 
 class POLineItemIn(BaseModel):
-    item_id: int
+    item_name: str
     quantity: int
     unit_price: Decimal
 
@@ -29,7 +29,7 @@ class POCreate(BaseModel):
     vendor_id: int
     po_date: date
     expected_delivery: Optional[date] = None
-    track_qr: bool = True                          # ← NEW
+    track_qr: bool = True
     line_items: List[POLineItemIn]
 
 class POOut(BaseModel):
@@ -39,9 +39,9 @@ class POOut(BaseModel):
     po_date: date
     status: str
     total_amount: Optional[Decimal]
-    track_qr: bool                                 # ← NEW
-    created_at: Optional[datetime]                 # ← NEW
-    received_at: Optional[datetime]                # ← NEW
+    track_qr: bool
+    created_at: Optional[datetime]
+    received_at: Optional[datetime]
     class Config:
         from_attributes = True
 
@@ -83,7 +83,7 @@ def create_po(
         expected_delivery=data.expected_delivery,
         status="draft",
         total_amount=total,
-        track_qr=data.track_qr,                   # ← NEW
+        track_qr=data.track_qr,
         created_by=current_user.id
     )
     db.add(po)
@@ -92,7 +92,7 @@ def create_po(
     for li in data.line_items:
         po_line = POLineItem(
             po_id=po.id,
-            item_id=li.item_id,
+            item_name=li.item_name,
             quantity=li.quantity,
             unit_price=li.unit_price
         )
@@ -158,7 +158,24 @@ def receive_po(
     processed_lines = []
 
     for li in po_lines:
-        item = db.query(Item).filter(Item.id == li.item_id).first()
+        # ── Auto-create item by name if it doesn't exist ──
+        item = db.query(Item).filter(
+            Item.name == li.item_name,
+            Item.company_id == current_user.company_id
+        ).first()
+
+        if not item:
+            item = Item(
+                company_id=current_user.company_id,
+                name=li.item_name,
+                item_type="raw_material",
+                unit="pcs",
+                tax_rate=Decimal("0.00"),
+                current_stock=0,
+            )
+            db.add(item)
+            db.flush()  # get item.id immediately
+
         line_subtotal = Decimal(li.quantity) * li.unit_price
         tax = calculate_tax(line_subtotal, item.tax_rate, interstate)
         line_total = line_subtotal + tax["cgst"] + tax["sgst"] + tax["igst"]
@@ -214,7 +231,7 @@ def receive_po(
         )
         db.add(inv_line)
 
-        if po.track_qr:                            # ← NEW: only generate QRs if opted in
+        if po.track_qr:
             for unit_num in range(1, qty + 1):
                 qr_data = generate_part_qr_data(
                     item.item_type,
@@ -253,7 +270,7 @@ def receive_po(
         item.current_stock += pl["quantity"]
 
     po.status = "received"
-    po.received_at = datetime.utcnow()             # ← NEW
+    po.received_at = datetime.utcnow()
 
     db.commit()
 

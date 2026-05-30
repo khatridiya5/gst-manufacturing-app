@@ -43,7 +43,7 @@ class PurchaseLineItem(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     purchase_invoice_id = Column(Integer, ForeignKey("purchase_invoices.id"))
-    item_id = Column(Integer, ForeignKey("items.id"))
+    item_name = Column(Integer, ForeignKey("items.id"))
     quantity = Column(Numeric(10, 3), nullable=False)
     unit_price = Column(Numeric(10, 2), nullable=False)
     subtotal = Column(Numeric(12, 2), nullable=False)
