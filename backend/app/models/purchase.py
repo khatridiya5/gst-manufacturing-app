@@ -58,6 +58,6 @@ class POLineItem(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     po_id = Column(Integer, ForeignKey("purchase_orders.id"))
-    item_id = Column(Integer, ForeignKey("items.id"))
+    item_name = Column(String(200), nullable=False) 
     quantity = Column(Integer, nullable=False)
     unit_price = Column(Numeric(10, 2), nullable=False)
