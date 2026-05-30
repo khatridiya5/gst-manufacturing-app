@@ -43,7 +43,7 @@ export default function PurchaseOrders() {
   const [vendorId, setVendorId] = useState('')
   const [poDate, setPoDate] = useState(new Date().toISOString().split('T')[0])
   const [trackQr, setTrackQr] = useState(true)           // ← NEW
-  const [lineItems, setLineItems] = useState([{ item_id: '', quantity: '', unit_price: '' }])
+  const [lineItems, setLineItems] = useState([{ item_name: '', quantity: '', unit_price: '' }])
 
   const fetchPOs = async () => {
     try {
@@ -82,7 +82,7 @@ export default function PurchaseOrders() {
         po_date: poDate,
         track_qr: trackQr,                          // ← NEW
         line_items: lineItems.map(li => ({
-          item_id: parseInt(li.item_id),
+          item_name: li.item_name,
           quantity: parseInt(li.quantity),
           unit_price: parseFloat(li.unit_price),
         }))
@@ -226,17 +226,14 @@ export default function PurchaseOrders() {
               <div className="space-y-2">
                 {lineItems.map((li, i) => (
                   <div key={i} className="grid grid-cols-4 gap-2 items-center">
-                    <select
-                      value={li.item_id}
-                      onChange={(e) => handleLineChange(i, 'item_id', e.target.value)}
-                      className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
-                      required
-                    >
-                      <option value="">Select item...</option>
-                      {items.map(item => (
-                        <option key={item.id} value={item.id}>{item.name}</option>
-                      ))}
-                    </select>
+                    <input
+                     type="text"
+                     placeholder="Material name"
+                      value={li.item_name}
+                    onChange={(e) => handleLineChange(i, 'item_name', e.target.value)}
+                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+                    required
+                    />
                     <input
                       type="number"
                       placeholder="Quantity"

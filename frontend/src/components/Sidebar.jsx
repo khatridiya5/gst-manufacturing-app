@@ -7,7 +7,7 @@ const links = [
   { to: '/sales', label: 'Sales', icon: '🧾' },
   { to: '/gst', label: 'GST Returns', icon: '📋' },
   { to: '/reports', label: 'Reports', icon: '📈' },
-  { to: '/items', label: 'Items', icon: '🔩' },
+  
   { to: '/vendors', label: 'Vendors', icon: '🏪' },
   { to: '/customers', label: 'Customers', icon: '👥' },
   { to: '/workers', label: 'Workers', icon: '👷' },
