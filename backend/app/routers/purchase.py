@@ -452,6 +452,7 @@ def get_po_items(
             "item_name": li.item_name,
             "quantity": li.quantity,
             "unit_price": str(li.unit_price),
+            "tax_rate": str(li.tax_rate or 0),
             "total": str(li.quantity * li.unit_price)
         }
         for li in lines

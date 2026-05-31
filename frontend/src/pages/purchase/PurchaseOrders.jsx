@@ -408,24 +408,33 @@ export default function PurchaseOrders() {
                     <tr key={`${po.id}-items`}>
                       <td colSpan={8} className="px-8 py-3 bg-slate-50 border-b border-slate-100">
                         <table className="w-full text-sm">
-                          <thead>
-                            <tr className="text-xs text-slate-400 uppercase">
-                              <th className="text-left py-1">Item</th>
-                              <th className="text-right py-1">Qty</th>
-                              <th className="text-right py-1">Unit Price</th>
-                              <th className="text-right py-1">Total</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {poItems[po.id].map((item, i) => (
-                              <tr key={i} className="border-t border-slate-100">
-                                <td className="py-1.5 text-slate-700 font-medium">{item.item_name}</td>
-                                <td className="py-1.5 text-right text-slate-600">{item.quantity}</td>
-                                <td className="py-1.5 text-right text-slate-600">₹{item.unit_price}</td>
-                                <td className="py-1.5 text-right font-semibold text-slate-700">₹{item.total}</td>
-                              </tr>
-                            ))}
-                          </tbody>
+                        <thead>
+  <tr className="text-xs text-slate-400 uppercase">
+    <th className="text-left py-1">Item</th>
+    <th className="text-right py-1">Qty</th>
+    <th className="text-right py-1">Unit Price</th>
+    <th className="text-right py-1">Tax %</th>
+    <th className="text-right py-1">Tax Amt</th>
+    <th className="text-right py-1">Total</th>
+  </tr>
+</thead>
+<tbody>
+  {poItems[po.id].map((item, i) => {
+    const subtotal = item.quantity * parseFloat(item.unit_price)
+    const taxAmt = subtotal * (parseFloat(item.tax_rate || 0) / 100)
+    const total = subtotal + taxAmt
+    return (
+      <tr key={i} className="border-t border-slate-100">
+        <td className="py-1.5 text-slate-700 font-medium">{item.item_name}</td>
+        <td className="py-1.5 text-right text-slate-600">{item.quantity}</td>
+        <td className="py-1.5 text-right text-slate-600">₹{item.unit_price}</td>
+        <td className="py-1.5 text-right text-slate-500">{item.tax_rate || 0}%</td>
+        <td className="py-1.5 text-right text-slate-500">₹{taxAmt.toFixed(2)}</td>
+        <td className="py-1.5 text-right font-semibold text-slate-700">₹{total.toFixed(2)}</td>
+      </tr>
+    )
+  })}
+</tbody>
                         </table>
                       </td>
                     </tr>
