@@ -1,21 +1,28 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 
 const allLinks = [
-  { to: '/', label: 'Dashboard', icon: '📊', end: true, roles: ['admin'] },
-  { to: '/purchase', label: 'Purchase', icon: '📦', roles: ['admin', 'accountant'] },
-  { to: '/production', label: 'Production', icon: '🏭', roles: ['admin', 'production'] },
-  { to: '/sales', label: 'Sales', icon: '🧾', roles: ['admin', 'sales'] },
-  { to: '/gst', label: 'GST Returns', icon: '📋', roles: ['admin'] },
-  { to: '/reports', label: 'Reports', icon: '📈', roles: ['admin'] },
-  { to: '/vendors', label: 'Vendors', icon: '🏪', roles: ['admin', 'accountant'] },
-  { to: '/customers', label: 'Customers', icon: '👥', roles: ['admin', 'sales'] },
-  { to: '/workers', label: 'Workers', icon: '👷', roles: ['admin', 'store_manager'] },
-  { to: '/invoice-print', label: 'Invoice Print', icon: '🖨️', roles: ['admin', 'accountant'] },
-  { to: '/wip', label: 'WIP Tracking', icon: '📡', roles: ['admin', 'production'] },
-  { to: '/in-store', label: 'In-Store', icon: '🏪', roles: ['admin', 'store_manager'] },
-  { to: '/issue-items', label: 'Issue Items', icon: '📤', roles: ['admin', 'store_manager'] },
-  { to: '/admin', label: 'User Management', icon: '⚙️', roles: ['admin'] },
+  { to: '/',             label: 'Dashboard',     icon: '📊', end: true, roles: ['admin'] },
+  { to: '/purchase',     label: 'Purchase',      icon: '📦', roles: ['admin', 'purchase'] },
+  { to: '/production',   label: 'Production',    icon: '🏭', roles: ['admin', 'production'] },
+  { to: '/sales',        label: 'Sales',         icon: '🧾', roles: ['admin', 'sales'] },
+  { to: '/gst',          label: 'GST Returns',   icon: '📋', roles: ['admin'] },
+  { to: '/reports',      label: 'Reports',       icon: '📈', roles: ['admin'] },
+  { to: '/vendors',      label: 'Vendors',       icon: '🏪', roles: ['admin', 'purchase'] },
+  { to: '/customers',    label: 'Customers',     icon: '👥', roles: ['admin', 'sales'] },
+  { to: '/workers',      label: 'Workers',       icon: '👷', roles: ['admin', 'store_manager'] },
+  { to: '/invoice-print',label: 'Invoice Print', icon: '🖨️', roles: ['admin', 'sales'] },
+  { to: '/wip',          label: 'WIP Tracking',  icon: '📡', roles: ['admin', 'production'] },
+  { to: '/in-store',     label: 'In-Store',      icon: '🏪', roles: ['admin', 'store_manager'] },
+  { to: '/issue-items',  label: 'Issue Items',   icon: '📤', roles: ['admin', 'store_manager'] },
+  { to: '/admin',        label: 'User Management',icon: '⚙️', roles: ['admin'] },
 ]
+
+// What each role sees after login
+// admin        → everything
+// purchase     → Purchase, Vendors
+// sales        → Sales, Customers, Invoice Print
+// production   → Production, WIP Tracking
+// store_manager→ Workers, In-Store, Issue Items
 
 export default function Sidebar() {
   const navigate = useNavigate()
@@ -27,6 +34,14 @@ export default function Sidebar() {
     localStorage.removeItem('token')
     localStorage.removeItem('role')
     navigate('/login')
+  }
+
+  const roleLabel = {
+    admin: 'Admin',
+    purchase: 'Purchase',
+    sales: 'Sales',
+    production: 'Production',
+    store_manager: 'Store Manager',
   }
 
   return (
@@ -47,7 +62,7 @@ export default function Sidebar() {
       {/* Role badge */}
       <div className="px-4 py-2 border-b border-slate-700">
         <span className="text-xs px-2 py-0.5 rounded-full bg-teal-900 text-teal-300 font-medium capitalize">
-          {role.replace('_', ' ')}
+          {roleLabel[role] || role}
         </span>
       </div>
 
