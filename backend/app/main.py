@@ -1,9 +1,12 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import auth, master, purchase, workers, production, sales, gst, accounting, inventory
-from app.database import SessionLocal
+from app.database import SessionLocal, engine, Base
+from app.models import user, company, section_credentials
 
 app = FastAPI(title="GST Manufacturing App")
+# Creates all missing tables automatically on startup
+Base.metadata.create_all(bind=engine)
 
 app.add_middleware(
     CORSMiddleware,
