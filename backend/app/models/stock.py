@@ -11,7 +11,7 @@ class StockLedger(Base):
     transaction_type = Column(String(30), nullable=False)
     reference_id = Column(Integer)
     reference_type = Column(String(30))
-    quantity = Column(Numeric(10, 3), nullable=False)
+    quantity = Column(Integer, nullable=False)
     unit_cost = Column(Numeric(10, 2))
     transaction_date = Column(Date, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
