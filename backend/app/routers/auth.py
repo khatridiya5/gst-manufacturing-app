@@ -139,7 +139,7 @@ def save_section_credential(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_admin),
 ):
-    allowed = {"purchase", "sales", "production"}
+    allowed = {"purchase", "sales", "production", "store"}
     if body.section not in allowed:
         raise HTTPException(status_code=422, detail=f"section must be one of {allowed}")
     if len(body.password) < 6:
@@ -179,8 +179,9 @@ def section_login(body: SectionLoginRequest, db: Session = Depends(get_db)):
     if cred.username != body.username or not verify_password(body.password, cred.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid section credentials")
 
-    token = create_access_token({"section": body.section, "role": body.section})
-    return {"access_token": token, "token_type": "bearer", "section": body.section}
+    role = "store_manager" if body.section == "store" else body.section
+    token = create_access_token({"section": body.section, "role": role})
+    return {"access_token": token, "token_type": "bearer", "role": role, "section": body.section}
 
 
 @router.get("/setup/section-credentials")

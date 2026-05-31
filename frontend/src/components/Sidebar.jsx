@@ -1,23 +1,27 @@
 import { NavLink, useNavigate } from 'react-router-dom'
 
-const links = [
-  { to: '/', label: 'Dashboard', icon: '📊', end: true },
-  { to: '/purchase', label: 'Purchase', icon: '📦' },
-  { to: '/production', label: 'Production', icon: '🏭' },
-  { to: '/sales', label: 'Sales', icon: '🧾' },
-  { to: '/gst', label: 'GST Returns', icon: '📋' },
-  { to: '/reports', label: 'Reports', icon: '📈' },
-  
-  { to: '/vendors', label: 'Vendors', icon: '🏪' },
-  { to: '/customers', label: 'Customers', icon: '👥' },
-  { to: '/workers', label: 'Workers', icon: '👷' },
-  { to: '/invoice-print', label: 'Invoice Print', icon: '🖨️' },
-  { to: '/wip', label: 'WIP Tracking', icon: '📡' },
-  { to: '/in-store', label: 'In-Store', icon: '🏪' },
+const allLinks = [
+  { to: '/', label: 'Dashboard', icon: '📊', end: true, roles: ['admin'] },
+  { to: '/purchase', label: 'Purchase', icon: '📦', roles: ['admin', 'accountant'] },
+  { to: '/production', label: 'Production', icon: '🏭', roles: ['admin', 'production'] },
+  { to: '/sales', label: 'Sales', icon: '🧾', roles: ['admin', 'sales'] },
+  { to: '/gst', label: 'GST Returns', icon: '📋', roles: ['admin'] },
+  { to: '/reports', label: 'Reports', icon: '📈', roles: ['admin'] },
+  { to: '/vendors', label: 'Vendors', icon: '🏪', roles: ['admin', 'accountant'] },
+  { to: '/customers', label: 'Customers', icon: '👥', roles: ['admin', 'sales'] },
+  { to: '/workers', label: 'Workers', icon: '👷', roles: ['admin', 'store_manager'] },
+  { to: '/invoice-print', label: 'Invoice Print', icon: '🖨️', roles: ['admin', 'accountant'] },
+  { to: '/wip', label: 'WIP Tracking', icon: '📡', roles: ['admin', 'production'] },
+  { to: '/in-store', label: 'In-Store', icon: '🏪', roles: ['admin', 'store_manager'] },
+  { to: '/issue-items', label: 'Issue Items', icon: '📤', roles: ['admin', 'store_manager'] },
+  { to: '/admin', label: 'User Management', icon: '⚙️', roles: ['admin'] },
 ]
 
 export default function Sidebar() {
   const navigate = useNavigate()
+  const role = localStorage.getItem('role') || 'admin'
+
+  const links = allLinks.filter(link => link.roles.includes(role))
 
   const handleLogout = () => {
     localStorage.removeItem('token')
@@ -38,6 +42,13 @@ export default function Sidebar() {
             <p className="text-slate-400 text-xs">Auto Parts</p>
           </div>
         </div>
+      </div>
+
+      {/* Role badge */}
+      <div className="px-4 py-2 border-b border-slate-700">
+        <span className="text-xs px-2 py-0.5 rounded-full bg-teal-900 text-teal-300 font-medium capitalize">
+          {role.replace('_', ' ')}
+        </span>
       </div>
 
       {/* Nav links */}
@@ -73,5 +84,3 @@ export default function Sidebar() {
     </div>
   )
 }
-
-
