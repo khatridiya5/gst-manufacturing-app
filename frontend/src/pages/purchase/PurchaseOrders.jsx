@@ -4,6 +4,7 @@ import DeleteConfirmModal from '../../components/DeleteConfirmModal'
 
 const fmtDateTime = (iso) => {
   if (!iso) return '—'
+  const utcIso = iso.endsWith('Z') || iso.includes('+') ? iso : iso + 'Z'
   return new Date(iso).toLocaleString('en-IN', {
     timeZone: 'Asia/Kolkata',
     day: '2-digit',
