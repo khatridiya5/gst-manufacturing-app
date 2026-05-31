@@ -15,13 +15,8 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
 ALLOWED_EMAIL = "admin"
-ALLOWED_PASSWORD="me"
-SECTION_CREDENTIALS = {
-    "purchase":   {"username": "purchase",    "password": "buy@2024"},
-    "sales":      {"username": "sales",       "password": "sell@2024"},
-    "production": {"username": "production",  "password": "prod@2024"},
-    "store":      {"username": "store",       "password": "stock@2024"},
-}
+ALLOWED_PASSWORD = "me"
+
 # ── Schemas ──────────────────────────────────────────────────
 class RegisterRequest(BaseModel):
     name: str
@@ -178,8 +173,10 @@ def section_login(body: SectionLoginRequest, db: Session = Depends(get_db)):
     if body.section not in allowed:
         raise HTTPException(status_code=422, detail=f"section must be one of {allowed}")
 
-    cred = SECTION_CREDENTIALS.get(body.section)
-    if body.username != cred["username"] or body.password != cred["password"]:
+    cred = db.query(SectionCredential).filter_by(section=body.section).first()
+    if not cred:
+        raise HTTPException(status_code=404, detail="Section not set up yet — ask admin to configure credentials")
+    if cred.username != body.username or not verify_password(body.password, cred.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid section credentials")
 
     role = "store_manager" if body.section == "store" else body.section
