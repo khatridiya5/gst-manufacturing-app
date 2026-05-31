@@ -160,7 +160,7 @@ def receive_po(
     for li in po_lines:
         # ── Auto-create item by name if it doesn't exist ──
         item = db.query(Item).filter(
-            Item.name == li.item_name,
+            func.lower(Item.name) == li.item_name.lower(),
             Item.company_id == current_user.company_id
         ).first()
 
@@ -395,6 +395,25 @@ def delete_po(
 
     db.query(POLineItem).filter(POLineItem.po_id == po_id).delete()
     db.query(PartInstance).filter(PartInstance.purchase_order_id == po_id).delete()
+    # Reverse stock if PO was received
+    if po.status == "received":
+        invoices = db.query(PurchaseInvoice).filter(PurchaseInvoice.po_id == po_id).all()
+        for inv in invoices:
+            lines = db.query(PurchaseLineItem).filter(
+                PurchaseLineItem.purchase_invoice_id == inv.id
+            ).all()
+            for line in lines:
+                item = db.query(Item).filter(Item.id == line.item_name).first()
+                if item:
+                    item.current_stock -= float(line.quantity)
+                    if item.current_stock < 0:
+                        item.current_stock = 0
+        # Delete stock ledger entries for this invoice
+            db.query(StockLedger).filter(
+                StockLedger.reference_id == inv.id,
+                StockLedger.reference_type == "purchase_invoice"
+            ).delete()
+
     db.delete(po)
     db.commit()
     return {"message": "PO deleted successfully"}
