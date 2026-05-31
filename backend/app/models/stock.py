@@ -14,6 +14,7 @@ class StockLedger(Base):
     quantity = Column(Integer, nullable=False)
     unit_cost = Column(Numeric(10, 2))
     transaction_date = Column(Date, nullable=False)
+    reason = Column(String(200), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
 
 

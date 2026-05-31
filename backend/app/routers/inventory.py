@@ -91,7 +91,8 @@ def manual_stock_entry(
         reference_type="manual",
         quantity=abs(int(data.quantity)),
         unit_cost=0,
-        transaction_date=date.today()
+        transaction_date=date.today(),
+        reason=data.reason
     )
     db.add(entry)
 

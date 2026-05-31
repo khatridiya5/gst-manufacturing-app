@@ -265,26 +265,23 @@ export default function InStore() {
                                 <th className="text-left pb-1">Worker</th>
                                 <th className="text-left pb-1">Part Instance</th>
                                 <th className="text-left pb-1">Scanned At</th>
+                                <th className="text-left pb-1">Reason</th>
                               </tr>
                             </thead>
                             <tbody>
                               {scanHistory.map((s, i) => (
-                                <tr key={i} className="text-gray-700">
-                                  <td className="py-1">{s.worker}</td>
-                                  <td className="py-1 font-mono">{s.part_instance}</td>
-                                  <td className="py-1">
-  {new Date(s.scanned_at).toLocaleString("en-GB", {
-    day: "2-digit",
-    month: "short",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true
-  })}
-</td>
-
-                                </tr>
+                               <tr key={i} className="text-gray-700">
+                               <td className="py-1">{s.worker}</td>
+                               <td className="py-1 font-mono">{s.part_instance}</td>
+                               <td className="py-1">
+                                 {new Date(s.scanned_at).toLocaleString("en-GB", {
+                                   day: "2-digit", month: "short", year: "numeric",
+                                   hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true
+                                 })}
+                               </td>
+                               <td className="py-1 text-gray-400 italic">{s.reason || "—"}</td>
+                             </tr> 
+                        
                               ))}
                             </tbody>
                           </table>
