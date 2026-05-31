@@ -1,21 +1,66 @@
-# Hardcoded section credentials
-SECTION_CREDENTIALS = {
-    "purchase": {"username": "purchase", "password": "purchase123"},
-    "production": {"username": "production", "password": "production123"},
-    "sales": {"username": "sales", "password": "sales123"},
-    "store": {"username": "store", "password": "store123"},
-}
+from datetime import datetime, timedelta
+from jose import JWTError, jwt
+from fastapi import Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer
+from sqlalchemy.orm import Session
+from app.database import get_db
+from app.models.user import User
+from dotenv import load_dotenv
+import os
 
-@router.post("/section-login")
-def section_login(body: SectionLoginRequest, db: Session = Depends(get_db)):
-    allowed = {"purchase", "sales", "production", "store"}
-    if body.section not in allowed:
-        raise HTTPException(status_code=422, detail=f"section must be one of {allowed}")
+load_dotenv()
 
-    creds = SECTION_CREDENTIALS.get(body.section)
-    if body.username != creds["username"] or body.password != creds["password"]:
-        raise HTTPException(status_code=401, detail="Invalid section credentials")
+SECRET_KEY = os.getenv("SECRET_KEY")
+ALGORITHM = os.getenv("ALGORITHM")
+ACCESS_TOKEN_EXPIRE_MINUTES = int(os.getenv("ACCESS_TOKEN_EXPIRE_MINUTES"))
 
-    role = "store_manager" if body.section == "store" else body.section
-    token = create_access_token({"section": body.section, "role": role})
-    return {"access_token": token, "token_type": "bearer", "role": role, "section": body.section}
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/auth/login")
+
+def create_access_token(data: dict) -> str:
+    to_encode = data.copy()
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+    to_encode.update({"exp": expire})
+    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def get_current_user(
+    token: str = Depends(oauth2_scheme),
+    db: Session = Depends(get_db)
+) -> User:
+    credentials_exception = HTTPException(
+        status_code=status.HTTP_401_UNAUTHORIZED,
+        detail="Invalid or expired token",
+        headers={"WWW-Authenticate": "Bearer"},
+    )
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id: int = payload.get("user_id")
+
+        if user_id is None:
+            section = payload.get("section")
+            if section not in ("purchase", "production", "sales", "store"):
+                raise credentials_exception
+            dummy = User()
+            dummy.id = 0
+            dummy.role = "store_manager" if section == "store" else section
+            dummy.company_id = 1
+            dummy.is_active = True
+            return dummy
+
+    except JWTError:
+        raise credentials_exception
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if user is None or not user.is_active:
+        raise credentials_exception
+
+    return user
+
+def require_role(*roles):
+    def role_checker(current_user: User = Depends(get_current_user)):
+        if current_user.role not in roles:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="You don't have permission to do this"
+            )
+        return current_user
+    return role_checker
