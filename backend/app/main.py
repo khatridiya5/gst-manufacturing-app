@@ -1,5 +1,4 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import auth, master, purchase, workers, production, sales, gst, accounting, inventory
 from app.database import SessionLocal
@@ -24,7 +23,6 @@ app.include_router(gst.router)
 app.include_router(accounting.router)
 app.include_router(inventory.router)
 
-
 @app.on_event("startup")
 def startup():
     db = SessionLocal()
@@ -39,7 +37,6 @@ def startup():
         print(f"⚠️ Startup admin check failed: {e}")
     finally:
         db.close()
-
 
 @app.get("/")
 def root():
