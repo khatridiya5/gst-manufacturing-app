@@ -25,6 +25,7 @@ class POLineItemIn(BaseModel):
     quantity: int
     unit_price: Decimal
     part_code: Optional[str] = None
+    tax_rate: Optional[Decimal] = Decimal("0.00")
 
 class POCreate(BaseModel):
     vendor_id: int
@@ -95,8 +96,10 @@ def create_po(
             po_id=po.id,
             item_name=li.item_name,
             part_code=li.part_code,
+            tax_rate=li.tax_rate,
             quantity=li.quantity,
             unit_price=li.unit_price
+
 )
         db.add(po_line)
 
@@ -174,7 +177,7 @@ def receive_po(
                 item_type="raw_material",
                 hsn_code="0000",
                 unit="pcs",
-                tax_rate=Decimal("0.00"),
+                tax_rate=li.tax_rate or Decimal("0.00"),
                 opening_stock=0,
                 current_stock=0,
             )
@@ -182,6 +185,8 @@ def receive_po(
         # Update part code if provided and not already set
             if li.part_code and not item.code:
                 item.code = li.part_code
+            if li.tax_rate:
+                item.tax_rate = li.tax_rate
             db.add(item)
             db.flush()  # get item.id immediately
 

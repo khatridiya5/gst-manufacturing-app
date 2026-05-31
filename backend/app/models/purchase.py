@@ -62,3 +62,4 @@ class POLineItem(Base):
     part_code = Column(String(50), nullable=True)
     quantity = Column(Integer, nullable=False)
     unit_price = Column(Numeric(10, 2), nullable=False)
+    tax_rate = Column(Numeric(5, 2), default=0, nullable=True)
