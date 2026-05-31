@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
-import AuthPage from './pages/authPage'
+import Login from './pages/Login'
 import Dashboard from './pages/Dashboard'
 import Layout from './components/Layout'
 import Items from './pages/master/Items'
@@ -26,7 +26,7 @@ export default function App() {
   return (
     <Routes>
       {/* Public routes */}
-      <Route path="/login" element={<AuthPage />} />
+      <Route path="/login" element={<Login />} />
 
       {/* /setup is outside Layout — full screen, no sidebar */}
       <Route
