@@ -15,6 +15,7 @@ from app.models.user import User
 from app.services.itc import calculate_tax, is_interstate_transaction
 from app.services.qr import generate_qr_base64, generate_part_qr_data
 from app.utils.otp import verify_delete_otp
+from sqlalchemy import func
 
 router = APIRouter(prefix="/purchase", tags=["Purchase"])
 
