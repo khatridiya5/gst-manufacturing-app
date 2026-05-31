@@ -27,9 +27,12 @@ class ManualStockEntry(BaseModel):
 
 @router.get("/in-store")
 def get_in_store(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    # Get company_id — for section tokens it's hardcoded to 1, so find first company
+    company_id = current_user.company_id if current_user.company_id else 1
+
+    company_id = current_user.company_id or 1
     items = db.query(Item).filter(
-        Item.company_id == current_user.company_id,
-        Item.current_stock > 0
+        Item.company_id == company_id,
     ).all()
 
     qr_item_ids = set(
