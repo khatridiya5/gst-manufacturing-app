@@ -435,11 +435,7 @@ def delete_po(
 
 
 @router.get("/po/{po_id}/items")
-def get_po_items(
-    po_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
+def get_po_items(po_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
     po = db.query(PurchaseOrder).filter(
         PurchaseOrder.id == po_id,
         PurchaseOrder.company_id == current_user.company_id
