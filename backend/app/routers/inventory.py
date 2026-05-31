@@ -89,19 +89,22 @@ def manual_stock_entry(
         item_id=data.item_id,
         transaction_type=transaction_type,
         reference_type="manual",
-        quantity=abs(data.quantity),
+        quantity=abs(int(data.quantity)),
         unit_cost=0,
         transaction_date=date.today()
     )
     db.add(entry)
 
-    
+    # ← this was missing
+    item.current_stock += int(data.quantity)
+    if item.current_stock < 0:
+        item.current_stock = 0
 
     db.commit()
     return {
         "message": f"Stock {'added' if data.quantity > 0 else 'deducted'} successfully",
         "item": item.name,
-        "quantity": abs(data.quantity),
+        "quantity": abs(int(data.quantity)),
         "type": transaction_type
     }
 
