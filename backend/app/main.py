@@ -1,26 +1,15 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from app.routers import auth, master, purchase, workers, production, sales, gst, accounting, inventory
 from app.database import SessionLocal
-
-
-
 
 app = FastAPI(title="GST Manufacturing App")
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[
-        "https://gst-manufacturing-app.vercel.app",
-        "https://wip-scan.vercel.app",
-        "http://localhost:5501",
-        "http://localhost:5502",        # ← add this
-        "http://127.0.0.1:5501",
-        "http://127.0.0.1:5502",        # ← add this (your current port)
-        "http://localhost:5500",        # ← add common ones too
-        "http://127.0.0.1:5500",
-    ],
-    allow_credentials=True,
+    allow_origins=["*"],
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -38,7 +27,6 @@ app.include_router(inventory.router)
 
 @app.on_event("startup")
 def startup():
-    """On every server start — ensure the first registered user is always admin."""
     db = SessionLocal()
     try:
         from app.models.user import User
