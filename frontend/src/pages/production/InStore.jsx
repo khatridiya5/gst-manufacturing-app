@@ -223,7 +223,7 @@ export default function InStore() {
                       selected?.item_id === item.item_id ? "bg-teal-50" : "hover:bg-gray-50"
                     }`}
                   >
-                    <td className="px-5 py-4 font-medium text-gray-800">{item.name}</td>
+                    <td className="px-5 py-4 font-medium text-gray-800">{item.name.toUpperCase()}</td>
                     <td className="px-5 py-4 text-gray-500 font-mono text-xs">{item.part_code}</td>
                     <td className="px-5 py-4 text-gray-700">{item.total_received}</td>
                     <td className="px-5 py-4 text-gray-700">{item.total_consumed}</td>

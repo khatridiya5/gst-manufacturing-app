@@ -167,7 +167,7 @@ def receive_po(
         if not item:
             item = Item(
                 company_id=current_user.company_id,
-                name=li.item_name,
+                name=li.item_name.strip().lower(),
                 item_type="raw_material",
                 hsn_code="0000",
                 unit="pcs",
