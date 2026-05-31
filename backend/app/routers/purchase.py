@@ -221,7 +221,7 @@ def receive_po(
 
         inv_line = PurchaseLineItem(
             purchase_invoice_id=invoice.id,
-            item_name=item.id,
+            item_id=item.id,
             quantity=pl["quantity"],
             unit_price=pl["unit_price"],
             subtotal=pl["subtotal"],
