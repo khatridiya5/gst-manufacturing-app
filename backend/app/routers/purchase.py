@@ -169,8 +169,10 @@ def receive_po(
                 company_id=current_user.company_id,
                 name=li.item_name,
                 item_type="raw_material",
+                hsn_code="0000",
                 unit="pcs",
                 tax_rate=Decimal("0.00"),
+                opening_stock=0,
                 current_stock=0,
             )
             db.add(item)
