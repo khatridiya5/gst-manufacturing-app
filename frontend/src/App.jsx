@@ -16,6 +16,7 @@ import MobileScanner from './pages/production/MobileScanner'
 import WIPDashboard from './pages/production/WIPDashboard'
 import SetupCredentials from './pages/SetupCredentials'
 import InStore from "./pages/production/InStore";  
+import UserManagement from './pages/UserManagement'
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token')
@@ -53,6 +54,7 @@ export default function App() {
         <Route path="invoice-print" element={<InvoicePrint />} />
         <Route path="scan" element={<MobileScanner />} />
         <Route path="wip" element={<WIPDashboard />} />
+        <Route path="admin" element={<UserManagement />} />
         <Route path="/in-store" element={<InStore />} />
       </Route>
 
