@@ -143,14 +143,6 @@ function AdminLoginForm({ navigate }) {
       const res = await api.post('/auth/login', form)
       localStorage.setItem('token', res.data.access_token)
       localStorage.setItem('role', res.data.role)
-      if (res.data.role === 'admin') {
-        try {
-          const setupRes = await api.get('/auth/setup/status', {
-            headers: { Authorization: `Bearer ${res.data.access_token}` }
-          })
-          if (!setupRes.data.setup_complete) { navigate('/setup'); return }
-        } catch {}
-      }
       navigate('/')
     } catch (err) {
       localStorage.removeItem('token')
