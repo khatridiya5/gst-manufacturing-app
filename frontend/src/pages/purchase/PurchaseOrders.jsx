@@ -37,6 +37,7 @@ export default function PurchaseOrders() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [expandedPO, setExpandedPO] = useState(null)
   const [poItems, setPoItems] = useState({})
+  const [receivingId, setReceivingId] = useState(null)
   const role = localStorage.getItem('role')
 
   // form state
@@ -105,12 +106,15 @@ export default function PurchaseOrders() {
   }
 
   const handleReceive = async (poId, trackQrFlag) => {
+    setReceivingId(poId)
     try {
       await api.patch(`/purchase/po/${poId}/receive`)
       fetchPOs()
       if (trackQrFlag) handleViewQR(poId)
     } catch (err) {
       alert(err.response?.data?.detail || 'Error receiving PO')
+    } finally {
+      setReceivingId(null)
     }
   }
 
@@ -353,13 +357,14 @@ export default function PurchaseOrders() {
                           </button>
                         )}
                         {po.status === 'approved' && (
-                          <button
-                            onClick={() => handleReceive(po.id, po.track_qr)}
-                            className="px-3 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg text-xs font-medium transition-colors"
-                          >
-                            Mark Received
+                        <button
+                         onClick={() => handleReceive(po.id, po.track_qr)}
+                          disabled={receivingId === po.id}
+                          className="px-3 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
+                        >
+                        {receivingId === po.id ? 'Receiving...' : 'Mark Received'}
                           </button>
-                        )}
+                          )}
                         {po.status === 'received' && po.track_qr && (
                           <button
                             onClick={() => handleViewQR(po.id)}

@@ -26,79 +26,30 @@ class ManualStockEntry(BaseModel):
 # ─── IN-STORE INVENTORY ───────────────────────────────────────
 
 @router.get("/in-store")
-def get_in_store(
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user)
-):
-    received = (
-        db.query(
-            StockLedger.item_id,
-            func.sum(StockLedger.quantity).label("total_received")
-        )
-        .filter(
-            StockLedger.transaction_type.in_(["purchase_in", "manual_in"]),
-            StockLedger.company_id == current_user.company_id
-        )
-        .group_by(StockLedger.item_id)
-        .subquery()
-    )
+def get_in_store(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    items = db.query(Item).filter(
+        Item.company_id == current_user.company_id,
+        Item.current_stock > 0
+    ).all()
 
-    consumed = (
-        db.query(
-            PartInstance.item_id,
-            func.count(WIPScan.id).label("total_consumed")
-        )
-        .join(WIPScan, WIPScan.part_instance_id == PartInstance.id)
-        .filter(
-            WIPScan.scan_type == "start",
+    qr_item_ids = set(
+        row.item_id for row in db.query(PartInstance.item_id).filter(
             PartInstance.company_id == current_user.company_id
-        )
-        .group_by(PartInstance.item_id)
-        .subquery()
-    )
-
-    manual_out = (
-        db.query(
-            StockLedger.item_id,
-            func.sum(StockLedger.quantity).label("total_manual_out")
-        )
-        .filter(
-            StockLedger.transaction_type == "manual_out",
-            StockLedger.company_id == current_user.company_id
-        )
-        .group_by(StockLedger.item_id)
-        .subquery()
-    )
-
-    results = (
-        db.query(
-            Item.id,
-            Item.name,
-            Item.code,
-            received.c.total_received,
-            func.coalesce(consumed.c.total_consumed, 0).label("total_consumed"),
-            func.coalesce(manual_out.c.total_manual_out, 0).label("total_manual_out"),
-        )
-        .join(received, received.c.item_id == Item.id)
-        .outerjoin(consumed, consumed.c.item_id == Item.id)
-        .outerjoin(manual_out, manual_out.c.item_id == Item.id)
-        .filter(Item.company_id == current_user.company_id)
-        .all()
+        ).distinct().all()
     )
 
     return [
         {
-            "item_id": r.id,
-            "name": r.name,
-            "part_code": r.code,
-            "total_received": float(r.total_received),
-            "total_consumed": int(r.total_consumed),
-            "in_stock": float(r.total_received) - int(r.total_consumed) - float(r.total_manual_out),
-            "low_stock": (
-                float(r.total_received) - int(r.total_consumed) - float(r.total_manual_out)
-            ) <= (float(r.total_received) * 0.1),
+            "item_id": i.id,
+            "name": i.name,
+            "part_code": i.code,
+            "total_received": float(i.current_stock),
+            "total_consumed": 0,
+            "in_stock": float(i.current_stock),
+            "low_stock": i.current_stock <= 5,
+            "track_qr": i.id in qr_item_ids,
         }
-        for r in results
+        for i in items
     ]
 
 
