@@ -24,6 +24,7 @@ class POLineItemIn(BaseModel):
     item_name: str
     quantity: int
     unit_price: Decimal
+    part_code: Optional[str] = None
 
 class POCreate(BaseModel):
     vendor_id: int
@@ -93,9 +94,10 @@ def create_po(
         po_line = POLineItem(
             po_id=po.id,
             item_name=li.item_name,
+            part_code=li.part_code,
             quantity=li.quantity,
             unit_price=li.unit_price
-        )
+)
         db.add(po_line)
 
     db.commit()
@@ -168,6 +170,7 @@ def receive_po(
             item = Item(
                 company_id=current_user.company_id,
                 name=li.item_name.strip().lower(),
+                code=li.part_code or None,
                 item_type="raw_material",
                 hsn_code="0000",
                 unit="pcs",
@@ -175,6 +178,10 @@ def receive_po(
                 opening_stock=0,
                 current_stock=0,
             )
+        else:
+        # Update part code if provided and not already set
+            if li.part_code and not item.code:
+                item.code = li.part_code
             db.add(item)
             db.flush()  # get item.id immediately
 
@@ -383,19 +390,7 @@ def delete_po(
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
 
-    parts = db.query(PartInstance).filter(PartInstance.purchase_order_id == po_id).all()
-    part_ids = [p.id for p in parts]
-    if part_ids:
-        db.query(WIPScan).filter(WIPScan.part_instance_id.in_(part_ids)).delete(synchronize_session=False)
-
-    invoices = db.query(PurchaseInvoice).filter(PurchaseInvoice.po_id == po_id).all()
-    for inv in invoices:
-        db.query(PurchaseLineItem).filter(PurchaseLineItem.purchase_invoice_id == inv.id).delete()
-        db.delete(inv)
-
-    db.query(POLineItem).filter(POLineItem.po_id == po_id).delete()
-    db.query(PartInstance).filter(PartInstance.purchase_order_id == po_id).delete()
-    # Reverse stock if PO was received
+    # Step 1 — reverse stock FIRST (before deleting invoices)
     if po.status == "received":
         invoices = db.query(PurchaseInvoice).filter(PurchaseInvoice.po_id == po_id).all()
         for inv in invoices:
@@ -408,12 +403,24 @@ def delete_po(
                     item.current_stock -= float(line.quantity)
                     if item.current_stock < 0:
                         item.current_stock = 0
-        # Delete stock ledger entries for this invoice
             db.query(StockLedger).filter(
                 StockLedger.reference_id == inv.id,
                 StockLedger.reference_type == "purchase_invoice"
             ).delete()
 
+    # Step 2 — delete everything
+    parts = db.query(PartInstance).filter(PartInstance.purchase_order_id == po_id).all()
+    part_ids = [p.id for p in parts]
+    if part_ids:
+        db.query(WIPScan).filter(WIPScan.part_instance_id.in_(part_ids)).delete(synchronize_session=False)
+
+    invoices = db.query(PurchaseInvoice).filter(PurchaseInvoice.po_id == po_id).all()
+    for inv in invoices:
+        db.query(PurchaseLineItem).filter(PurchaseLineItem.purchase_invoice_id == inv.id).delete()
+        db.delete(inv)
+
+    db.query(POLineItem).filter(POLineItem.po_id == po_id).delete()
+    db.query(PartInstance).filter(PartInstance.purchase_order_id == po_id).delete()
     db.delete(po)
     db.commit()
     return {"message": "PO deleted successfully"}

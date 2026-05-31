@@ -242,39 +242,46 @@ export default function PurchaseOrders() {
               <label className="block text-sm font-medium text-slate-600 mb-2">Items</label>
               <div className="space-y-2">
                 {lineItems.map((li, i) => (
-                  <div key={i} className="grid grid-cols-4 gap-2 items-center">
-                    <input
-                      type="text"
-                      placeholder="Material name"
-                      value={li.item_name}
-                      onChange={(e) => handleLineChange(i, 'item_name', e.target.value)}
-                      className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
-                      required
-                    />
-                    <input
-                      type="number"
-                      placeholder="Quantity"
-                      value={li.quantity}
-                      onChange={(e) => handleLineChange(i, 'quantity', e.target.value)}
-                      className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
-                      required
-                    />
-                    <input
-                      type="number"
-                      placeholder="Unit Price (₹)"
-                      value={li.unit_price}
-                      onChange={(e) => handleLineChange(i, 'unit_price', e.target.value)}
-                      className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
-                      required
-                    />
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveLine(i)}
-                      className="px-3 py-2 text-red-400 hover:text-red-600 text-sm"
-                    >
-                      Remove
-                    </button>
-                  </div>
+                  <div key={i} className="grid grid-cols-5 gap-2 items-center">
+                  <input
+                    type="text"
+                    placeholder="Material name"
+                    value={li.item_name}
+                    onChange={(e) => handleLineChange(i, 'item_name', e.target.value)}
+                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+                    required
+                  />
+                  <input
+                    type="text"
+                    placeholder="Part code (optional)"
+                    value={li.part_code || ''}
+                    onChange={(e) => handleLineChange(i, 'part_code', e.target.value)}
+                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+                  />
+                  <input
+                    type="number"
+                    placeholder="Quantity"
+                    value={li.quantity}
+                    onChange={(e) => handleLineChange(i, 'quantity', e.target.value)}
+                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+                    required
+                  />
+                  <input
+                    type="number"
+                    placeholder="Unit Price (₹)"
+                    value={li.unit_price}
+                    onChange={(e) => handleLineChange(i, 'unit_price', e.target.value)}
+                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+                    required
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveLine(i)}
+                    className="px-3 py-2 text-red-400 hover:text-red-600 text-sm"
+                  >
+                    Remove
+                  </button>
+                </div>
                 ))}
               </div>
               <button
