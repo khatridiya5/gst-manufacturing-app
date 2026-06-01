@@ -27,7 +27,7 @@ export default function IssueItems() {
 
   const fetchWorkers = async () => {
     try {
-      const res = await api.get("/workers/");
+      const res = await api.get("/api/workers/");
       setWorkers(Array.isArray(res.data) ? res.data : res.data.workers || res.data.data || []);
     } catch {
       setWorkers([]);
@@ -36,26 +36,24 @@ export default function IssueItems() {
   
   const fetchStock = async () => {
     try {
-      const res = await api.get("/inventory/in-store");
+      const res = await api.get("/api/inventory/in-store");
       const data = Array.isArray(res.data) ? res.data : [];
-      // map to consistent shape the product search expects
       setStockItems(data.map(i => ({
         id: i.item_id,
         name: i.name,
         unit: i.unit || "",
         current_stock: i.in_stock,
       })));
-    } catch {
-        console.log("STOCK ERROR:", err);
+    } catch (e) {
       setStockItems([]);
     }
   };
   
   const fetchIssueLog = async () => {
     try {
-      const res = await api.get("/issue-items");
-      setIssueLog(Array.isArray(res.data) ? res.data : res.data.data || []);
-    } catch {
+        const res = await api.get("/api/issue-items");
+      setIssueLog(Array.isArray(res.data) ? res.data : []);
+    } catch (e) {
       setIssueLog([]);
     }
   };
@@ -119,7 +117,7 @@ export default function IssueItems() {
 
     setLoading(true);
     try {
-        await api.post("/issue-items", {
+        await api.post("/api/issue-items", {
         worker_id: selectedWorker.id,
         issued_at: new Date(issueDateTime).toLocaleString("en-CA", {
             timeZone: "Asia/Kolkata"
