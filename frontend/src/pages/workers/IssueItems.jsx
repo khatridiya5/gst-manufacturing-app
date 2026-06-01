@@ -27,7 +27,7 @@ export default function IssueItems() {
 
   const fetchWorkers = async () => {
     try {
-        const res = await api.get("/api/workers/");
+        const res = await api.get("/workers/");
 
       console.log("WORKERS:", res.data);
       setWorkers(Array.isArray(res.data) ? res.data : res.data.workers || res.data.data || []);
@@ -38,7 +38,7 @@ export default function IssueItems() {
   
   const fetchStock = async () => {
     try {
-      const res = await api.get("/api/inventory/in-store");
+        const res = await api.get("/api/inventory/in-store");
       const data = Array.isArray(res.data) ? res.data : [];
       setStockItems(data.map(i => ({
         id: i.item_id,
