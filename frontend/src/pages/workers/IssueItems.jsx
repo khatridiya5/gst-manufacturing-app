@@ -18,7 +18,7 @@ export default function IssueItems() {
     const now = new Date();
     const pad = (n) => String(n).padStart(2, "0");
     setIssueDateTime(
-      `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`
+      `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
     );
     fetchWorkers();
     fetchStock();
@@ -102,7 +102,7 @@ export default function IssueItems() {
     const now = new Date();
     const pad = (n) => String(n).padStart(2, "0");
     setIssueDateTime(
-      `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}`
+      `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}T${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`
     );
     setProductRows([{ id: 1, item: null, qty: "", itemSearch: "", dropdownOpen: false }]);
   };
