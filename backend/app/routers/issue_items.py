@@ -8,6 +8,8 @@ from app.database import get_db
 from app.models.issue_item import IssueRecord, IssueItem
 from app.models.item import Item          # items table
 from app.models.worker import Worker
+from app.models.stock import StockLedger
+from datetime import date
 
 router = APIRouter(prefix="/api/issue-items", tags=["Issue Items"])
 
@@ -79,6 +81,16 @@ def create_issue(payload: IssueRecordIn, db: Session = Depends(get_db)):
             quantity=item_in.quantity,
         )
         db.add(issue_item)
+        ledger_entry = StockLedger(
+            company_id=item.company_id,
+            item_id=item_in.stock_item_id,
+            transaction_type="issue_out",
+            reference_type="issue",
+            quantity=item_in.quantity,
+            unit_cost=0,
+            transaction_date=date.today(),
+        )
+        db.add(ledger_entry)
         items_out.append(IssueItemOut(
             item_name=item.name,
             unit=item.unit,

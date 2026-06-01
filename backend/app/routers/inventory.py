@@ -51,14 +51,23 @@ def get_in_store(db: Session = Depends(get_db), current_user: User = Depends(get
     ).group_by(StockLedger.item_id).all()
 
     total_received_map = {row.item_id: float(row.total) for row in received_rows}
+    consumed_rows = db.query(
+        StockLedger.item_id,
+        func.sum(StockLedger.quantity).label("total")
+    ).filter(
+        StockLedger.transaction_type.in_(["issue_out", "manual_out"]),
+        StockLedger.company_id == current_user.company_id
+    ).group_by(StockLedger.item_id).all()
+
+    total_consumed_map = {row.item_id: float(row.total) for row in consumed_rows}
 
     return [
         {
             "item_id": i.id,
             "name": i.name,
             "part_code": i.code,
-            "total_received": float(i.current_stock),
-            "total_consumed": total_received_map.get(i.id, float(i.current_stock)) - float(i.current_stock),
+            "total_received": total_received_map.get(i.id, 0),
+            "total_consumed": total_consumed_map.get(i.id, 0),
             "in_stock": float(i.current_stock),
             "low_stock": float(i.current_stock) <= total_received_map.get(i.id, float(i.current_stock)) * 0.1,
             "track_qr": i.id in qr_item_ids,
