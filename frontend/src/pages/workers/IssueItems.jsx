@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import axios from "axios";
+import api from '../../api/client'
 
 export default function IssueItems() {
   const [workers, setWorkers] = useState([]);
@@ -27,26 +27,26 @@ export default function IssueItems() {
 
   const fetchWorkers = async () => {
     try {
-      const res = await axios.get("/api/workers");
-      setWorkers(res.data);
+      const res = await api.get("/workers/");
+      setWorkers(Array.isArray(res.data) ? res.data : res.data.workers || res.data.data || []);
     } catch {
       setWorkers([]);
     }
   };
-
+  
   const fetchStock = async () => {
     try {
-      const res = await axios.get("/api/inventory/stock");
+      const res = await api.get("/inventory/stock");
       setStockItems(Array.isArray(res.data) ? res.data : res.data.items || res.data.data || []);
     } catch {
       setStockItems([]);
     }
   };
-
+  
   const fetchIssueLog = async () => {
     try {
-      const res = await axios.get("/api/issue-items");
-      setIssueLog(res.data);
+      const res = await api.get("/issue-items");
+      setIssueLog(Array.isArray(res.data) ? res.data : res.data.data || []);
     } catch {
       setIssueLog([]);
     }
@@ -111,7 +111,7 @@ export default function IssueItems() {
 
     setLoading(true);
     try {
-      await axios.post("/api/issue-items", {
+        await api.post("/issue-items", {
         worker_id: selectedWorker.id,
         issued_at: new Date(issueDateTime).toISOString(),
         items: products.map((r) => ({
