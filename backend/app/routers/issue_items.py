@@ -10,6 +10,8 @@ from app.models.item import Item          # items table
 from app.models.worker import Worker
 from app.models.stock import StockLedger
 from datetime import date
+from app.utils.auth import get_current_user
+from app.models.user import User
 
 router = APIRouter(prefix="/api/issue-items", tags=["Issue Items"])
 
@@ -49,7 +51,8 @@ class IssueRecordOut(BaseModel):
 # ---------- Routes ----------
 
 @router.post("", response_model=IssueRecordOut)
-def create_issue(payload: IssueRecordIn, db: Session = Depends(get_db)):
+def create_issue(payload: IssueRecordIn, db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)):
     worker = db.query(Worker).filter(Worker.id == payload.worker_id).first()
     if not worker:
         raise HTTPException(status_code=404, detail="Worker not found")
@@ -108,7 +111,8 @@ def create_issue(payload: IssueRecordIn, db: Session = Depends(get_db)):
 
 
 @router.get("", response_model=List[IssueRecordOut])
-def get_issues(db: Session = Depends(get_db)):
+def get_issues(db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)):
     records = db.query(IssueRecord).order_by(IssueRecord.issued_at.desc()).all()
     result = []
     for record in records:

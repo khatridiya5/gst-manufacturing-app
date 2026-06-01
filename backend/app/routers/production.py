@@ -70,7 +70,7 @@ class ProductionOrderOut(BaseModel):
 def create_bom(
     data: BOMCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant"))
+    current_user: User = Depends(require_role("admin", "accountant", "production"))
 ):
     fg = db.query(Item).filter(Item.id == data.finished_good_id).first()
     if not fg:
@@ -151,7 +151,7 @@ def get_all_boms(
 def create_production_order(
     data: ProductionOrderCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant"))
+    current_user: User = Depends(require_role("admin", "accountant", "production"))
 ):
     bom = db.query(BOMHeader).filter(
         BOMHeader.id == data.bom_id,
@@ -196,7 +196,7 @@ def complete_production_order(
     actual_quantity: int,
     scrap_quantity: int = 0,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant"))
+    current_user: User = Depends(require_role("admin", "accountant", "production"))
 ):
     order = db.query(ProductionOrder).filter(
         ProductionOrder.id == order_id,

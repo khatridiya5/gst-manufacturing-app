@@ -256,7 +256,7 @@ export default function InStore() {
                   {/* Inline scan history */}
                   
 
-// WITH this:
+
 {selected?.item_id === item.item_id && (
   <tr key={`${item.item_id}-history`}>
     <td colSpan={7} className="px-5 py-4 bg-teal-50 border-b border-teal-100">

@@ -61,7 +61,7 @@ class VendorOut(BaseModel):
 def create_item(
     item: ItemCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant"))
+    current_user: User = Depends(require_role("admin", "accountant", "purchase", "production"))
 ):
     new_item = Item(
         **item.dict(),
@@ -99,7 +99,7 @@ def update_item(
     item_id: int,
     item_data: ItemCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant"))
+    current_user: User = Depends(require_role("admin", "accountant", "purchase", "production"))
 ):
     item = db.query(Item).filter(
         Item.id == item_id,
@@ -177,7 +177,7 @@ def delete_item(
 def create_vendor(
     vendor: VendorCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant"))
+    current_user: User = Depends(require_role("admin", "accountant", "purchase"))
 ):
     new_vendor = Vendor(**vendor.dict(), company_id=current_user.company_id)
     db.add(new_vendor)
@@ -223,7 +223,7 @@ class CustomerOut(BaseModel):
 def create_customer(
     customer: CustomerCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant"))
+    current_user: User = Depends(require_role("admin", "accountant", "sales"))
 ):
     new_customer = Customer(**customer.dict(), company_id=current_user.company_id)
     db.add(new_customer)

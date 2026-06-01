@@ -82,7 +82,7 @@ def get_in_store(db: Session = Depends(get_db), current_user: User = Depends(get
 def manual_stock_entry(
     data: ManualStockEntry,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant"))
+    current_user: User = Depends(require_role("admin", "accountant", "store_manager"))
 ):
     item = db.query(Item).filter(
         Item.id == data.item_id,

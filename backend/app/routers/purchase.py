@@ -69,7 +69,7 @@ class PurchaseInvoiceOut(BaseModel):
 def create_po(
     data: POCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant"))
+    current_user: User = Depends(require_role("admin", "accountant", "purchase"))
 ):
     from sqlalchemy import func
     last_id = db.query(func.max(PurchaseOrder.id)).filter(
@@ -135,7 +135,7 @@ def approve_po(
 def receive_po(
     po_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant"))
+    current_user: User = Depends(require_role("admin", "accountant", "purchase"))
 ):
     po = db.query(PurchaseOrder).filter(
         PurchaseOrder.id == po_id,

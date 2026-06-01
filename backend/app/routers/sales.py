@@ -64,7 +64,7 @@ class SalesInvoiceOut(BaseModel):
 def create_sales_invoice(
     data: SalesInvoiceCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant"))
+    current_user: User = Depends(require_role("admin", "accountant", "sales"))
 ):
     company = db.query(Company).filter(
         Company.id == current_user.company_id
@@ -244,7 +244,7 @@ def get_invoice(
 def mark_paid(
     invoice_id: int,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "accountant"))
+    current_user: User = Depends(require_role("admin", "accountant", "sales"))
 ):
     invoice = db.query(SalesInvoice).filter(
         SalesInvoice.id == invoice_id,
