@@ -121,9 +121,7 @@ export default function IssueItems() {
     try {
         await api.post("/api/issue-items", {
         worker_id: selectedWorker.id,
-        issued_at: new Date(issueDateTime).toLocaleString("en-CA", {
-            timeZone: "Asia/Kolkata"
-        }).replace(" ", "T"),
+        issued_at: new Date(issueDateTime).toISOString(),
         items: products.map((r) => ({
           stock_item_id: r.item.id,
           quantity: parseInt(r.qty),
