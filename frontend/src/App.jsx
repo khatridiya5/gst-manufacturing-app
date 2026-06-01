@@ -17,6 +17,7 @@ import WIPDashboard from './pages/production/WIPDashboard'
 import SetupCredentials from './pages/SetupCredentials'
 import InStore from "./pages/production/InStore";  
 import UserManagement from './pages/UserManagement'
+import IssueItems from "./pages/workers/IssueItems";
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token')
@@ -56,6 +57,7 @@ export default function App() {
         <Route path="wip" element={<WIPDashboard />} />
         <Route path="admin" element={<UserManagement />} />
         <Route path="/in-store" element={<InStore />} />
+        <Route path="/issue-items" element={<IssueItems />} />
       </Route>
 
       {/* Catch-all */}

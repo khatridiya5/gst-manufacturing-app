@@ -15,3 +15,4 @@ class Worker(Base):
     qr_code_image = Column(String, nullable=True)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
+    issue_records = relationship("IssueRecord", back_populates="worker")
