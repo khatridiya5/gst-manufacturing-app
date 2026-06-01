@@ -36,8 +36,15 @@ export default function IssueItems() {
   
   const fetchStock = async () => {
     try {
-      const res = await api.get("/inventory/stock");
-      setStockItems(Array.isArray(res.data) ? res.data : res.data.items || res.data.data || []);
+      const res = await api.get("/inventory/in-store");
+      const data = Array.isArray(res.data) ? res.data : [];
+      // map to consistent shape the product search expects
+      setStockItems(data.map(i => ({
+        id: i.item_id,
+        name: i.name,
+        unit: i.unit || "",
+        current_stock: i.in_stock,
+      })));
     } catch {
       setStockItems([]);
     }
@@ -113,7 +120,9 @@ export default function IssueItems() {
     try {
         await api.post("/issue-items", {
         worker_id: selectedWorker.id,
-        issued_at: new Date(issueDateTime).toISOString(),
+        issued_at: new Date(issueDateTime).toLocaleString("en-CA", {
+            timeZone: "Asia/Kolkata"
+          }),
         items: products.map((r) => ({
           stock_item_id: r.item.id,
           quantity: parseInt(r.qty),
@@ -250,12 +259,14 @@ export default function IssueItems() {
             <label className="block text-xs font-semibold text-gray-500 uppercase tracking-wide mb-1">
               Issue Date & Time
             </label>
-            <input
-              type="datetime-local"
-              value={issueDateTime}
-              onChange={(e) => setIssueDateTime(e.target.value)}
-              className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-400"
-            />
+            <div className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm bg-gray-50 text-gray-600">
+            {new Date(issueDateTime).toLocaleString("en-IN", {
+  day: "2-digit", month: "short", year: "numeric",
+  hour: "2-digit", minute: "2-digit",
+  timeZone: "Asia/Kolkata",
+  hour12: true
+})}
+</div>
           </div>
         </div>
 
@@ -308,7 +319,7 @@ export default function IssueItems() {
                             >
                               <span className="font-medium text-gray-800">{item.name}</span>
                               <span className="text-xs text-gray-400">
-                                {item.quantity} {item.unit} in stock
+                              {item.current_stock} {item.unit} in stock
                               </span>
                             </div>
                           ))
