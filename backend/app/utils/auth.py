@@ -42,7 +42,7 @@ def get_current_user(
             dummy = User()
             dummy.id = 0
             dummy.role = "store_manager" if section == "store" else section
-            dummy.company_id = 1
+            dummy.company_id = 2
             dummy.is_active = True
             return dummy
 
