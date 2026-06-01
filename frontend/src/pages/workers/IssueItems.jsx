@@ -46,6 +46,7 @@ export default function IssueItems() {
         current_stock: i.in_stock,
       })));
     } catch {
+        console.log("STOCK ERROR:", err);
       setStockItems([]);
     }
   };
