@@ -28,8 +28,9 @@ export default function IssueItems() {
   const fetchWorkers = async () => {
     try {
       const res = await api.get("/api/workers/");
+      console.log("WORKERS:", res.data);
       setWorkers(Array.isArray(res.data) ? res.data : res.data.workers || res.data.data || []);
-    } catch {
+    } catch (e) {
       setWorkers([]);
     }
   };
