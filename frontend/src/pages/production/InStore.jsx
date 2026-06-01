@@ -60,8 +60,12 @@ export default function InStore() {
       return;
     }
     setSelected(item);
-    const res = await api.get(`/api/inventory/in-store/${item.item_id}/scans`);
-    setScanHistory(res.data);
+    try {
+      const res = await api.get(`/api/inventory/in-store/${item.item_id}/manual-entries`);
+      setScanHistory(res.data);
+    } catch (e) {
+      setScanHistory([]);
+    }
   };
 
   const lowStockItems = Array.isArray(items) ? items.filter((i) => i.low_stock) : [];
@@ -250,45 +254,60 @@ export default function InStore() {
                   </tr>
 
                   {/* Inline scan history */}
-                  {selected?.item_id === item.item_id && (
-                    <tr key={`${item.item_id}-history`}>
-                      <td colSpan={6} className="px-5 py-4 bg-teal-50 border-b border-teal-100">
-                        <p className="text-xs font-semibold text-teal-700 mb-2 uppercase tracking-wide">
-                          Recent Scans — {item.name}
-                        </p>
-                        {scanHistory.length === 0 ? (
-                          <p className="text-xs text-gray-400">No scans yet.</p>
-                        ) : (
-                          <table className="w-full text-xs">
-                            <thead>
-                              <tr className="text-gray-500">
-                                <th className="text-left pb-1">Worker</th>
-                                <th className="text-left pb-1">Part Instance</th>
-                                <th className="text-left pb-1">Scanned At</th>
-                                <th className="text-left pb-1">Reason</th>
-                              </tr>
-                            </thead>
-                            <tbody>
-                              {scanHistory.map((s, i) => (
-                               <tr key={i} className="text-gray-700">
-                               <td className="py-1">{s.worker}</td>
-                               <td className="py-1 font-mono">{s.part_instance}</td>
-                               <td className="py-1">
-                                 {new Date(s.scanned_at).toLocaleString("en-GB", {
-                                   day: "2-digit", month: "short", year: "numeric",
-                                   hour: "2-digit", minute: "2-digit", second: "2-digit", hour12: true
-                                 })}
-                               </td>
-                               <td className="py-1 text-gray-400 italic">{s.reason || "—"}</td>
-                             </tr> 
-                        
-                              ))}
-                            </tbody>
-                          </table>
-                        )}
-                      </td>
-                    </tr>
-                  )}
+                  
+
+// WITH this:
+{selected?.item_id === item.item_id && (
+  <tr key={`${item.item_id}-history`}>
+    <td colSpan={7} className="px-5 py-4 bg-teal-50 border-b border-teal-100">
+      <p className="text-xs font-semibold text-teal-700 mb-2 uppercase tracking-wide">
+        Manual Entries — {item.name}
+      </p>
+      {scanHistory.length === 0 ? (
+        <p className="text-xs text-gray-400">No manual entries yet.</p>
+      ) : (
+        <table className="w-full text-xs">
+          <thead>
+            <tr className="text-gray-500">
+              <th className="text-left pb-1">Date</th>
+              <th className="text-left pb-1">Time</th>
+              <th className="text-left pb-1">Quantity</th>
+              <th className="text-left pb-1">Type</th>
+              <th className="text-left pb-1">Reason</th>
+            </tr>
+          </thead>
+          <tbody>
+            {scanHistory.map((s, i) => (
+              <tr key={i} className="text-gray-700">
+                <td className="py-1">
+                  {new Date(s.transaction_date).toLocaleDateString("en-GB", {
+                    day: "2-digit", month: "short", year: "numeric"
+                  })}
+                </td>
+                <td className="py-1 text-gray-500">{s.created_at ? new Date(s.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: true }) : "—"}</td>
+                <td className="py-1 font-semibold">
+                  <span className={s.transaction_type === "manual_in" ? "text-green-600" : "text-red-500"}>
+                    {s.transaction_type === "manual_in" ? "+" : "-"}{s.quantity}
+                  </span>
+                </td>
+                <td className="py-1">
+                  <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
+                    s.transaction_type === "manual_in"
+                      ? "bg-green-100 text-green-700"
+                      : "bg-red-100 text-red-600"
+                  }`}>
+                    {s.transaction_type === "manual_in" ? "Added" : "Deducted"}
+                  </span>
+                </td>
+                <td className="py-1 text-gray-400 italic">{s.reason || "—"}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </td>
+  </tr>
+)}
                 </>
               ))
             )}

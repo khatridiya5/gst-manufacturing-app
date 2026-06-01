@@ -122,6 +122,31 @@ def manual_stock_entry(
     }
 
 
+@router.get("/in-store/{item_id}/manual-entries")
+def get_manual_entries(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    rows = db.query(StockLedger).filter(
+        StockLedger.item_id == item_id,
+        StockLedger.company_id == current_user.company_id,
+        StockLedger.transaction_type.in_(["manual_in", "manual_out"]),
+        StockLedger.reference_type == "manual"
+    ).order_by(StockLedger.id.desc()).limit(20).all()
+
+    return [
+        {
+            "transaction_date": r.transaction_date,
+            "created_at": r.created_at if hasattr(r, "created_at") else None,
+            "quantity": r.quantity,
+            "transaction_type": r.transaction_type,
+            "reason": r.reason
+        }
+        for r in rows
+    ]
+
+
 # ─── SCAN HISTORY ─────────────────────────────────────────────
 
 @router.get("/in-store/{item_id}/scans")
