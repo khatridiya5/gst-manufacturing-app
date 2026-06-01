@@ -58,7 +58,7 @@ def get_in_store(db: Session = Depends(get_db), current_user: User = Depends(get
             "name": i.name,
             "part_code": i.code,
             "total_received": float(i.current_stock),
-            "total_consumed": 0,
+            "total_consumed": total_received_map.get(i.id, float(i.current_stock)) - float(i.current_stock),
             "in_stock": float(i.current_stock),
             "low_stock": float(i.current_stock) <= total_received_map.get(i.id, float(i.current_stock)) * 0.1,
             "track_qr": i.id in qr_item_ids,
