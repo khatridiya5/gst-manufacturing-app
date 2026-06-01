@@ -16,14 +16,12 @@ export default function Workers() {
 
   const fetchWorkers = async () => {
     try {
-      const res = await api.get('/workers/')
-      setWorkers(res.data)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
+      const res = await axios.get("/api/workers");
+      setWorkers(Array.isArray(res.data) ? res.data : res.data.workers || res.data.data || []);
+    } catch {
+      setWorkers([]);
     }
-  }
+  };
 
   useEffect(() => { fetchWorkers() }, [])
 

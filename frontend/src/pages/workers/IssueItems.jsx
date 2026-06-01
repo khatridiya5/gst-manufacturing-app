@@ -37,7 +37,7 @@ export default function IssueItems() {
   const fetchStock = async () => {
     try {
       const res = await axios.get("/api/inventory/stock");
-      setStockItems(res.data);
+      setStockItems(Array.isArray(res.data) ? res.data : res.data.items || res.data.data || []);
     } catch {
       setStockItems([]);
     }
