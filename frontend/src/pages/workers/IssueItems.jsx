@@ -134,7 +134,13 @@ export default function IssueItems() {
       fetchIssueLog();
       fetchStock();
     } catch (err) {
-      showToast(err?.response?.data?.detail || "Failed to record issue.", "error");
+        const detail = err?.response?.data?.detail;
+        const msg = Array.isArray(detail)
+          ? detail.map(e => e.msg).join(", ")
+          : typeof detail === "string"
+          ? detail
+          : "Failed to record issue.";
+        showToast(msg, "error");
     } finally {
       setLoading(false);
     }
