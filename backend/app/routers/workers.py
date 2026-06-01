@@ -39,7 +39,7 @@ class WorkerWithQR(WorkerOut):
 def create_worker(
     data: WorkerCreate,
     db: Session = Depends(get_db),
-    current_user: User = Depends(require_role("admin", "production"))
+    current_user: User = Depends(require_role("admin", "production", "store_manager"))
 ):
     # Auto-generate worker code
     last_worker = db.query(Worker).filter(
