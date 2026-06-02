@@ -22,6 +22,11 @@ api.interceptors.response.use(
   if (!isLoginRequest) {
     localStorage.removeItem('token')
     window.location.href = '/login'
+     // ADD THIS LINE:
+    alert(error.response?.data?.detail || "Unknown error")
+    return Promise.reject(error)
+
+
   }
 }
     return Promise.reject(error)

@@ -101,7 +101,7 @@ def create_sales_invoice(
         # Check stock
         if item.current_stock < li.quantity:
             raise HTTPException(
-                status_code=400,
+                status_code=422,
                 detail=f"Insufficient stock for {item.name}. Available: {item.current_stock}"
             )
 

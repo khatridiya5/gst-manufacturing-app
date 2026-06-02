@@ -11,6 +11,7 @@ from app.models.worker import Worker
 from pydantic import BaseModel
 from typing import Optional
 from datetime import date
+from sqlalchemy import Column, Integer, String, Boolean, Numeric, ForeignKey
 
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
 
