@@ -125,6 +125,8 @@ def create_sales_invoice(
 
     total_amount = subtotal + total_cgst + total_sgst + total_igst
 
+    
+    
     # Save invoice
     invoice = SalesInvoice(
         company_id=current_user.company_id,

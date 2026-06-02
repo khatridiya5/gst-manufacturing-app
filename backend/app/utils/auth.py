@@ -39,8 +39,15 @@ def get_current_user(
             section = payload.get("section")
             if section not in ("purchase", "production", "sales", "store"):
                 raise credentials_exception
+            # Look up a real admin user for this company to use as created_by
+            real_user = db.query(User).filter(
+                User.company_id == 2,
+                User.is_active == True
+            ).first()
+            if not real_user:
+                raise credentials_exception
             dummy = User()
-            dummy.id = 0
+            dummy.id = real_user.id  # use real user ID to avoid FK violation
             dummy.role = "store_manager" if section == "store" else section
             dummy.company_id = 2
             dummy.is_active = True
