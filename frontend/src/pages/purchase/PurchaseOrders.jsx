@@ -41,6 +41,7 @@ export default function PurchaseOrders() {
   const [expandedPO, setExpandedPO] = useState(null)
   const [poItems, setPoItems] = useState({})
   const [receivingId, setReceivingId] = useState(null)
+  const [sortOrder, setSortOrder] = useState('newest')
   const role = localStorage.getItem('role')
 
   // form state
@@ -157,6 +158,13 @@ export default function PurchaseOrders() {
   }
 
   const getVendorName = (id) => vendors.find(v => v.id === id)?.name || '—'
+  const sortedPOs = [...pos].sort((a, b) =>
+  sortOrder === 'newest'
+    ? new Date(b.created_at) - new Date(a.created_at)
+    : new Date(a.created_at) - new Date(b.created_at)
+)
+
+
 
   if (loading) return <div className="text-slate-400 p-8">Loading...</div>
 
@@ -164,17 +172,27 @@ export default function PurchaseOrders() {
     <div>
       {/* Header */}
       <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800">Purchase Orders</h1>
-          <p className="text-slate-500 text-sm mt-1">{pos.length} total orders</p>
-        </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-sm font-medium transition-colors"
-        >
-          + New PO
-        </button>
-      </div>
+  <div>
+    <h1 className="text-2xl font-bold text-slate-800">Purchase Orders</h1>
+    <p className="text-slate-500 text-sm mt-1">{pos.length} total orders</p>
+  </div>
+  <div className="flex items-center gap-3">
+    <select
+      value={sortOrder}
+      onChange={(e) => setSortOrder(e.target.value)}
+      className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:border-teal-500"
+    >
+      <option value="newest">Newest First</option>
+      <option value="oldest">Oldest First</option>
+    </select>
+    <button
+      onClick={() => setShowForm(!showForm)}
+      className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-sm font-medium transition-colors"
+    >
+      + New PO
+    </button>
+  </div>
+</div>
 
       {/* Create PO Form */}
       {showForm && (
@@ -337,7 +355,7 @@ export default function PurchaseOrders() {
                   </td>
                 </tr>
               )}
-              {pos.map((po) => (
+              {sortedPOs.map((po) => (
                 <>
                   <tr
                     key={po.id}
