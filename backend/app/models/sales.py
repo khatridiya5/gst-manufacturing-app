@@ -1,5 +1,6 @@
 from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, Date, ForeignKey
 from sqlalchemy.sql import func
+from sqlalchemy.orm import relationship 
 from app.database import Base
 
 class SalesInvoice(Base):
@@ -23,6 +24,10 @@ class SalesInvoice(Base):
     created_by = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, server_default=func.now())
 
+    customer = relationship("Customer", foreign_keys=[customer_id])   # ✅ ADD
+    line_items = relationship("SalesLineItem", back_populates="sales_invoice")  # ✅ ADD
+    
+
 class SalesLineItem(Base):
     __tablename__ = "sales_line_items"
 
@@ -37,3 +42,6 @@ class SalesLineItem(Base):
     sgst = Column(Numeric(10, 2), default=0)
     igst = Column(Numeric(10, 2), default=0)
     total = Column(Numeric(12, 2), nullable=False)
+
+    sales_invoice = relationship("SalesInvoice", back_populates="line_items")  # ✅ ADD
+    item = relationship("Item", foreign_keys=[item_id])
