@@ -59,7 +59,7 @@ def build_gstr1(
                 "customer_name": customer.name,
                 "customer_gstin": customer.gstin,
                 "invoice_number": inv.invoice_number,
-                "invoice_date": str(inv.invoice_date),
+                "invoice_date": inv.invoice_date.strftime("%d/%m/%Y"),
                 "invoice_value": str(inv.total_amount),
                 "place_of_supply": inv.place_of_supply,
                 "is_interstate": inv.is_interstate,
