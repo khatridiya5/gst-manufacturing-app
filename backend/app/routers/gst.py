@@ -36,7 +36,7 @@ def build_gstr1(
     if not invoices:
         return {
             "message": f"No sales invoices found for {from_date} to {to_date}",
-            "period": f"{from_date} to {to_date}",
+            "period": f"{from_date.strftime('%d/%m/%Y')} to {to_date.strftime('%d/%m/%Y')}",
             "b2b_invoices": [],
             "hsn_summary": [],
             "totals": {},
@@ -105,7 +105,7 @@ def build_gstr1(
 
     return {
         "return_type": "GSTR-1",
-        "period": f"{from_date} to {to_date}",
+        "period": f"{from_date.strftime('%d/%m/%Y')} to {to_date.strftime('%d/%m/%Y')}",
         "total_invoices": len(invoices),
         "b2b_invoices": b2b,
         "hsn_summary": hsn_summary,
@@ -174,7 +174,7 @@ def build_gstr3b(
 
     return {
         "return_type": "GSTR-3B",
-        "period": f"{from_date} to {to_date}",
+        "period": f"{from_date.strftime('%d/%m/%Y')} to {to_date.strftime('%d/%m/%Y')}",
         "tax_collected": {
             "cgst": str(sales_cgst),
             "sgst": str(sales_sgst),
