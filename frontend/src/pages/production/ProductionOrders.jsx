@@ -18,6 +18,7 @@ export default function ProductionOrders() {
   const [qrModal, setQrModal] = useState(null)
   const [qrCodes, setQrCodes] = useState([])
   const [deleteTarget, setDeleteTarget] = useState(null)
+  const [sortOrder, setSortOrder] = useState('newest')
 
   const [bomForm, setBomForm] = useState({ finished_good_id: '', version: '1.0', line_items: [{ raw_material_id: '', quantity_required: '', unit: 'kg', scrap_percentage: 0 }] })
   const [orderForm, setOrderForm] = useState({ bom_id: '', planned_quantity: '' })
@@ -99,6 +100,12 @@ export default function ProductionOrders() {
   const finishedGoods = items.filter(i => i.item_type === 'finished_good')
   const getBOMName = (id) => boms.find(b => b.id === id)?.finished_good || '—'
 
+  const sortedOrders = [...orders].sort((a, b) =>
+  sortOrder === 'newest'
+    ? new Date(b.created_at) - new Date(a.created_at)
+    : new Date(a.created_at) - new Date(b.created_at)
+)
+
   if (loading) return <div className="text-slate-400 p-8">Loading...</div>
 
   return (
@@ -108,10 +115,18 @@ export default function ProductionOrders() {
           <h1 className="text-2xl font-bold text-slate-800">Production</h1>
           <p className="text-slate-500 text-sm mt-1">{orders.length} orders · {boms.length} BOMs</p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => setShowBOMForm(!showBOMForm)} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium">+ New BOM</button>
-          <button onClick={() => setShowOrderForm(!showOrderForm)} className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-sm font-medium">+ New Order</button>
-        </div>
+        <div className="flex gap-2 items-center">
+  <select
+    value={sortOrder}
+    onChange={(e) => setSortOrder(e.target.value)}
+    className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:border-teal-500"
+  >
+    <option value="newest">Newest First</option>
+    <option value="oldest">Oldest First</option>
+  </select>
+  <button onClick={() => setShowBOMForm(!showBOMForm)} className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium">+ New BOM</button>
+  <button onClick={() => setShowOrderForm(!showOrderForm)} className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-sm font-medium">+ New Order</button>
+</div>
       </div>
 
       {/* BOM Form */}
@@ -197,7 +212,7 @@ export default function ProductionOrders() {
           </thead>
           <tbody className="divide-y divide-slate-50">
             {orders.length === 0 && <tr><td colSpan={7} className="px-5 py-8 text-center text-slate-400">No production orders yet.</td></tr>}
-            {orders.map(order => (
+            {sortedOrders.map(order => (
               <tr key={order.id} className="hover:bg-slate-50">
                 <td className="px-5 py-3 font-medium text-slate-700">{order.order_number}</td>
                 <td className="px-5 py-3 text-slate-600">{getBOMName(order.bom_id)}</td>

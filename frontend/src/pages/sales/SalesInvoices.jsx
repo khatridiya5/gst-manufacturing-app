@@ -21,6 +21,7 @@ export default function SalesInvoices() {
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [selectedInvoice, setSelectedInvoice] = useState(null)
+  const [sortOrder, setSortOrder] = useState('newest')
 
   // Form state
   const [customerId, setCustomerId] = useState('')
@@ -107,6 +108,12 @@ export default function SalesInvoices() {
   const totalGST = invoices.reduce((sum, i) => sum + Number(i.cgst_amount) + Number(i.sgst_amount) + Number(i.igst_amount), 0)
   const unpaidCount = invoices.filter(i => i.payment_status === 'unpaid').length
 
+  const sortedInvoices = [...invoices].sort((a, b) =>
+  sortOrder === 'newest'
+    ? new Date(b.invoice_date) - new Date(a.invoice_date)
+    : new Date(a.invoice_date) - new Date(b.invoice_date)
+)
+
   if (loading) return <div className="text-slate-400 p-8">Loading...</div>
 
   return (
@@ -117,12 +124,22 @@ export default function SalesInvoices() {
           <h1 className="text-2xl font-bold text-slate-800">Sales Invoices</h1>
           <p className="text-slate-500 text-sm mt-1">{invoices.length} total invoices</p>
         </div>
-        <button
-          onClick={() => setShowForm(!showForm)}
-          className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-sm font-medium transition-colors"
-        >
-          + New Invoice
-        </button>
+        <div className="flex items-center gap-3">
+  <select
+    value={sortOrder}
+    onChange={(e) => setSortOrder(e.target.value)}
+    className="px-3 py-2 border border-slate-200 rounded-lg text-sm text-slate-600 focus:outline-none focus:border-teal-500"
+  >
+    <option value="newest">Newest First</option>
+    <option value="oldest">Oldest First</option>
+  </select>
+  <button
+    onClick={() => setShowForm(!showForm)}
+    className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-sm font-medium transition-colors"
+  >
+    + New Invoice
+  </button>
+</div>
       </div>
 
       {/* Summary Cards */}
@@ -275,14 +292,14 @@ export default function SalesInvoices() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-50">
-              {invoices.length === 0 && (
+              {sortedInvoices.length === 0 && (
                 <tr>
                   <td colSpan={9} className="px-5 py-8 text-center text-slate-400">
                     No invoices yet. Create your first sales invoice.
                   </td>
                 </tr>
               )}
-              {invoices.map((inv) => {
+              {sortedInvoices.map((inv) => {
                 const gst = Number(inv.cgst_amount) + Number(inv.sgst_amount) + Number(inv.igst_amount)
                 return (
                   <tr key={inv.id} className="hover:bg-slate-50">
