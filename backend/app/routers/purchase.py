@@ -182,6 +182,8 @@ def receive_po(
                 opening_stock=0,
                 current_stock=0,
             )
+            db.add(item)   # ✅ ADD THIS
+            db.flush()     # ✅ ADD THIS — gives item.id before we use it below
         else:
         # Update part code if provided and not already set
             if li.part_code and not item.code:
