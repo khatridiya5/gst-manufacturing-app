@@ -18,6 +18,10 @@ import SetupCredentials from './pages/SetupCredentials'
 import InStore from "./pages/production/InStore";  
 import UserManagement from './pages/UserManagement'
 import IssueItems from "./pages/workers/IssueItems";
+import PayablesSummary from './pages/payments/PayablesSummary'
+import ReceivablesSummary from './pages/payments/ReceivablesSummary'
+import PaymentLedger from './pages/payments/PaymentLedger'
+import PaymentsDashboard from './pages/payments/PaymentsDashboard'
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token')
@@ -56,8 +60,13 @@ export default function App() {
         <Route path="scan" element={<MobileScanner />} />
         <Route path="wip" element={<WIPDashboard />} />
         <Route path="admin" element={<UserManagement />} />
-        <Route path="/in-store" element={<InStore />} />
-        <Route path="/issue-items" element={<IssueItems />} />
+        <Route path="in-store" element={<InStore />} />
+        <Route path="issue-items" element={<IssueItems />} />
+        <Route path="payments" element={<PaymentsDashboard />} />
+        <Route path="payments/payables" element={<PayablesSummary />} />
+        <Route path="payments/receivables" element={<ReceivablesSummary />} />
+        <Route path="payments/ledger" element={<PaymentLedger />} />
+        
       </Route>
 
       {/* Catch-all */}

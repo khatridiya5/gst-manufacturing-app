@@ -15,6 +15,9 @@ const allLinks = [
   { to: '/in-store',     label: 'In-Store',      icon: '🏪', roles: ['admin', 'store_manager'] },
   { to: '/issue-items',  label: 'Issue Items',   icon: '📤', roles: ['admin', 'store_manager'] },
   { to: '/admin',        label: 'User Management',icon: '⚙️', roles: ['admin'] },
+  { to: '/payments',              label: 'Payment Ledger', icon: '💳', roles: ['admin'] },
+  { to: '/payments/payables',     label: 'Payables',       icon: '🔴', roles: ['admin'] },
+  { to: '/payments/receivables',  label: 'Receivables',    icon: '🟢', roles: ['admin'] },
 ]
 
 // What each role sees after login
