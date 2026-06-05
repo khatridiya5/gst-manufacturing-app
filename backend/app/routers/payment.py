@@ -1,75 +1,124 @@
 from fastapi import APIRouter, Depends
 from sqlalchemy.orm import Session
 from app.database import get_db
-from app.models import purchase, sales, vendor, customer
+from app.models.purchase import PurchaseInvoice, PurchaseOrder
+from app.models.sales import SalesInvoice
+from app.models.vendor import Vendor
+from app.models.customer import Customer
+from app.utils.auth import get_current_user
+from app.models.user import User
 
 router = APIRouter(prefix="/payments", tags=["payments"])
 
 @router.get("/payables")
-def get_payables(db: Session = Depends(get_db)):
-    """How much you owe to suppliers for raw materials"""
-    purchases = db.query(purchase.PurchaseOrder).filter(
-        purchase.PurchaseOrder.payment_status != "paid"
+def get_payables(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    vendors = db.query(Vendor).filter(
+        Vendor.company_id == current_user.company_id,
+        Vendor.is_active == True
     ).all()
-    
-    total_payable = sum(p.balance_due for p in purchases)
-    
-    return {
-        "total_payable": str(total_payable),
-        "count": len(purchases),
-        "items": [
-            {
-                "vendor": p.vendor.name,
-                "invoice_no": p.invoice_number,
-                "invoice_date": str(p.invoice_date),
-                "due_date": str(p.due_date),
-                "total": str(p.total_amount),
-                "paid": str(p.paid_amount),
-                "balance": str(p.balance_due),
-                "status": p.payment_status,
-            }
-            for p in purchases
-        ]
-    }
+
+    result = []
+    total_payable = 0
+
+    for vendor in vendors:
+        invoices = db.query(PurchaseInvoice).filter(
+            PurchaseInvoice.company_id == current_user.company_id,
+            PurchaseInvoice.vendor_id == vendor.id
+        ).all()
+
+        if not invoices:
+            continue
+
+        vendor_total = sum(float(i.total_amount) for i in invoices)
+        vendor_paid = sum(float(i.amount_paid or 0) for i in invoices)
+        vendor_balance = vendor_total - vendor_paid
+
+        pos = []
+        for inv in invoices:
+            po = db.query(PurchaseOrder).filter(PurchaseOrder.id == inv.po_id).first()
+            paid = float(inv.amount_paid or 0)
+            total = float(inv.total_amount)
+            balance = total - paid
+            if balance <= 0:
+                status = 'paid'
+            elif paid > 0:
+                status = 'partial'
+            else:
+                status = 'pending'
+            pos.append({
+                "invoice_no": inv.invoice_number,
+                "po_number": po.po_number if po else "—",
+                "invoice_date": str(inv.invoice_date),
+                "total": total,
+                "paid": paid,
+                "balance": balance,
+                "status": status,
+            })
+
+        total_payable += vendor_balance
+        result.append({
+            "vendor_id": vendor.id,
+            "vendor": vendor.name,
+            "total": vendor_total,
+            "paid": vendor_paid,
+            "balance": vendor_balance,
+            "invoices": pos
+        })
+
+    return {"total_payable": total_payable, "items": result}
+
 
 @router.get("/receivables")
-def get_receivables(db: Session = Depends(get_db)):
-    """How much customers owe you"""
-    invoices = db.query(sales.SalesInvoice).filter(
-        sales.SalesInvoice.payment_status != "paid"
+def get_receivables(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+    customers = db.query(Customer).filter(
+        Customer.company_id == current_user.company_id,
+        Customer.is_active == True
     ).all()
-    
-    total_receivable = sum(i.balance_due for i in invoices)
-    
-    return {
-        "total_receivable": str(total_receivable),
-        "count": len(invoices),
-        "items": [
-            {
-                "customer": i.customer.name,
-                "invoice_no": i.invoice_number,
-                "invoice_date": str(i.invoice_date),
-                "due_date": str(i.due_date),
-                "total": str(i.total_amount),
-                "paid": str(i.paid_amount),
-                "balance": str(i.balance_due),
-                "status": i.payment_status,
-            }
-            for i in invoices
-        ]
-    }
 
-@router.get("/summary")
-def get_payment_summary(db: Session = Depends(get_db)):
-    """Dashboard summary"""
-    payables = get_payables(db)
-    receivables = get_receivables(db)
-    net = float(receivables["total_receivable"]) - float(payables["total_payable"])
-    
-    return {
-        "total_payable": payables["total_payable"],
-        "total_receivable": receivables["total_receivable"],
-        "net_position": str(net),  # positive = you'll receive more than you pay
-        "payable_count": payables["count"],
-        "receivable_count": receivables["count"],
-    }
+    result = []
+    total_receivable = 0
+
+    for customer in customers:
+        invoices = db.query(SalesInvoice).filter(
+            SalesInvoice.company_id == current_user.company_id,
+            SalesInvoice.customer_id == customer.id
+        ).all()
+
+        if not invoices:
+            continue
+
+        cust_total = sum(float(i.total_amount) for i in invoices)
+        cust_paid = sum(float(i.amount_paid or 0) for i in invoices)
+        cust_balance = cust_total - cust_paid
+
+        inv_list = []
+        for inv in invoices:
+            paid = float(inv.amount_paid or 0)
+            total = float(inv.total_amount)
+            balance = total - paid
+            if balance <= 0:
+                status = 'paid'
+            elif paid > 0:
+                status = 'partial'
+            else:
+                status = 'pending'
+            inv_list.append({
+                "invoice_no": inv.invoice_number,
+                "invoice_date": str(inv.invoice_date),
+                "total": total,
+                "paid": paid,
+                "balance": balance,
+                "status": status,
+            })
+
+        total_receivable += cust_balance
+        result.append({
+            "customer_id": customer.id,
+            "customer": customer.name,
+            "total": cust_total,
+            "paid": cust_paid,
+            "balance": cust_balance,
+            "invoices": inv_list
+        })
+
+    return {"total_receivable": total_receivable, "items": result}
