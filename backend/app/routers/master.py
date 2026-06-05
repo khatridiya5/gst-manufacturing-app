@@ -38,6 +38,7 @@ class ItemOut(BaseModel):
 class VendorCreate(BaseModel):
     name: str
     gstin: Optional[str] = None
+    state: Optional[str]
     state_code: Optional[str] = None
     phone: Optional[str] = None
     email: Optional[str] = None
@@ -52,6 +53,7 @@ class VendorOut(BaseModel):
     id: int
     name: str
     gstin: Optional[str]
+    state: Optional[str]
     state_code: Optional[str]
     phone: Optional[str]
     email: Optional[str]
@@ -68,6 +70,7 @@ class VendorOut(BaseModel):
 class CustomerCreate(BaseModel):
     name: str
     gstin: Optional[str] = None
+    
     pan: Optional[str] = None
     address: Optional[str] = None
     state: Optional[str] = None
