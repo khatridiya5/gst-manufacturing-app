@@ -17,3 +17,9 @@ class Vendor(Base):
     email = Column(String(100))
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, server_default=func.now())
+
+    # Bank details
+    bank_name = Column(String(100), nullable=True)
+    account_number = Column(String(30), nullable=True)
+    ifsc_code = Column(String(15), nullable=True)
+    account_holder_name = Column(String(200), nullable=True)
