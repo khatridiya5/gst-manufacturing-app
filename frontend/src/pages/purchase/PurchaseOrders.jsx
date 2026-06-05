@@ -331,138 +331,145 @@ export default function PurchaseOrders() {
         </div>
       )}
 
-      {/* PO Table */}
-      <div className="bg-white rounded-xl border border-slate-200 shadow-sm">
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-slate-50 text-slate-500 text-xs uppercase border-b border-slate-100">
-                <th className="px-5 py-3 text-left">PO Number</th>
-                <th className="px-5 py-3 text-left">Vendor</th>
-                <th className="px-5 py-3 text-left">Created</th>
-                <th className="px-5 py-3 text-left">Received</th>
-                <th className="px-5 py-3 text-right">Amount</th>
-                <th className="px-5 py-3 text-center">QR</th>
-                <th className="px-5 py-3 text-center">Status</th>
-                <th className="px-5 py-3 text-center">Actions</th>
+      {/* PO List - Grouped by Vendor */}
+<div className="space-y-4">
+  {Object.entries(
+    sortedPOs.reduce((groups, po) => {
+      const vendorName = getVendorName(po.vendor_id)
+      if (!groups[vendorName]) groups[vendorName] = []
+      groups[vendorName].push(po)
+      return groups
+    }, {})
+  ).map(([vendorName, vendorPOs]) => (
+    <div key={vendorName} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+      {/* Vendor Header */}
+      <div className="px-5 py-3 bg-slate-50 border-b border-slate-200 flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          <div className="w-8 h-8 rounded-full bg-teal-100 text-teal-700 flex items-center justify-center text-sm font-bold">
+            {vendorName[0]}
+          </div>
+          <span className="font-semibold text-slate-700">{vendorName}</span>
+          <span className="text-xs text-slate-400">{vendorPOs.length} order{vendorPOs.length > 1 ? 's' : ''}</span>
+        </div>
+        <span className="text-sm font-semibold text-slate-600">
+          ₹{vendorPOs.reduce((sum, po) => sum + Number(po.total_amount), 0).toLocaleString('en-IN')}
+        </span>
+      </div>
+
+      {/* POs under this vendor */}
+      <table className="w-full text-sm">
+        <thead>
+          <tr className="text-slate-500 text-xs uppercase border-b border-slate-100">
+            <th className="px-5 py-2 text-left">PO Number</th>
+            <th className="px-5 py-2 text-left">Created</th>
+            <th className="px-5 py-2 text-left">Received</th>
+            <th className="px-5 py-2 text-right">Amount</th>
+            <th className="px-5 py-2 text-center">QR</th>
+            <th className="px-5 py-2 text-center">Status</th>
+            <th className="px-5 py-2 text-center">Actions</th>
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-50">
+          {vendorPOs.map((po) => (
+            <>
+              <tr
+                key={po.id}
+                className="hover:bg-slate-50 cursor-pointer"
+                onClick={() => handleExpandPO(po.id)}
+              >
+                <td className="px-5 py-3 font-medium text-slate-700">
+                  <span className="text-slate-400 text-xs mr-2">{expandedPO === po.id ? '▼' : '▶'}</span>
+                  {po.po_number}
+                </td>
+                <td className="px-5 py-3 text-slate-500 text-xs">{fmtDateTime(po.created_at)}</td>
+                <td className="px-5 py-3 text-slate-500 text-xs">{fmtDateTime(po.received_at)}</td>
+                <td className="px-5 py-3 text-right font-semibold text-slate-700">
+                  ₹{Number(po.total_amount).toLocaleString('en-IN')}
+                </td>
+                <td className="px-5 py-3 text-center">
+                  {po.track_qr ? (
+                    <span className="px-2 py-0.5 bg-violet-50 text-violet-600 rounded-full text-xs font-medium">QR</span>
+                  ) : (
+                    <span className="px-2 py-0.5 bg-slate-100 text-slate-400 rounded-full text-xs">No QR</span>
+                  )}
+                </td>
+                <td className="px-5 py-3 text-center">
+                  <StatusBadge status={po.status} />
+                </td>
+                <td className="px-5 py-3 text-center" onClick={(e) => e.stopPropagation()}>
+                  <div className="flex items-center justify-center gap-2">
+                    {po.status === 'draft' && role === 'admin' && (
+                      <button onClick={() => handleApprove(po.id)}
+                        className="px-3 py-1 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-xs font-medium">
+                        Approve
+                      </button>
+                    )}
+                    {po.status === 'approved' && (
+                      <button onClick={() => handleReceive(po.id, po.track_qr)}
+                        disabled={receivingId === po.id}
+                        className="px-3 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg text-xs font-medium disabled:opacity-50">
+                        {receivingId === po.id ? 'Receiving...' : 'Mark Received'}
+                      </button>
+                    )}
+                    {po.status === 'received' && po.track_qr && (
+                      <button onClick={() => handleViewQR(po.id)}
+                        className="px-3 py-1 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg text-xs font-medium">
+                        View QR Codes
+                      </button>
+                    )}
+                    {role === 'admin' && (
+                      <button onClick={() => setDeleteTarget({ id: po.id, name: po.po_number })}
+                        className="px-3 py-1 border border-red-300 hover:bg-red-50 text-red-500 rounded-lg text-xs font-medium">
+                        Delete
+                      </button>
+                    )}
+                  </div>
+                </td>
               </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-50">
-              {pos.length === 0 && (
-                <tr>
-                  <td colSpan={8} className="px-5 py-8 text-center text-slate-400">
-                    No purchase orders yet. Create your first PO.
+
+              {/* Expanded line items */}
+              {expandedPO === po.id && poItems[po.id] && (
+                <tr key={`${po.id}-items`}>
+                  <td colSpan={7} className="px-8 py-3 bg-slate-50 border-b border-slate-100">
+                    <table className="w-full text-sm">
+                      <thead>
+                        <tr className="text-xs text-slate-400 uppercase">
+                          <th className="text-left py-1">Item</th>
+                          <th className="text-right py-1">Qty</th>
+                          <th className="text-right py-1">Unit Price</th>
+                          <th className="text-right py-1">Tax %</th>
+                          <th className="text-right py-1">Tax Amt</th>
+                          <th className="text-right py-1">Total</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {poItems[po.id].map((item, i) => {
+                          const subtotal = item.quantity * parseFloat(item.unit_price)
+                          const taxAmt = subtotal * (parseFloat(item.tax_rate || 0) / 100)
+                          const total = subtotal + taxAmt
+                          return (
+                            <tr key={i} className="border-t border-slate-100">
+                              <td className="py-1.5 text-slate-700 font-medium">{item.item_name}</td>
+                              <td className="py-1.5 text-right text-slate-600">{item.quantity}</td>
+                              <td className="py-1.5 text-right text-slate-600">₹{item.unit_price}</td>
+                              <td className="py-1.5 text-right text-slate-500">{item.tax_rate || 0}%</td>
+                              <td className="py-1.5 text-right text-slate-500">₹{taxAmt.toFixed(2)}</td>
+                              <td className="py-1.5 text-right font-semibold text-slate-700">₹{total.toFixed(2)}</td>
+                            </tr>
+                          )
+                        })}
+                      </tbody>
+                    </table>
                   </td>
                 </tr>
               )}
-              {sortedPOs.map((po) => (
-                <>
-                  <tr
-                    key={po.id}
-                    className="hover:bg-slate-50 cursor-pointer"
-                    onClick={() => handleExpandPO(po.id)}
-                  >
-                    <td className="px-5 py-3 font-medium text-slate-700">
-                      <span className="text-slate-400 text-xs mr-2">{expandedPO === po.id ? '▼' : '▶'}</span>
-                      {po.po_number}
-                    </td>
-                    <td className="px-5 py-3 text-slate-600">{getVendorName(po.vendor_id)}</td>
-                    <td className="px-5 py-3 text-slate-500 text-xs">{fmtDateTime(po.created_at)}</td>
-                    <td className="px-5 py-3 text-slate-500 text-xs">{fmtDateTime(po.received_at)}</td>
-                    <td className="px-5 py-3 text-right font-semibold text-slate-700">
-                      ₹{Number(po.total_amount).toLocaleString('en-IN')}
-                    </td>
-                    <td className="px-5 py-3 text-center">
-                      {po.track_qr ? (
-                        <span className="px-2 py-0.5 bg-violet-50 text-violet-600 rounded-full text-xs font-medium">QR</span>
-                      ) : (
-                        <span className="px-2 py-0.5 bg-slate-100 text-slate-400 rounded-full text-xs">No QR</span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3 text-center">
-                      <StatusBadge status={po.status} />
-                    </td>
-                    <td className="px-5 py-3 text-center" onClick={(e) => e.stopPropagation()}>
-                      <div className="flex items-center justify-center gap-2">
-                        {po.status === 'draft' && role === 'admin' && (
-                          <button
-                            onClick={() => handleApprove(po.id)}
-                            className="px-3 py-1 bg-green-50 hover:bg-green-100 text-green-700 rounded-lg text-xs font-medium transition-colors"
-                          >
-                            Approve
-                          </button>
-                        )}
-                        {po.status === 'approved' && (
-                        <button
-                         onClick={() => handleReceive(po.id, po.track_qr)}
-                          disabled={receivingId === po.id}
-                          className="px-3 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg text-xs font-medium transition-colors disabled:opacity-50"
-                        >
-                        {receivingId === po.id ? 'Receiving...' : 'Mark Received'}
-                          </button>
-                          )}
-                        {po.status === 'received' && po.track_qr && (
-                          <button
-                            onClick={() => handleViewQR(po.id)}
-                            className="px-3 py-1 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg text-xs font-medium transition-colors"
-                          >
-                            View QR Codes
-                          </button>
-                        )}
-                        {role === 'admin' && (
-                          <button
-                            onClick={() => setDeleteTarget({ id: po.id, name: po.po_number })}
-                            className="px-3 py-1 border border-red-300 hover:bg-red-50 text-red-500 rounded-lg text-xs font-medium transition-colors"
-                          >
-                            Delete
-                          </button>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-
-                  {/* Expanded line items */}
-                  {expandedPO === po.id && poItems[po.id] && (
-                    <tr key={`${po.id}-items`}>
-                      <td colSpan={8} className="px-8 py-3 bg-slate-50 border-b border-slate-100">
-                        <table className="w-full text-sm">
-                        <thead>
-  <tr className="text-xs text-slate-400 uppercase">
-    <th className="text-left py-1">Item</th>
-    <th className="text-right py-1">Qty</th>
-    <th className="text-right py-1">Unit Price</th>
-    <th className="text-right py-1">Tax %</th>
-    <th className="text-right py-1">Tax Amt</th>
-    <th className="text-right py-1">Total</th>
-  </tr>
-</thead>
-<tbody>
-  {poItems[po.id].map((item, i) => {
-    const subtotal = item.quantity * parseFloat(item.unit_price)
-    const taxAmt = subtotal * (parseFloat(item.tax_rate || 0) / 100)
-    const total = subtotal + taxAmt
-    return (
-      <tr key={i} className="border-t border-slate-100">
-        <td className="py-1.5 text-slate-700 font-medium">{item.item_name}</td>
-        <td className="py-1.5 text-right text-slate-600">{item.quantity}</td>
-        <td className="py-1.5 text-right text-slate-600">₹{item.unit_price}</td>
-        <td className="py-1.5 text-right text-slate-500">{item.tax_rate || 0}%</td>
-        <td className="py-1.5 text-right text-slate-500">₹{taxAmt.toFixed(2)}</td>
-        <td className="py-1.5 text-right font-semibold text-slate-700">₹{total.toFixed(2)}</td>
-      </tr>
-    )
-  })}
-</tbody>
-                        </table>
-                      </td>
-                    </tr>
-                  )}
-                </>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+            </>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  ))}
+</div>
 
       {/* QR Modal */}
       {qrModal && (
