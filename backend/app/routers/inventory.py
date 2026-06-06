@@ -258,3 +258,23 @@ def get_vendor_breakdown(
         })
 
     return list(vendor_map.values())
+
+
+@router.get("/debug/rap-roll")
+def debug_rap_roll(db: Session = Depends(get_db)):
+    from app.models.item import Item
+    from app.models.stock import StockLedger
+    from sqlalchemy import func
+
+    items = db.query(Item).filter(
+        func.lower(Item.name).contains("rap")
+    ).all()
+
+    ledger = db.query(StockLedger).filter(
+        StockLedger.item_id.in_([i.id for i in items])
+    ).all()
+
+    return {
+        "items": [{"id": i.id, "name": i.name, "stock": i.current_stock} for i in items],
+        "ledger": [{"id": r.id, "item_id": r.item_id, "type": r.transaction_type, "ref_type": r.reference_type, "ref_id": r.reference_id, "qty": r.quantity} for r in ledger]
+    }
