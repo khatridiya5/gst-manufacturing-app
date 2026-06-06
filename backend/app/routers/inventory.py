@@ -12,6 +12,8 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import date
 from sqlalchemy import Column, Integer, String, Boolean, Numeric, ForeignKey
+from app.models.purchase import PurchaseOrder  # add to imports if not present
+from app.models.vendor import Vendor
 
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
 
@@ -216,3 +218,43 @@ def debug_in_store(db: Session = Depends(get_db)):
             for i in items
         ]
     }
+
+
+
+@router.get("/in-store/{item_id}/vendor-breakdown")
+def get_vendor_breakdown(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    rows = db.query(
+        StockLedger.reference_id,
+        StockLedger.quantity,
+        StockLedger.transaction_date,
+        PurchaseOrder.po_number,
+        Vendor.name.label("vendor_name")
+    ).join(
+        PurchaseOrder, PurchaseOrder.id == StockLedger.reference_id
+    ).join(
+        Vendor, Vendor.id == PurchaseOrder.vendor_id
+    ).filter(
+        StockLedger.item_id == item_id,
+        StockLedger.company_id == current_user.company_id,
+        StockLedger.transaction_type == "purchase_in",
+        StockLedger.reference_type == "purchase"
+    ).order_by(StockLedger.transaction_date.desc()).all()
+
+    # Group by vendor
+    vendor_map = {}
+    for row in rows:
+        vname = row.vendor_name
+        if vname not in vendor_map:
+            vendor_map[vname] = {"vendor": vname, "total_qty": 0, "orders": []}
+        vendor_map[vname]["total_qty"] += row.quantity
+        vendor_map[vname]["orders"].append({
+            "po_number": row.po_number,
+            "quantity": row.quantity,
+            "date": row.transaction_date,
+        })
+
+    return list(vendor_map.values())
