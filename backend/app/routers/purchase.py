@@ -166,14 +166,14 @@ def receive_po(
     for li in po_lines:
         # ── Auto-create item by name if it doesn't exist ──
         item = db.query(Item).filter(
-            func.lower(Item.name) == li.item_name.lower(),
+            func.lower(Item.name) == li.item_name.strip().lower(),
             Item.company_id == current_user.company_id
         ).first()
 
         if not item:
             item = Item(
                 company_id=current_user.company_id,
-                name=li.item_name.strip().lower(),
+                name=li.item_name.strip().upper(),
                 code=li.part_code or None,
                 item_type="raw_material",
                 hsn_code="0000",
