@@ -456,3 +456,46 @@ def get_po_items(po_id: int, db: Session = Depends(get_db), current_user: User =
         }
         for li in lines
     ]
+
+
+
+@router.get("/in-store/{item_id}/vendor-breakdown")
+def get_vendor_breakdown(
+    item_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    from app.models.purchase import PurchaseInvoice, PurchaseOrder
+    from app.models.vendor import Vendor
+
+    rows = db.query(
+        StockLedger.quantity,
+        StockLedger.transaction_date,
+        PurchaseOrder.po_number,
+        Vendor.name.label("vendor_name")
+    ).join(
+        PurchaseInvoice, PurchaseInvoice.id == StockLedger.reference_id
+    ).join(
+        PurchaseOrder, PurchaseOrder.id == PurchaseInvoice.po_id
+    ).join(
+        Vendor, Vendor.id == PurchaseOrder.vendor_id
+    ).filter(
+        StockLedger.item_id == item_id,
+        StockLedger.company_id == current_user.company_id,
+        StockLedger.transaction_type == "purchase_in",
+        StockLedger.reference_type == "purchase_invoice"
+    ).order_by(StockLedger.transaction_date.desc()).all()
+
+    vendor_map = {}
+    for row in rows:
+        vname = row.vendor_name
+        if vname not in vendor_map:
+            vendor_map[vname] = {"vendor": vname, "total_qty": 0, "orders": []}
+        vendor_map[vname]["total_qty"] += row.quantity
+        vendor_map[vname]["orders"].append({
+            "po_number": row.po_number,
+            "quantity": row.quantity,
+            "date": row.transaction_date,
+        })
+
+    return list(vendor_map.values())
