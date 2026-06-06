@@ -278,3 +278,37 @@ def debug_rap_roll(db: Session = Depends(get_db)):
         "items": [{"id": i.id, "name": i.name, "stock": i.current_stock} for i in items],
         "ledger": [{"id": r.id, "item_id": r.item_id, "type": r.transaction_type, "ref_type": r.reference_type, "ref_id": r.reference_id, "qty": r.quantity} for r in ledger]
     }
+
+
+@router.post("/admin/merge-duplicates")
+def merge_duplicates(db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))):
+    from app.models.purchase import PurchaseLineItem
+    
+    dupes = (
+        db.query(Item.company_id, func.lower(Item.name).label("norm_name"), func.count(Item.id).label("cnt"))
+        .filter(Item.company_id == current_user.company_id)
+        .group_by(Item.company_id, func.lower(Item.name))
+        .having(func.count(Item.id) > 1)
+        .all()
+    )
+
+    results = []
+    for d in dupes:
+        items = db.query(Item).filter(
+            Item.company_id == d.company_id,
+            func.lower(Item.name) == d.norm_name
+        ).order_by(Item.id).all()
+        
+        master = items[0]
+        for dup in items[1:]:
+            db.query(StockLedger).filter(StockLedger.item_id == dup.id).update({"item_id": master.id}, synchronize_session=False)
+            db.query(PurchaseLineItem).filter(PurchaseLineItem.item_id == dup.id).update({"item_id": master.id}, synchronize_session=False)
+            db.query(PartInstance).filter(PartInstance.item_id == dup.id).update({"item_id": master.id}, synchronize_session=False)
+            master.current_stock += dup.current_stock
+            if not master.code and dup.code:
+                master.code = dup.code
+            db.delete(dup)
+            results.append(f"Merged '{dup.name}' (id={dup.id}) into '{master.name}' (id={master.id}), final stock={master.current_stock}")
+
+    db.commit()
+    return {"merged": results if results else ["No duplicates found"]}
