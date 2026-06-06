@@ -4,9 +4,7 @@ import api from "../../api/client";
 export default function InStore() {
   const [items, setItems] = useState([]);
   const [selected, setSelected] = useState(null);
-  const [scanHistory, setScanHistory] = useState([]);
-  const [vendorBreakdown, setVendorBreakdown] = useState([]);
-  const [expandedVendors, setExpandedVendors] = useState({});
+  const [dropdownData, setDropdownData] = useState({ vendors: [], manual: [] });
   const [loading, setLoading] = useState(true);
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualForm, setManualForm] = useState({ item_id: "", quantity: "", reason: "" });
@@ -51,29 +49,21 @@ export default function InStore() {
   const handleRowClick = async (item) => {
     if (selected?.item_id === item.item_id) {
       setSelected(null);
-      setScanHistory([]);
-      setVendorBreakdown([]);
-      setExpandedVendors({});
+      setDropdownData({ vendors: [], manual: [] });
       return;
     }
     setSelected(item);
-    setExpandedVendors({});
+    setDropdownData({ vendors: [], manual: [] });
 
     try {
       const [manualRes, vendorRes] = await Promise.all([
         api.get(`/api/inventory/in-store/${item.item_id}/manual-entries`),
         api.get(`/api/inventory/in-store/${item.item_id}/vendor-breakdown`),
       ]);
-      setScanHistory(manualRes.data);
-      setVendorBreakdown(vendorRes.data);
+      setDropdownData({ vendors: vendorRes.data, manual: manualRes.data });
     } catch (e) {
-      setScanHistory([]);
-      setVendorBreakdown([]);
+      setDropdownData({ vendors: [], manual: [] });
     }
-  };
-
-  const toggleVendor = (vendorName) => {
-    setExpandedVendors((prev) => ({ ...prev, [vendorName]: !prev[vendorName] }));
   };
 
   const lowStockItems = items.filter((i) => i.low_stock);
@@ -128,16 +118,12 @@ export default function InStore() {
                 />
                 {manualForm.quantity && (
                   <p className={`text-xs mt-1 font-medium ${parseFloat(manualForm.quantity) > 0 ? "text-green-600" : "text-red-500"}`}>
-                    {parseFloat(manualForm.quantity) > 0
-                      ? `+${manualForm.quantity} units will be added`
-                      : `${manualForm.quantity} units will be deducted`}
+                    {parseFloat(manualForm.quantity) > 0 ? `+${manualForm.quantity} units will be added` : `${manualForm.quantity} units will be deducted`}
                   </p>
                 )}
               </div>
               <div>
-                <label className="text-sm text-gray-600 block mb-1">
-                  Reason <span className="text-gray-400">(optional)</span>
-                </label>
+                <label className="text-sm text-gray-600 block mb-1">Reason <span className="text-gray-400">(optional)</span></label>
                 <input
                   type="text"
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm"
@@ -151,16 +137,12 @@ export default function InStore() {
               <button
                 onClick={() => { setShowManualEntry(false); setManualForm({ item_id: "", quantity: "", reason: "" }); }}
                 className="flex-1 px-4 py-2 border border-gray-200 text-gray-600 text-sm rounded-lg hover:bg-gray-50"
-              >
-                Cancel
-              </button>
+              >Cancel</button>
               <button
                 onClick={handleManualSubmit}
                 disabled={manualSubmitting || !manualForm.item_id || !manualForm.quantity}
                 className="flex-1 px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 disabled:opacity-50"
-              >
-                {manualSubmitting ? "Saving..." : "Submit"}
-              </button>
+              >{manualSubmitting ? "Saving..." : "Submit"}</button>
             </div>
           </div>
         </div>
@@ -195,11 +177,10 @@ export default function InStore() {
             {loading ? (
               <tr><td colSpan={7} className="text-center py-10 text-gray-400">Loading...</td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan={7} className="text-center py-10 text-gray-400">No items found. Mark a Purchase Order as received to populate.</td></tr>
+              <tr><td colSpan={7} className="text-center py-10 text-gray-400">No items found.</td></tr>
             ) : (
               items.map((item) => (
                 <>
-                  {/* Main item row */}
                   <tr
                     key={item.item_id}
                     onClick={() => handleRowClick(item)}
@@ -207,8 +188,8 @@ export default function InStore() {
                       selected?.item_id === item.item_id ? "bg-teal-50" : "hover:bg-gray-50"
                     }`}
                   >
-                    <td className="px-5 py-4 font-medium text-gray-800 flex items-center gap-2">
-                      <span className={`transition-transform text-gray-400 text-xs ${selected?.item_id === item.item_id ? "rotate-90" : ""}`}>▶</span>
+                    <td className="px-5 py-4 font-medium text-gray-800">
+                      <span className={`inline-block mr-2 text-gray-400 text-xs transition-transform duration-200 ${selected?.item_id === item.item_id ? "rotate-90" : ""}`}>▶</span>
                       {item.name.toUpperCase()}
                     </td>
                     <td className="px-5 py-4 text-gray-500 font-mono text-xs">{item.part_code}</td>
@@ -216,134 +197,101 @@ export default function InStore() {
                     <td className="px-5 py-4 text-gray-700">{item.total_consumed}</td>
                     <td className="px-5 py-4 font-semibold text-gray-900">{item.in_stock}</td>
                     <td className="px-5 py-4">
-                      {item.low_stock ? (
-                        <span className="px-2 py-1 bg-red-100 text-red-600 rounded-full text-xs font-medium">Low Stock</span>
-                      ) : (
-                        <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">OK</span>
-                      )}
+                      {item.low_stock
+                        ? <span className="px-2 py-1 bg-red-100 text-red-600 rounded-full text-xs font-medium">Low Stock</span>
+                        : <span className="px-2 py-1 bg-green-100 text-green-700 rounded-full text-xs font-medium">OK</span>}
                     </td>
                     <td className="px-5 py-4">
-                      {item.track_qr ? (
-                        <span className="px-2 py-0.5 bg-violet-50 text-violet-600 rounded-full text-xs font-medium">QR</span>
-                      ) : (
-                        <span className="px-2 py-0.5 bg-slate-100 text-slate-400 rounded-full text-xs">Manual</span>
-                      )}
+                      {item.track_qr
+                        ? <span className="px-2 py-0.5 bg-violet-50 text-violet-600 rounded-full text-xs font-medium">QR</span>
+                        : <span className="px-2 py-0.5 bg-slate-100 text-slate-400 rounded-full text-xs">Manual</span>}
                     </td>
                   </tr>
 
-                  {/* Expanded detail panel */}
+                  {/* ── Unified Dropdown ── */}
                   {selected?.item_id === item.item_id && (
-                    <tr key={`${item.item_id}-detail`}>
-                      <td colSpan={7} className="px-5 py-4 bg-teal-50 border-b border-teal-100">
+                    <tr key={`${item.item_id}-dropdown`}>
+                      <td colSpan={7} className="bg-teal-50 border-b border-teal-100 px-6 py-4">
+                        <p className="text-xs font-bold text-teal-700 uppercase tracking-widest mb-3">
+                          Stock Detail — {item.name.toUpperCase()}
+                        </p>
 
-                        {/* ── Vendor Breakdown ── */}
-                        {vendorBreakdown.length > 0 && (
-                          <div className="mb-5">
-                            <p className="text-xs font-semibold text-teal-700 mb-2 uppercase tracking-wide">
-                              Stock by Vendor — {item.name}
-                            </p>
-                            <div className="space-y-2">
-                              {vendorBreakdown.map((v) => (
-                                <div key={v.vendor} className="bg-white rounded-lg border border-teal-100 overflow-hidden">
-                                  {/* Vendor header row — click to expand PO list */}
-                                  <button
-                                    onClick={() => toggleVendor(v.vendor)}
-                                    className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-teal-50 transition-colors text-left"
-                                  >
-                                    <div className="flex items-center gap-3">
-                                      <span className={`text-gray-400 text-xs transition-transform ${expandedVendors[v.vendor] ? "rotate-90" : ""}`}>▶</span>
-                                      <span className="text-sm font-semibold text-gray-800">{v.vendor}</span>
-                                      <span className="text-xs text-gray-400">{v.orders.length} order{v.orders.length !== 1 ? "s" : ""}</span>
-                                    </div>
-                                    <span className="text-sm font-bold text-teal-700">{v.total_qty} units</span>
-                                  </button>
+                        <table className="w-full text-xs">
+                          <thead>
+                            <tr className="text-gray-400 border-b border-teal-100">
+                              <th className="text-left pb-2 font-semibold">Source</th>
+                              <th className="text-left pb-2 font-semibold">Reference</th>
+                              <th className="text-left pb-2 font-semibold">Date</th>
+                              <th className="text-right pb-2 font-semibold">Qty</th>
+                              <th className="text-left pb-2 font-semibold pl-4">Note</th>
+                            </tr>
+                          </thead>
+                          <tbody>
+                            {/* Vendor rows */}
+                            {dropdownData.vendors.length === 0 && dropdownData.manual.length === 0 && (
+                              <tr>
+                                <td colSpan={5} className="py-3 text-gray-400 italic">No stock history found.</td>
+                              </tr>
+                            )}
 
-                                  {/* PO breakdown — shown when expanded */}
-                                  {expandedVendors[v.vendor] && (
-                                    <div className="border-t border-teal-50 px-4 pb-3 pt-2">
-                                      <table className="w-full text-xs">
-                                        <thead>
-                                          <tr className="text-gray-400">
-                                            <th className="text-left pb-1 font-medium">PO Number</th>
-                                            <th className="text-left pb-1 font-medium">Date Received</th>
-                                            <th className="text-right pb-1 font-medium">Qty</th>
-                                          </tr>
-                                        </thead>
-                                        <tbody>
-                                          {v.orders.map((o, idx) => (
-                                            <tr key={idx} className="text-gray-700 border-t border-gray-50">
-                                              <td className="py-1.5 font-mono font-medium text-teal-700">{o.po_number}</td>
-                                              <td className="py-1.5 text-gray-500">
-                                                {new Date(o.date).toLocaleDateString("en-GB", {
-                                                  day: "2-digit", month: "short", year: "numeric"
-                                                })}
-                                              </td>
-                                              <td className="py-1.5 text-right font-semibold text-gray-800">{o.quantity}</td>
-                                            </tr>
-                                          ))}
-                                        </tbody>
-                                      </table>
-                                    </div>
-                                  )}
-                                </div>
-                              ))}
-                            </div>
-                          </div>
-                        )}
-
-                        {/* ── Manual Entries ── */}
-                        <div>
-                          <p className="text-xs font-semibold text-teal-700 mb-2 uppercase tracking-wide">
-                            Manual Entries — {item.name}
-                          </p>
-                          {scanHistory.length === 0 ? (
-                            <p className="text-xs text-gray-400">No manual entries yet.</p>
-                          ) : (
-                            <table className="w-full text-xs">
-                              <thead>
-                                <tr className="text-gray-500">
-                                  <th className="text-left pb-1">Date</th>
-                                  <th className="text-left pb-1">Time</th>
-                                  <th className="text-left pb-1">Quantity</th>
-                                  <th className="text-left pb-1">Type</th>
-                                  <th className="text-left pb-1">Reason</th>
+                            {dropdownData.vendors.flatMap((v) =>
+                              v.orders.map((o, oi) => (
+                                <tr key={`v-${v.vendor}-${oi}`} className="border-b border-teal-50">
+                                  <td className="py-2">
+                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-medium">
+                                      🏭 {v.vendor}
+                                    </span>
+                                  </td>
+                                  <td className="py-2 font-mono text-teal-700 font-semibold">{o.po_number}</td>
+                                  <td className="py-2 text-gray-500">
+                                    {new Date(o.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                                  </td>
+                                  <td className="py-2 text-right font-bold text-gray-800">+{o.quantity}</td>
+                                  <td className="py-2 pl-4 text-gray-400">Purchase received</td>
                                 </tr>
-                              </thead>
-                              <tbody>
-                                {scanHistory.map((s, i) => (
-                                  <tr key={i} className="text-gray-700">
-                                    <td className="py-1">
-                                      {new Date(s.transaction_date).toLocaleDateString("en-GB", {
-                                        day: "2-digit", month: "short", year: "numeric"
-                                      })}
-                                    </td>
-                                    <td className="py-1 text-gray-500">
-                                      {s.created_at
-                                        ? new Date(s.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: true })
-                                        : "—"}
-                                    </td>
-                                    <td className="py-1 font-semibold">
-                                      <span className={s.transaction_type === "manual_in" ? "text-green-600" : "text-red-500"}>
-                                        {s.transaction_type === "manual_in" ? "+" : "-"}{s.quantity}
-                                      </span>
-                                    </td>
-                                    <td className="py-1">
-                                      <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${
-                                        s.transaction_type === "manual_in"
-                                          ? "bg-green-100 text-green-700"
-                                          : "bg-red-100 text-red-600"
-                                      }`}>
-                                        {s.transaction_type === "manual_in" ? "Added" : "Deducted"}
-                                      </span>
-                                    </td>
-                                    <td className="py-1 text-gray-400 italic">{s.reason || "—"}</td>
-                                  </tr>
-                                ))}
-                              </tbody>
-                            </table>
-                          )}
-                        </div>
+                              ))
+                            )}
 
+                            {/* Manual entry rows */}
+                            {dropdownData.manual.map((m, mi) => (
+                              <tr key={`m-${mi}`} className="border-b border-teal-50">
+                                <td className="py-2">
+                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium ${
+                                    m.transaction_type === "manual_in"
+                                      ? "bg-green-50 text-green-700"
+                                      : "bg-red-50 text-red-600"
+                                  }`}>
+                                    {m.transaction_type === "manual_in" ? "✚ Manual Add" : "✖ Manual Deduct"}
+                                  </span>
+                                </td>
+                                <td className="py-2 text-gray-400">—</td>
+                                <td className="py-2 text-gray-500">
+                                  {new Date(m.transaction_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                                  {m.created_at && (
+                                    <span className="ml-1 text-gray-400">
+                                      {new Date(m.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                                    </span>
+                                  )}
+                                </td>
+                                <td className={`py-2 text-right font-bold ${m.transaction_type === "manual_in" ? "text-green-600" : "text-red-500"}`}>
+                                  {m.transaction_type === "manual_in" ? "+" : "-"}{m.quantity}
+                                </td>
+                                <td className="py-2 pl-4 text-gray-400 italic">{m.reason || "—"}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+
+                          {/* Totals footer */}
+                          {(dropdownData.vendors.length > 0 || dropdownData.manual.length > 0) && (
+                            <tfoot>
+                              <tr className="border-t-2 border-teal-200">
+                                <td colSpan={3} className="pt-2 font-semibold text-gray-600">Total In Stock</td>
+                                <td className="pt-2 text-right font-bold text-teal-700 text-sm">{item.in_stock}</td>
+                                <td />
+                              </tr>
+                            </tfoot>
+                          )}
+                        </table>
                       </td>
                     </tr>
                   )}
