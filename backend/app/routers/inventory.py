@@ -280,7 +280,7 @@ def debug_rap_roll(db: Session = Depends(get_db)):
     }
 
 
-@router.post("/admin/merge-duplicates")
+@router.get("/admin/merge-duplicates")
 def merge_duplicates(db: Session = Depends(get_db), current_user: User = Depends(require_role("admin"))):
     from app.models.purchase import PurchaseLineItem
     
