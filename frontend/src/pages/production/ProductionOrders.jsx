@@ -20,6 +20,7 @@ export default function ProductionOrders() {
   const [orders, setOrders] = useState([])
   const [boms, setBoms] = useState([])
   const [items, setItems] = useState([])
+  const [customers, setCustomers] = useState([])
   const [loading, setLoading] = useState(true)
   const [showBOMForm, setShowBOMForm] = useState(false)
   const [showOrderForm, setShowOrderForm] = useState(false)
@@ -28,35 +29,39 @@ export default function ProductionOrders() {
   const [qrCodes, setQrCodes] = useState([])
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [sortOrder, setSortOrder] = useState('newest')
-  const [expandedProducts, setExpandedProducts] = useState({})
+  const [expandedCustomers, setExpandedCustomers] = useState({})
   const [expandedOrders, setExpandedOrders] = useState({})
 
   const [bomForm, setBomForm] = useState({
     finished_good_id: '', version: '1.0',
     line_items: [{ raw_material_id: '', quantity_required: '', unit: 'kg', scrap_percentage: 0 }]
   })
-  const [orderForm, setOrderForm] = useState({ bom_id: '', planned_quantity: '' })
+  const [orderForm, setOrderForm] = useState({
+    bom_id: '', planned_quantity: '', customer_id: ''
+  })
   const [actualQty, setActualQty] = useState('')
   const [scrapQty, setScrapQty] = useState(0)
 
   const fetchAll = async () => {
     try {
-      const [ordersRes, bomsRes, itemsRes] = await Promise.all([
+      const [ordersRes, bomsRes, itemsRes, customersRes] = await Promise.all([
         api.get('/production/orders'),
         api.get('/production/bom'),
         api.get('/master/items'),
+        api.get('/master/customers'),
       ])
       setOrders(ordersRes.data)
       setBoms(bomsRes.data)
       setItems(itemsRes.data)
+      setCustomers(customersRes.data)
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
   }
 
   useEffect(() => { fetchAll() }, [])
 
-  // Group orders by product (finished_good name from BOM)
-  const groupedByProduct = () => {
+  // Group orders by customer name
+  const groupedByCustomer = () => {
     const map = {}
     const sorted = [...orders].sort((a, b) =>
       sortOrder === 'newest'
@@ -64,15 +69,15 @@ export default function ProductionOrders() {
         : new Date(a.created_at) - new Date(b.created_at)
     )
     sorted.forEach(order => {
-      const productName = getBOMName(order.bom_id)
-      if (!map[productName]) map[productName] = []
-      map[productName].push(order)
+      const key = order.customer_name || 'No Customer'
+      if (!map[key]) map[key] = []
+      map[key].push(order)
     })
     return map
   }
 
-  const toggleProduct = (productName) => {
-    setExpandedProducts(prev => ({ ...prev, [productName]: !prev[productName] }))
+  const toggleCustomer = (name) => {
+    setExpandedCustomers(prev => ({ ...prev, [name]: prev[name] === false ? true : false }))
   }
 
   const toggleOrder = (orderId) => {
@@ -102,10 +107,11 @@ export default function ProductionOrders() {
     try {
       await api.post('/production/orders', {
         bom_id: parseInt(orderForm.bom_id),
-        planned_quantity: parseInt(orderForm.planned_quantity)
+        planned_quantity: parseInt(orderForm.planned_quantity),
+        customer_id: orderForm.customer_id ? parseInt(orderForm.customer_id) : null
       })
       setShowOrderForm(false)
-      setOrderForm({ bom_id: '', planned_quantity: '' })
+      setOrderForm({ bom_id: '', planned_quantity: '', customer_id: '' })
       fetchAll()
     } catch (err) { alert(err.response?.data?.detail || 'Error') }
   }
@@ -141,10 +147,10 @@ export default function ProductionOrders() {
   const finishedGoods = items.filter(i => i.item_type === 'finished_good')
   const getBOMName = (id) => boms.find(b => b.id === id)?.finished_good || '—'
 
-  const productGroups = groupedByProduct()
+  const totalCost = (groupOrders) =>
+    groupOrders.reduce((sum, o) => sum + (parseFloat(o.production_cost) || 0), 0)
 
-  const totalCost = (productOrders) =>
-    productOrders.reduce((sum, o) => sum + (parseFloat(o.production_cost) || 0), 0)
+  const customerGroups = groupedByCustomer()
 
   if (loading) return <div className="text-slate-400 p-8">Loading...</div>
 
@@ -170,15 +176,11 @@ export default function ProductionOrders() {
           <button
             onClick={() => setShowBOMForm(!showBOMForm)}
             className="px-4 py-2 bg-slate-700 hover:bg-slate-600 text-white rounded-lg text-sm font-medium"
-          >
-            + New BOM
-          </button>
+          >+ New BOM</button>
           <button
             onClick={() => setShowOrderForm(!showOrderForm)}
             className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-sm font-medium"
-          >
-            + New Order
-          </button>
+          >+ New Order</button>
         </div>
       </div>
 
@@ -258,7 +260,18 @@ export default function ProductionOrders() {
         <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6 shadow-sm">
           <h2 className="font-semibold text-slate-700 mb-4">Create Production Order</h2>
           <form onSubmit={handleCreateOrder} className="space-y-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">Customer</label>
+                <select
+                  value={orderForm.customer_id}
+                  onChange={e => setOrderForm({ ...orderForm, customer_id: e.target.value })}
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+                >
+                  <option value="">Select customer...</option>
+                  {customers.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
+                </select>
+              </div>
               <div>
                 <label className="block text-sm font-medium text-slate-600 mb-1">BOM</label>
                 <select
@@ -290,53 +303,58 @@ export default function ProductionOrders() {
         </div>
       )}
 
-      {/* ── Grouped by Product ── */}
+      {/* ── Grouped by Customer ── */}
       {orders.length === 0 ? (
         <div className="bg-white rounded-xl border border-slate-200 shadow-sm px-5 py-10 text-center text-slate-400">
           No production orders yet.
         </div>
       ) : (
         <div className="space-y-4">
-          {Object.entries(productGroups).map(([productName, productOrders]) => {
-            const isExpanded = expandedProducts[productName] !== false // default open
-            const completedCount = productOrders.filter(o => o.status === 'completed').length
-            const totalProductCost = totalCost(productOrders)
-            const initial = productName.trim()[0]?.toUpperCase() || '?'
+          {Object.entries(customerGroups).map(([customerName, customerOrders]) => {
+            const isExpanded = expandedCustomers[customerName] !== false
+            const completedCount = customerOrders.filter(o => o.status === 'completed').length
+            const totalProductCost = totalCost(customerOrders)
+            const initial = customerName.trim()[0]?.toUpperCase() || '?'
 
             return (
-              <div key={productName} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-                {/* Product Header Row */}
+              <div key={customerName} className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
+
+                {/* Customer Header */}
                 <div
                   className="flex items-center justify-between px-5 py-4 cursor-pointer hover:bg-slate-50 transition-colors"
-                  onClick={() => toggleProduct(productName)}
+                  onClick={() => toggleCustomer(customerName)}
                 >
                   <div className="flex items-center gap-3">
-                    <div className="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center text-sm font-bold">
+                    <div className="w-8 h-8 rounded-full bg-teal-600 text-white flex items-center justify-center text-sm font-bold flex-shrink-0">
                       {initial}
                     </div>
                     <div>
-                      <span className="font-semibold text-slate-800 text-sm">{productName.toUpperCase()}</span>
-                      <span className="ml-2 text-slate-400 text-xs">{productOrders.length} order{productOrders.length > 1 ? 's' : ''}</span>
+                      <span className="font-semibold text-slate-800 text-sm">{customerName.toUpperCase()}</span>
+                      <span className="ml-2 text-slate-400 text-xs">
+                        {customerOrders.length} order{customerOrders.length > 1 ? 's' : ''}
+                      </span>
                     </div>
                   </div>
                   <div className="flex items-center gap-4">
                     <span className="text-sm font-semibold text-slate-700">
                       {totalProductCost > 0 ? `₹${Number(totalProductCost).toLocaleString('en-IN')}` : '—'}
                     </span>
-                    <span className="text-slate-400 text-xs">{completedCount}/{productOrders.length} completed</span>
+                    <span className="text-slate-400 text-xs">
+                      {completedCount}/{customerOrders.length} completed
+                    </span>
                     <span className={`text-slate-400 text-xs transition-transform duration-200 ${isExpanded ? 'rotate-90' : ''}`}>▶</span>
                   </div>
                 </div>
 
-                {/* Orders Table for this product */}
+                {/* Orders Table */}
                 {isExpanded && (
                   <div className="border-t border-slate-100">
                     <table className="w-full text-sm">
                       <thead>
                         <tr className="bg-slate-50 text-slate-400 text-xs uppercase">
-                          <th className="px-5 py-2 text-left font-semibold">PO Number</th>
+                          <th className="px-5 py-2 text-left font-semibold">Order No.</th>
+                          <th className="px-5 py-2 text-left font-semibold">Product</th>
                           <th className="px-5 py-2 text-left font-semibold">Created</th>
-                          <th className="px-5 py-2 text-left font-semibold">Completed</th>
                           <th className="px-5 py-2 text-right font-semibold">Planned Qty</th>
                           <th className="px-5 py-2 text-right font-semibold">Actual Qty</th>
                           <th className="px-5 py-2 text-right font-semibold">Cost</th>
@@ -345,7 +363,7 @@ export default function ProductionOrders() {
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-slate-50">
-                        {productOrders.map(order => (
+                        {customerOrders.map(order => (
                           <>
                             <tr
                               key={order.id}
@@ -356,14 +374,15 @@ export default function ProductionOrders() {
                                 <span className={`inline-block mr-2 text-slate-400 text-xs transition-transform duration-200 ${expandedOrders[order.id] ? 'rotate-90' : ''}`}>▶</span>
                                 {order.order_number}
                               </td>
-                              <td className="px-5 py-3 text-slate-500 text-xs">
-                                {order.created_at
-                                  ? new Date(order.created_at).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit', hour: '2-digit', minute: '2-digit' })
-                                  : '—'}
+                              <td className="px-5 py-3 text-slate-600 font-medium">
+                                {getBOMName(order.bom_id)}
                               </td>
                               <td className="px-5 py-3 text-slate-500 text-xs">
-                                {order.end_date
-                                  ? new Date(order.end_date).toLocaleDateString('en-GB', { day: '2-digit', month: '2-digit', year: '2-digit' })
+                                {order.created_at
+                                  ? new Date(order.created_at).toLocaleDateString('en-GB', {
+                                      day: '2-digit', month: '2-digit', year: '2-digit',
+                                      hour: '2-digit', minute: '2-digit'
+                                    })
                                   : '—'}
                               </td>
                               <td className="px-5 py-3 text-right text-slate-600">
@@ -400,20 +419,20 @@ export default function ProductionOrders() {
                               </td>
                             </tr>
 
-                            {/* Expandable BOM detail row */}
+                            {/* Expandable detail row */}
                             {expandedOrders[order.id] && (
                               <tr key={`${order.id}-detail`}>
                                 <td colSpan={8} className="bg-teal-50 border-b border-teal-100 px-6 py-3">
                                   <p className="text-xs font-bold text-teal-700 uppercase tracking-widest mb-2">
                                     Order Detail — {order.order_number}
                                   </p>
-                                  <div className="flex gap-6 text-xs text-slate-600">
-                                    <span>📦 <strong>Product:</strong> {productName}</span>
+                                  <div className="flex flex-wrap gap-6 text-xs text-slate-600">
+                                    <span>👤 <strong>Customer:</strong> {customerName}</span>
+                                    <span>📦 <strong>Product:</strong> {getBOMName(order.bom_id)}</span>
                                     <span>🔢 <strong>Planned:</strong> {order.planned_quantity}</span>
                                     {order.actual_quantity && <span>✅ <strong>Actual:</strong> {order.actual_quantity}</span>}
                                     {order.scrap_quantity > 0 && <span>🗑 <strong>Scrap:</strong> {order.scrap_quantity}</span>}
                                     {order.production_cost && <span>💰 <strong>Cost:</strong> ₹{Number(order.production_cost).toLocaleString('en-IN')}</span>}
-                                    <span>📋 <strong>BOM:</strong> {getBOMName(order.bom_id)}</span>
                                   </div>
                                 </td>
                               </tr>

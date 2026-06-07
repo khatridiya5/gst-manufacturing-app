@@ -16,6 +16,7 @@ from app.models.worker import Worker
 from app.models.stock import PartInstance
 from datetime import datetime
 from app.utils.otp import verify_delete_otp
+from app.models.customer import Customer
 
 router = APIRouter(prefix="/production", tags=["Production"])
 
@@ -52,6 +53,7 @@ class BOMOut(BaseModel):
 class ProductionOrderCreate(BaseModel):
     bom_id: int
     planned_quantity: int
+    customer_id: Optional[int] = None
     start_date: Optional[date] = None
 
 class ProductionOrderOut(BaseModel):
@@ -179,6 +181,7 @@ def create_production_order(
     order = ProductionOrder(
         company_id=current_user.company_id,
         bom_id=data.bom_id,
+        customer_id=data.customer_id,
         order_number=order_number,
         planned_quantity=data.planned_quantity,
         start_date=data.start_date or date.today(),
@@ -311,14 +314,34 @@ def get_production_qr_codes(
         "status": p.current_status
     } for p in parts]
 
-@router.get("/orders", response_model=List[ProductionOrderOut])
+@router.get("/orders")
 def get_orders(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    return db.query(ProductionOrder).filter(
+    orders = db.query(ProductionOrder).filter(
         ProductionOrder.company_id == current_user.company_id
     ).all()
+    
+    result = []
+    for o in orders:
+        customer = db.query(Customer).filter(Customer.id == o.customer_id).first() if o.customer_id else None
+        result.append({
+            "id": o.id,
+            "order_number": o.order_number,
+            "bom_id": o.bom_id,
+            "customer_id": o.customer_id,
+            "customer_name": customer.name if customer else "No Customer",
+            "planned_quantity": o.planned_quantity,
+            "actual_quantity": o.actual_quantity,
+            "scrap_quantity": o.scrap_quantity,
+            "production_cost": o.production_cost,
+            "status": o.status,
+            "start_date": o.start_date,
+            "end_date": o.end_date,
+            "created_at": o.created_at,
+        })
+    return result
 
 # ─── WIP SCANS ───────────────────────────────────────────────
 
