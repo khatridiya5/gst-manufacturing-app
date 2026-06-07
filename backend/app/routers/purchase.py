@@ -499,3 +499,29 @@ def get_vendor_breakdown(
         })
 
     return list(vendor_map.values())
+
+
+
+@router.patch("/debug/fix-invoice-vendor")
+def fix_invoice_vendor(
+    invoice_id: int,
+    correct_vendor_id: int,
+    db: Session = Depends(get_db)
+):
+    from app.models.purchase import PurchaseInvoice, PurchaseOrder
+    inv = db.query(PurchaseInvoice).filter(PurchaseInvoice.id == invoice_id).first()
+    if not inv:
+        raise HTTPException(status_code=404, detail="Invoice not found")
+    po = db.query(PurchaseOrder).filter(PurchaseOrder.id == inv.po_id).first()
+    if not po:
+        raise HTTPException(status_code=404, detail="PO not found")
+    old_vendor = po.vendor_id
+    po.vendor_id = correct_vendor_id
+    db.commit()
+    return {
+        "fixed": True,
+        "invoice_id": invoice_id,
+        "po_id": po.id,
+        "old_vendor_id": old_vendor,
+        "new_vendor_id": correct_vendor_id
+    }
