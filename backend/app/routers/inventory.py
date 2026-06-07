@@ -12,7 +12,7 @@ from pydantic import BaseModel
 from typing import Optional
 from datetime import date
 from sqlalchemy import Column, Integer, String, Boolean, Numeric, ForeignKey
-from app.models.purchase import PurchaseOrder  # add to imports if not present
+from app.models.purchase import PurchaseOrder, PurchaseInvoice  # add to imports if not present
 from app.models.vendor import Vendor
 
 router = APIRouter(prefix="/api/inventory", tags=["inventory"])
@@ -228,13 +228,15 @@ def get_vendor_breakdown(
     current_user: User = Depends(get_current_user)
 ):
     rows = db.query(
-        StockLedger.reference_id,
+        
         StockLedger.quantity,
         StockLedger.transaction_date,
         PurchaseOrder.po_number,
         Vendor.name.label("vendor_name")
     ).join(
-        PurchaseOrder, PurchaseOrder.id == StockLedger.reference_id
+        PurchaseInvoice, PurchaseInvoice.id == StockLedger.reference_id
+    ).join(
+        PurchaseOrder, PurchaseOrder.id == PurchaseInvoice.po_id
     ).join(
         Vendor, Vendor.id == PurchaseOrder.vendor_id
     ).filter(
