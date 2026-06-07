@@ -34,6 +34,7 @@ export default function ProductionOrders() {
 
   const [bomForm, setBomForm] = useState({
     finished_good_id: '', version: '1.0',
+    finished_good_name: '',
     line_items: [{ raw_material_id: '', quantity_required: '', unit: 'kg', scrap_percentage: 0 }]
   })
   const [orderForm, setOrderForm] = useState({
@@ -98,6 +99,12 @@ export default function ProductionOrders() {
         }))
       })
       setShowBOMForm(false)
+      setBomForm({                        // ← add this
+      finished_good_id: '',
+      finished_good_name: '',
+      version: '1.0',
+      line_items: [{ raw_material_id: '', quantity_required: '', unit: 'kg', scrap_percentage: 0 }]
+    })
       fetchAll()
     } catch (err) { alert(err.response?.data?.detail || 'Error') }
   }
@@ -192,15 +199,25 @@ export default function ProductionOrders() {
             <div className="grid grid-cols-2 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-600 mb-1">Finished Good</label>
-                <select
-                  value={bomForm.finished_good_id}
-                  onChange={e => setBomForm({ ...bomForm, finished_good_id: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
-                  required
-                >
-                  <option value="">Select finished good...</option>
-                  {finishedGoods.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
-                </select>
+                <input
+  list="finished-goods-list"
+  placeholder="Type to search finished good..."
+  value={bomForm.finished_good_name || ''}
+  onChange={e => {
+    const typed = e.target.value
+    const match = finishedGoods.find(i => i.name.toLowerCase() === typed.toLowerCase())
+    setBomForm({
+      ...bomForm,
+      finished_good_name: typed,
+      finished_good_id: match ? match.id : ''
+    })
+  }}
+  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+  required
+/>
+<datalist id="finished-goods-list">
+  {finishedGoods.map(i => <option key={i.id} value={i.name} />)}
+</datalist>
               </div>
               <div>
                 <label className="block text-sm font-medium text-slate-600 mb-1">Version</label>
