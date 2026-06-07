@@ -209,92 +209,119 @@ export default function InStore() {
                   </tr>
 
                   {/* ── Unified Dropdown ── */}
-                  {selected?.item_id === item.item_id && (
-                    <tr key={`${item.item_id}-dropdown`}>
-                      <td colSpan={7} className="bg-teal-50 border-b border-teal-100 px-6 py-4">
-                        <p className="text-xs font-bold text-teal-700 uppercase tracking-widest mb-3">
-                          Stock Detail — {item.name.toUpperCase()}
-                        </p>
+{selected?.item_id === item.item_id && (
+  <tr key={`${item.item_id}-dropdown`}>
+    <td colSpan={7} className="bg-teal-50 border-b border-teal-100 px-6 py-4">
+      <p className="text-xs font-bold text-teal-700 uppercase tracking-widest mb-3">
+        Stock Detail — {item.name.toUpperCase()}
+      </p>
 
-                        <table className="w-full text-xs">
-                          <thead>
-                            <tr className="text-gray-400 border-b border-teal-100">
-                              <th className="text-left pb-2 font-semibold">Source</th>
-                              <th className="text-left pb-2 font-semibold">Reference</th>
-                              <th className="text-left pb-2 font-semibold">Date</th>
-                              <th className="text-right pb-2 font-semibold">Qty</th>
-                              <th className="text-left pb-2 font-semibold pl-4">Note</th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {/* Vendor rows */}
-                            {dropdownData.vendors.length === 0 && dropdownData.manual.length === 0 && (
-                              <tr>
-                                <td colSpan={5} className="py-3 text-gray-400 italic">No stock history found.</td>
-                              </tr>
-                            )}
+      {/* ── Vendor Summary Pills ── */}
+      {dropdownData.vendors.length > 0 && (
+        <div className="flex flex-wrap gap-2 mb-4 p-3 bg-white rounded-lg border border-teal-100">
+          <span className="text-xs text-gray-400 font-medium self-center mr-1">Stock from:</span>
+          {dropdownData.vendors.map((v) => (
+            <span
+              key={v.vendor}
+              className="inline-flex items-center gap-1.5 px-3 py-1 bg-blue-50 text-blue-700 rounded-full text-xs font-semibold border border-blue-100"
+            >
+              🏭 {v.vendor}
+              <span className="bg-blue-100 text-blue-800 px-1.5 py-0.5 rounded-full font-bold">
+                {v.total_qty} units
+              </span>
+            </span>
+          ))}
+          {(() => {
+            const manualNet = dropdownData.manual.reduce((sum, m) =>
+              sum + (m.transaction_type === "manual_in" ? m.quantity : -m.quantity), 0);
+            return manualNet !== 0 ? (
+              <span className="inline-flex items-center gap-1.5 px-3 py-1 bg-gray-50 text-gray-600 rounded-full text-xs font-semibold border border-gray-200">
+                ✏️ Manual
+                <span className="bg-gray-200 text-gray-700 px-1.5 py-0.5 rounded-full font-bold">
+                  {manualNet > 0 ? "+" : ""}{manualNet} units
+                </span>
+              </span>
+            ) : null;
+          })()}
+        </div>
+      )}
 
-                            {dropdownData.vendors.flatMap((v) =>
-                              v.orders.map((o, oi) => (
-                                <tr key={`v-${v.vendor}-${oi}`} className="border-b border-teal-50">
-                                  <td className="py-2">
-                                    <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-medium">
-                                      🏭 {v.vendor}
-                                    </span>
-                                  </td>
-                                  <td className="py-2 font-mono text-teal-700 font-semibold">{o.po_number}</td>
-                                  <td className="py-2 text-gray-500">
-                                    {new Date(o.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-                                  </td>
-                                  <td className="py-2 text-right font-bold text-gray-800">+{o.quantity}</td>
-                                  <td className="py-2 pl-4 text-gray-400">Purchase received</td>
-                                </tr>
-                              ))
-                            )}
+      <table className="w-full text-xs">
+        <thead>
+          <tr className="text-gray-400 border-b border-teal-100">
+            <th className="text-left pb-2 font-semibold">Source</th>
+            <th className="text-left pb-2 font-semibold">Reference</th>
+            <th className="text-left pb-2 font-semibold">Date</th>
+            <th className="text-right pb-2 font-semibold">Qty</th>
+            <th className="text-left pb-2 font-semibold pl-4">Note</th>
+          </tr>
+        </thead>
+        <tbody>
+          {dropdownData.vendors.length === 0 && dropdownData.manual.length === 0 && (
+            <tr>
+              <td colSpan={5} className="py-3 text-gray-400 italic">No stock history found.</td>
+            </tr>
+          )}
 
-                            {/* Manual entry rows */}
-                            {dropdownData.manual.map((m, mi) => (
-                              <tr key={`m-${mi}`} className="border-b border-teal-50">
-                                <td className="py-2">
-                                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium ${
-                                    m.transaction_type === "manual_in"
-                                      ? "bg-green-50 text-green-700"
-                                      : "bg-red-50 text-red-600"
-                                  }`}>
-                                    {m.transaction_type === "manual_in" ? "✚ Manual Add" : "✖ Manual Deduct"}
-                                  </span>
-                                </td>
-                                <td className="py-2 text-gray-400">—</td>
-                                <td className="py-2 text-gray-500">
-                                  {new Date(m.transaction_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
-                                  {m.created_at && (
-                                    <span className="ml-1 text-gray-400">
-                                      {new Date(m.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: true })}
-                                    </span>
-                                  )}
-                                </td>
-                                <td className={`py-2 text-right font-bold ${m.transaction_type === "manual_in" ? "text-green-600" : "text-red-500"}`}>
-                                  {m.transaction_type === "manual_in" ? "+" : "-"}{m.quantity}
-                                </td>
-                                <td className="py-2 pl-4 text-gray-400 italic">{m.reason || "—"}</td>
-                              </tr>
-                            ))}
-                          </tbody>
+          {dropdownData.vendors.flatMap((v) =>
+            v.orders.map((o, oi) => (
+              <tr key={`v-${v.vendor}-${oi}`} className="border-b border-teal-50">
+                <td className="py-2">
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 bg-blue-50 text-blue-700 rounded-full font-medium">
+                    🏭 {v.vendor}
+                  </span>
+                </td>
+                <td className="py-2 font-mono text-teal-700 font-semibold">{o.po_number}</td>
+                <td className="py-2 text-gray-500">
+                  {new Date(o.date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                </td>
+                <td className="py-2 text-right font-bold text-gray-800">+{o.quantity}</td>
+                <td className="py-2 pl-4 text-gray-400">Purchase received</td>
+              </tr>
+            ))
+          )}
 
-                          {/* Totals footer */}
-                          {(dropdownData.vendors.length > 0 || dropdownData.manual.length > 0) && (
-                            <tfoot>
-                              <tr className="border-t-2 border-teal-200">
-                                <td colSpan={3} className="pt-2 font-semibold text-gray-600">Total In Stock</td>
-                                <td className="pt-2 text-right font-bold text-teal-700 text-sm">{item.in_stock}</td>
-                                <td />
-                              </tr>
-                            </tfoot>
-                          )}
-                        </table>
-                      </td>
-                    </tr>
-                  )}
+          {dropdownData.manual.map((m, mi) => (
+            <tr key={`m-${mi}`} className="border-b border-teal-50">
+              <td className="py-2">
+                <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full font-medium ${
+                  m.transaction_type === "manual_in"
+                    ? "bg-green-50 text-green-700"
+                    : "bg-red-50 text-red-600"
+                }`}>
+                  {m.transaction_type === "manual_in" ? "✚ Manual Add" : "✖ Manual Deduct"}
+                </span>
+              </td>
+              <td className="py-2 text-gray-400">—</td>
+              <td className="py-2 text-gray-500">
+                {new Date(m.transaction_date).toLocaleDateString("en-GB", { day: "2-digit", month: "short", year: "numeric" })}
+                {m.created_at && (
+                  <span className="ml-1 text-gray-400">
+                    {new Date(m.created_at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: true })}
+                  </span>
+                )}
+              </td>
+              <td className={`py-2 text-right font-bold ${m.transaction_type === "manual_in" ? "text-green-600" : "text-red-500"}`}>
+                {m.transaction_type === "manual_in" ? "+" : "-"}{m.quantity}
+              </td>
+              <td className="py-2 pl-4 text-gray-400 italic">{m.reason || "—"}</td>
+            </tr>
+          ))}
+        </tbody>
+
+        {(dropdownData.vendors.length > 0 || dropdownData.manual.length > 0) && (
+          <tfoot>
+            <tr className="border-t-2 border-teal-200">
+              <td colSpan={3} className="pt-2 font-semibold text-gray-600">Total In Stock</td>
+              <td className="pt-2 text-right font-bold text-teal-700 text-sm">{item.in_stock}</td>
+              <td />
+            </tr>
+          </tfoot>
+        )}
+      </table>
+    </td>
+  </tr>
+)}
                 </>
               ))
             )}

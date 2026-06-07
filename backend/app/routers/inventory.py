@@ -241,7 +241,7 @@ def get_vendor_breakdown(
         StockLedger.item_id == item_id,
         StockLedger.company_id == current_user.company_id,
         StockLedger.transaction_type == "purchase_in",
-        StockLedger.reference_type == "purchase"
+        StockLedger.reference_type == "purchase_invoice"
     ).order_by(StockLedger.transaction_date.desc()).all()
 
     # Group by vendor

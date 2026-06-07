@@ -406,7 +406,7 @@ def delete_po(
                 PurchaseLineItem.purchase_invoice_id == inv.id
             ).all()
             for line in lines:
-                item = db.query(Item).filter(Item.id == line.item_name).first()
+                item = db.query(Item).filter(Item.id == line.item_id).first()
                 if item:
                     item.current_stock -= float(line.quantity)
                     if item.current_stock < 0:
