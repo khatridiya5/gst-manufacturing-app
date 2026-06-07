@@ -72,10 +72,15 @@ def create_po(
     current_user: User = Depends(require_role("admin", "accountant", "purchase"))
 ):
     from sqlalchemy import func
-    last_id = db.query(func.max(PurchaseOrder.id)).filter(
-        PurchaseOrder.company_id == current_user.company_id
+    vendor = db.query(Vendor).filter(Vendor.id == data.vendor_id).first()
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    vendor_prefix = vendor.name.strip()[:3].upper()
+    vendor_po_count = db.query(func.count(PurchaseOrder.id)).filter(
+        PurchaseOrder.company_id == current_user.company_id,
+        PurchaseOrder.vendor_id == data.vendor_id
     ).scalar() or 0
-    po_number = f"PO-{current_user.company_id}-{str(last_id + 1).zfill(4)}"
+    po_number = f"{vendor_prefix}-{str(vendor_po_count + 1).zfill(4)}"
     total = sum(li.quantity * li.unit_price for li in data.line_items)
 
     po = PurchaseOrder(
@@ -525,3 +530,31 @@ def fix_invoice_vendor(
         "old_vendor_id": old_vendor,
         "new_vendor_id": correct_vendor_id
     }
+
+
+@router.get("/debug/trace-item-stock/{item_id}")
+def trace_item_stock(item_id: int, db: Session = Depends(get_db)):
+    from app.models.purchase import PurchaseInvoice, PurchaseOrder
+    from app.models.vendor import Vendor
+    
+    ledger = db.query(StockLedger).filter(
+        StockLedger.item_id == item_id,
+        StockLedger.transaction_type == "purchase_in"
+    ).all()
+    
+    result = []
+    for row in ledger:
+        inv = db.query(PurchaseInvoice).filter(PurchaseInvoice.id == row.reference_id).first()
+        po = db.query(PurchaseOrder).filter(PurchaseOrder.id == inv.po_id).first() if inv else None
+        vendor = db.query(Vendor).filter(Vendor.id == po.vendor_id).first() if po else None
+        result.append({
+            "ledger_id": row.id,
+            "qty": row.quantity,
+            "invoice_id": row.reference_id,
+            "invoice_number": inv.invoice_number if inv else "NOT FOUND",
+            "po_id": po.id if po else "NOT FOUND",
+            "po_number": po.po_number if po else "NOT FOUND",
+            "vendor_id": po.vendor_id if po else "NOT FOUND",
+            "vendor_name": vendor.name if vendor else "NOT FOUND",
+        })
+    return result
