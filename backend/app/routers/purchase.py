@@ -346,14 +346,34 @@ def get_po_qr_codes(
 
 # ─── GET ALL POs ──────────────────────────────────────────────
 
-@router.get("/po", response_model=List[POOut])
+@router.get("/po")
 def get_pos(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    return db.query(PurchaseOrder).filter(
+    pos = db.query(PurchaseOrder).filter(
         PurchaseOrder.company_id == current_user.company_id
     ).all()
+    result = []
+    for po in pos:
+        invoice = db.query(PurchaseInvoice).filter(
+            PurchaseInvoice.po_id == po.id
+        ).first()
+        result.append({
+            "id": po.id,
+            "po_number": po.po_number,
+            "vendor_id": po.vendor_id,
+            "po_date": po.po_date,
+            "status": po.status,
+            "total_amount": float(po.total_amount or 0),
+            "track_qr": po.track_qr,
+            "created_at": po.created_at,
+            "received_at": po.received_at,
+            "amount_paid": float(invoice.amount_paid or 0) if invoice else 0,
+            "payment_status": invoice.payment_status if invoice else "unpaid",
+            "balance": float(invoice.total_amount or 0) - float(invoice.amount_paid or 0) if invoice else float(po.total_amount or 0),
+        })
+    return result
 
 # ─── GET ALL INVOICES ─────────────────────────────────────────
 
