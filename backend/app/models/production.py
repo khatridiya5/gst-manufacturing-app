@@ -38,4 +38,5 @@ class ProductionOrder(Base):
     status = Column(String(20), default="planned")
     production_cost = Column(Numeric(12, 2))
     created_by = Column(Integer, ForeignKey("users.id"))
-    created_at = Column(DateTime, server_default=func.now())
+    amount_paid = Column(Numeric(12, 2), default=0)
+    payment_note = Column(String(500), nullable=True)
