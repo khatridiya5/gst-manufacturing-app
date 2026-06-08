@@ -32,6 +32,9 @@ export default function ProductionOrders() {
   const [expandedCustomers, setExpandedCustomers] = useState({})
   const [expandedOrders, setExpandedOrders] = useState({})
   const [storeItems, setStoreItems] = useState([])
+  const [payModal, setPayModal] = useState(null)
+  const [payAmount, setPayAmount] = useState('')
+  const [payNote, setPayNote] = useState('')
 
   const [bomForm, setBomForm] = useState({
     finished_good_id: '', version: '1.0',
@@ -159,6 +162,21 @@ export default function ProductionOrders() {
       alert(err.response?.data?.detail || 'Error deleting order')
     }
   }
+
+  const handleMarkPaid = async () => {
+  try {
+    await api.post(`/production/orders/${payModal.id}/pay`, {
+      amount: parseFloat(payAmount),
+      note: payNote
+    })
+    setPayModal(null)
+    setPayAmount('')
+    setPayNote('')
+    fetchAll()
+  } catch (err) {
+    alert(err.response?.data?.detail || 'Error')
+  }
+}
 
   const rawMaterials = items.filter(i => i.item_type === 'raw_material')
   const finishedGoods = items
@@ -450,7 +468,20 @@ export default function ProductionOrders() {
                                       className="px-3 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg text-xs font-medium"
                                     >Complete</button>
                                   )}
-                                  
+                                  {order.status === 'completed' && (
+  <button
+    onClick={() => setPayModal({ id: order.id, name: order.order_number })}
+    className={`px-3 py-1 rounded-lg text-xs font-medium ${
+      order.payment_status === 'paid'
+        ? 'bg-emerald-600 text-white'
+        : order.payment_status === 'partial'
+        ? 'bg-amber-50 text-amber-700'
+        : 'bg-emerald-50 text-emerald-700'
+    }`}
+  >
+    {order.payment_status === 'paid' ? '✓ Paid' : order.payment_status === 'partial' ? 'Partial' : 'Paid'}
+  </button>
+)}
                                   <button
                                     onClick={() => setDeleteTarget({ id: order.id, name: order.order_number })}
                                     className="px-3 py-1 border border-red-200 hover:bg-red-50 text-red-500 rounded-lg text-xs font-medium"
@@ -549,6 +580,46 @@ export default function ProductionOrders() {
           </div>
         </div>
       )}
+      {payModal && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-2xl w-full max-w-sm p-6">
+      <h2 className="font-semibold text-slate-700 mb-1">Record Payment</h2>
+      <p className="text-xs text-slate-400 mb-4">{payModal.name}</p>
+      <div className="space-y-3">
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-1">Amount Paid (₹)</label>
+          <input
+            type="number"
+            value={payAmount}
+            onChange={e => setPayAmount(e.target.value)}
+            placeholder="Enter amount"
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-1">Note</label>
+          <input
+            type="text"
+            value={payNote}
+            onChange={e => setPayNote(e.target.value)}
+            placeholder="e.g. Paid via NEFT"
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+          />
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button
+            onClick={handleMarkPaid}
+            className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium"
+          >Record Payment</button>
+          <button
+            onClick={() => setPayModal(null)}
+            className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm"
+          >Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
       {deleteTarget && (
         <DeleteConfirmModal
