@@ -35,6 +35,7 @@ class PurchaseInvoice(Base):
     total_amount = Column(Numeric(12, 2), nullable=False)
     itc_eligible = Column(Boolean, default=True)
     payment_status = Column(String(20), default="unpaid")
+    amount_paid = Column(Numeric(12, 2), default=0)
     created_by = Column(Integer, ForeignKey("users.id"))
     created_at = Column(DateTime, server_default=func.now())
 
