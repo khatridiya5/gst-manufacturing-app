@@ -370,8 +370,13 @@ export default function PurchaseOrders() {
           <span className="text-xs text-slate-400">{vendorPOs.length} order{vendorPOs.length > 1 ? 's' : ''}</span>
         </div>
         <span className="text-sm font-semibold text-slate-600">
-          ₹{vendorPOs.reduce((sum, po) => sum + Number(po.total_amount), 0).toLocaleString('en-IN')}
-        </span>
+  Total: ₹{vendorPOs.reduce((sum, po) => sum + Number(po.total_amount), 0).toLocaleString('en-IN')}
+  {vendorPOs.some(po => po.amount_paid > 0) && (
+    <span className="ml-3 text-emerald-600">
+      Paid: ₹{vendorPOs.reduce((sum, po) => sum + Number(po.amount_paid || 0), 0).toLocaleString('en-IN')}
+    </span>
+  )}
+</span>
       </div>
 
       {/* POs under this vendor */}
