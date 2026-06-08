@@ -40,3 +40,4 @@ class ProductionOrder(Base):
     created_by = Column(Integer, ForeignKey("users.id"))
     amount_paid = Column(Numeric(12, 2), default=0)
     payment_note = Column(String(500), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
