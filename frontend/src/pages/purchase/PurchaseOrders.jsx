@@ -498,7 +498,7 @@ export default function PurchaseOrders() {
                     {po.status === 'received' && (
                       <div className="mt-3 pt-3 border-t border-slate-200 flex items-center gap-6 text-xs">
                         <span className="text-slate-500">Paid: <strong className="text-emerald-600">₹{Number(po.amount_paid || 0).toLocaleString('en-IN')}</strong></span>
-                        <span className="text-slate-500">Balance: <strong className="text-red-500">₹{Number(po.balance || po.total_amount).toLocaleString('en-IN')}</strong></span>
+                        <span className="text-slate-500">Balance: <strong className={po.balance <= 0 ? 'text-emerald-600' : 'text-red-500'}>₹{Number(Math.max(0, po.balance || 0)).toLocaleString('en-IN')}</strong></span>
                         <span className={`px-2 py-0.5 rounded-full font-semibold ${
                           po.payment_status === 'paid' ? 'bg-emerald-50 text-emerald-700' :
                           po.payment_status === 'partial' ? 'bg-amber-50 text-amber-700' :

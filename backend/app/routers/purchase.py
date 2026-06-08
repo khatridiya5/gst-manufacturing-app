@@ -371,7 +371,7 @@ def get_pos(
             "received_at": po.received_at,
             "amount_paid": float(invoice.amount_paid or 0) if invoice else 0,
             "payment_status": invoice.payment_status if invoice else "unpaid",
-            "balance": float(invoice.total_amount or 0) - float(invoice.amount_paid or 0) if invoice else float(po.total_amount or 0),
+            "balance": round(float(invoice.total_amount or 0) - float(invoice.amount_paid or 0), 2) if invoice else float(po.total_amount or 0),
         })
     return result
 
