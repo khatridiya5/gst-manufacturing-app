@@ -45,24 +45,25 @@ export default function ProductionOrders() {
   const [scrapQty, setScrapQty] = useState(0)
 
   const fetchAll = async () => {
-  try {
-    const [ordersRes, bomsRes, itemsRes, customersRes] = await Promise.all([
-      api.get('/production/orders'),
-      api.get('/production/bom'),
-      api.get('/master/items'),
-      api.get('/master/customers'),
-    ])
-    setOrders(ordersRes.data)
-    setBoms(bomsRes.data)
-    setItems(itemsRes.data)
-    setCustomers(customersRes.data)
-  } catch (err) { console.error('main fetch error:', err) }
-  finally { setLoading(false) }
+  setLoading(true)
+  
+  const [ordersRes, bomsRes, itemsRes, customersRes] = await Promise.allSettled([
+    api.get('/production/orders'),
+    api.get('/production/bom'),
+    api.get('/master/items'),
+    api.get('/master/customers'),
+  ])
 
-  // Separate fetch so it doesn't block the rest
+  if (ordersRes.status === 'fulfilled') setOrders(ordersRes.value.data)
+  if (bomsRes.status === 'fulfilled') setBoms(bomsRes.value.data)
+  if (itemsRes.status === 'fulfilled') setItems(itemsRes.value.data)
+  if (customersRes.status === 'fulfilled') setCustomers(customersRes.value.data)
+
+  setLoading(false)
+
+  // Inventory separate
   try {
     const storeRes = await api.get('/api/inventory/in-store')
-    console.log('store items:', storeRes.data)   // ← check this in console
     setStoreItems(storeRes.data)
   } catch (err) { console.error('inventory fetch error:', err) }
 }
