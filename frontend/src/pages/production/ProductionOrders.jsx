@@ -51,7 +51,7 @@ export default function ProductionOrders() {
         api.get('/production/bom'),
         api.get('/master/items'),
         api.get('/master/customers'),
-        api.get('/inventory/in-store'),
+        api.get('/api/inventory/in-store')
       ])
       setOrders(ordersRes.data)
       setBoms(bomsRes.data)
