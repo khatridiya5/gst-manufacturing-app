@@ -16,6 +16,19 @@ const StatusBadge = ({ status }) => {
   )
 }
 
+const PaymentStatusBadge = ({ status }) => {
+  const styles = {
+    paid: 'bg-emerald-50 text-emerald-700 border border-emerald-200',
+    partial: 'bg-amber-50 text-amber-700 border border-amber-200',
+    unpaid: 'bg-red-50 text-red-600 border border-red-200'
+  }
+  return (
+    <span className={`px-3 py-1 rounded-full text-xs font-semibold ${styles[status] || 'bg-slate-100 text-slate-600'}`}>
+      {status}
+    </span>
+  )
+}
+
 export default function ProductionOrders() {
   const [orders, setOrders] = useState([])
   const [boms, setBoms] = useState([])
@@ -42,14 +55,13 @@ export default function ProductionOrders() {
     line_items: [{ raw_material_id: '', raw_material_name: '', quantity_required: '', unit: 'kg', scrap_percentage: 0 }]
   })
   const [orderForm, setOrderForm] = useState({
-  bom_id: '', planned_quantity: '', customer_id: '', cost_per_unit: '', tax_rate: ''
-})
+  bom_id: '', planned_quantity: '', customer_id: '', cost_per_unit: '', tax_rate: ''})
   const [actualQty, setActualQty] = useState('')
   const [scrapQty, setScrapQty] = useState(0)
 
   const fetchAll = async () => {
   setLoading(true)
-  
+
   const [ordersRes, bomsRes, itemsRes, customersRes] = await Promise.allSettled([
     api.get('/production/orders'),
     api.get('/production/bom'),
@@ -188,6 +200,12 @@ export default function ProductionOrders() {
     groupOrders.reduce((sum, o) => sum + (parseFloat(o.production_cost) || 0), 0)
 
   const customerGroups = groupedByCustomer()
+
+  // Format currency helper
+  const formatCurrency = (amount) => {
+    if (!amount || amount === 0) return '₹0.00'
+    return `₹${Number(amount).toLocaleString('en-IN', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`
+  }
 
   if (loading) return <div className="text-slate-400 p-8">Loading...</div>
 
@@ -451,7 +469,7 @@ export default function ProductionOrders() {
                           <>
                             <tr
                               key={order.id}
-                              className={`hover:bg-slate-50 cursor-pointer transition-colors ${expandedOrders[order.id] ? 'bg-teal-50' : ''}`}
+                              className={`hover:bg-slate-50 cursor-pointer transition-colors ${expandedOrders[order.id] ? 'bg-teal-50/50' : ''}`}
                               onClick={() => toggleOrder(order.id)}
                             >
                               <td className="px-5 py-3 font-medium text-slate-700">
@@ -493,19 +511,19 @@ export default function ProductionOrders() {
                                     >Complete</button>
                                   )}
                                   {order.status === 'completed' && (
-  <button
-    onClick={() => setPayModal({ id: order.id, name: order.order_number })}
-    className={`px-3 py-1 rounded-lg text-xs font-medium ${
-      order.payment_status === 'paid'
-        ? 'bg-emerald-600 text-white'
-        : order.payment_status === 'partial'
-        ? 'bg-amber-50 text-amber-700'
-        : 'bg-emerald-50 text-emerald-700'
-    }`}
-  >
-    {order.payment_status === 'paid' ? '✓ Paid' : order.payment_status === 'partial' ? 'Partial' : 'Paid'}
-  </button>
-)}
+                                    <button
+                                      onClick={() => setPayModal({ id: order.id, name: order.order_number, cost: order.production_cost, amount_paid: order.amount_paid, tax_amount: order.tax_amount })}
+                                      className={`px-3 py-1 rounded-lg text-xs font-medium ${
+                                        order.payment_status === 'paid'
+                                          ? 'bg-emerald-600 text-white hover:bg-emerald-700'
+                                          : order.payment_status === 'partial'
+                                          ? 'bg-amber-50 text-amber-700 hover:bg-amber-100'
+                                          : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100'
+                                      }`}
+                                    >
+                                      {order.payment_status === 'paid' ? '✓ Paid' : order.payment_status === 'partial' ? 'Partial' : 'Pay'}
+                                    </button>
+                                  )}
                                   <button
                                     onClick={() => setDeleteTarget({ id: order.id, name: order.order_number })}
                                     className="px-3 py-1 border border-red-200 hover:bg-red-50 text-red-500 rounded-lg text-xs font-medium"
@@ -514,20 +532,105 @@ export default function ProductionOrders() {
                               </td>
                             </tr>
 
-                            {/* Expandable detail row */}
+                            {/* ─── INVOICE-STYLE DETAIL ROW ─── */}
                             {expandedOrders[order.id] && (
                               <tr key={`${order.id}-detail`}>
-                                <td colSpan={8} className="bg-teal-50 border-b border-teal-100 px-6 py-3">
-                                  <p className="text-xs font-bold text-teal-700 uppercase tracking-widest mb-2">
-                                    Order Detail — {order.order_number}
-                                  </p>
-                                  <div className="flex flex-wrap gap-6 text-xs text-slate-600">
-                                    <span>👤 <strong>Customer:</strong> {customerName}</span>
-                                    <span>📦 <strong>Product:</strong> {getBOMName(order.bom_id)}</span>
-                                    <span>🔢 <strong>Planned:</strong> {order.planned_quantity}</span>
-                                    {order.actual_quantity && <span>✅ <strong>Actual:</strong> {order.actual_quantity}</span>}
-                                    {order.scrap_quantity > 0 && <span>🗑 <strong>Scrap:</strong> {order.scrap_quantity}</span>}
-                                    {order.production_cost && <span>💰 <strong>Cost:</strong> ₹{Number(order.production_cost).toLocaleString('en-IN')}</span>}
+                                <td colSpan={9} className="bg-slate-50/80 border-b border-slate-100">
+                                  <div className="px-6 py-5">
+                                    {/* Invoice Header */}
+                                    <div className="flex items-center justify-between mb-4">
+                                      <div>
+                                        <p className="text-xs font-bold text-slate-400 uppercase tracking-wider">Order Invoice</p>
+                                        <p className="text-lg font-bold text-slate-800 mt-0.5">{order.order_number}</p>
+                                      </div>
+                                      <div className="text-right">
+                                        <p className="text-xs text-slate-400">{getBOMName(order.bom_id)}</p>
+                                        <p className="text-xs text-slate-400 mt-0.5">
+                                          {order.created_at
+                                            ? new Date(order.created_at).toLocaleDateString('en-GB', {
+                                                day: '2-digit', month: 'short', year: 'numeric'
+                                              })
+                                            : '—'}
+                                        </p>
+                                      </div>
+                                    </div>
+
+                                    {/* Invoice Line Items Table */}
+                                    <div className="bg-white rounded-lg border border-slate-200 overflow-hidden">
+                                      <table className="w-full text-sm">
+                                        <thead>
+                                          <tr className="bg-slate-50 border-b border-slate-100">
+                                            <th className="px-4 py-2.5 text-left text-xs font-semibold text-slate-400 uppercase tracking-wider">Item</th>
+                                            <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Qty</th>
+                                            <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Unit Price</th>
+                                            <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Tax %</th>
+                                            <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Tax Amt</th>
+                                            <th className="px-4 py-2.5 text-right text-xs font-semibold text-slate-400 uppercase tracking-wider">Total</th>
+                                          </tr>
+                                        </thead>
+                                        <tbody>
+                                          <tr className="border-b border-slate-50">
+                                            <td className="px-4 py-3 text-slate-700 font-medium">
+                                              {getBOMName(order.bom_id)}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-slate-600">
+                                              {Number(order.planned_quantity).toLocaleString('en-IN')}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-slate-600">
+                                              {order.production_cost && order.planned_quantity
+                                                ? formatCurrency(Number(order.production_cost) / Number(order.planned_quantity))
+                                                : '₹0.00'}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-slate-600">
+                                              {order.tax_rate ? `${order.tax_rate}%` : '0%'}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-slate-600">
+                                              {formatCurrency(order.tax_amount)}
+                                            </td>
+                                            <td className="px-4 py-3 text-right text-slate-800 font-semibold">
+                                              {formatCurrency(Number(order.production_cost || 0) + Number(order.tax_amount || 0))}
+                                            </td>
+                                          </tr>
+                                        </tbody>
+                                      </table>
+
+                                      {/* Invoice Footer - Paid / Balance / Status */}
+                                      <div className="px-4 py-3 bg-slate-50/50 border-t border-slate-100 flex items-center gap-6">
+                                        <span className="text-sm text-slate-500">
+                                          Paid: <span className="font-semibold text-emerald-600">{formatCurrency(order.amount_paid)}</span>
+                                        </span>
+                                        <span className="text-sm text-slate-500">
+                                          Balance: <span className="font-semibold text-red-500">
+                                            {formatCurrency(
+                                              (Number(order.production_cost || 0) + Number(order.tax_amount || 0)) - Number(order.amount_paid || 0)
+                                            )}
+                                          </span>
+                                        </span>
+                                        <PaymentStatusBadge status={order.payment_status} />
+                                        {order.payment_note && (
+                                          <span className="text-xs text-slate-400 italic ml-auto">
+                                            Note: {order.payment_note}
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+
+                                    {/* Additional Order Details */}
+                                    <div className="mt-3 flex flex-wrap gap-4 text-xs text-slate-500">
+                                      <span>👤 <strong className="text-slate-600">Customer:</strong> {customerName}</span>
+                                      {order.actual_quantity && (
+                                        <span>✅ <strong className="text-slate-600">Actual Produced:</strong> {order.actual_quantity}</span>
+                                      )}
+                                      {order.scrap_quantity > 0 && (
+                                        <span>🗑 <strong className="text-slate-600">Scrap:</strong> {order.scrap_quantity}</span>
+                                      )}
+                                      {order.start_date && (
+                                        <span>📅 <strong className="text-slate-600">Start:</strong> {order.start_date}</span>
+                                      )}
+                                      {order.end_date && (
+                                        <span>🏁 <strong className="text-slate-600">End:</strong> {order.end_date}</span>
+                                      )}
+                                    </div>
                                   </div>
                                 </td>
                               </tr>
@@ -604,46 +707,67 @@ export default function ProductionOrders() {
           </div>
         </div>
       )}
+
+      {/* Payment Modal */}
       {payModal && (
-  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
-    <div className="bg-white rounded-2xl w-full max-w-sm p-6">
-      <h2 className="font-semibold text-slate-700 mb-1">Record Payment</h2>
-      <p className="text-xs text-slate-400 mb-4">{payModal.name}</p>
-      <div className="space-y-3">
-        <div>
-          <label className="block text-sm font-medium text-slate-600 mb-1">Amount Paid (₹)</label>
-          <input
-            type="number"
-            value={payAmount}
-            onChange={e => setPayAmount(e.target.value)}
-            placeholder="Enter amount"
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
-          />
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6">
+            <h2 className="font-semibold text-slate-700 mb-1">Record Payment</h2>
+            <p className="text-xs text-slate-400 mb-4">{payModal.name}</p>
+
+            {/* Show current balance info */}
+            <div className="mb-4 p-3 bg-slate-50 rounded-lg">
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-slate-500">Total Amount:</span>
+                <span className="font-semibold text-slate-700">{formatCurrency(Number(payModal.cost || 0) + Number(payModal.tax_amount || 0))}</span>
+              </div>
+              <div className="flex justify-between text-sm mb-1">
+                <span className="text-slate-500">Already Paid:</span>
+                <span className="font-semibold text-emerald-600">{formatCurrency(payModal.amount_paid)}</span>
+              </div>
+              <div className="flex justify-between text-sm">
+                <span className="text-slate-500">Balance:</span>
+                <span className="font-semibold text-red-500">
+                  {formatCurrency((Number(payModal.cost || 0) + Number(payModal.tax_amount || 0)) - Number(payModal.amount_paid || 0))}
+                </span>
+              </div>
+            </div>
+
+            <div className="space-y-3">
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">Amount Paid (₹)</label>
+                <input
+                  type="number"
+                  value={payAmount}
+                  onChange={e => setPayAmount(e.target.value)}
+                  placeholder="Enter amount"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-slate-600 mb-1">Note</label>
+                <input
+                  type="text"
+                  value={payNote}
+                  onChange={e => setPayNote(e.target.value)}
+                  placeholder="e.g. Paid via NEFT"
+                  className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+                />
+              </div>
+              <div className="flex gap-3 pt-2">
+                <button
+                  onClick={handleMarkPaid}
+                  className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium"
+                >Record Payment</button>
+                <button
+                  onClick={() => setPayModal(null)}
+                  className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm"
+                >Cancel</button>
+              </div>
+            </div>
+          </div>
         </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-600 mb-1">Note</label>
-          <input
-            type="text"
-            value={payNote}
-            onChange={e => setPayNote(e.target.value)}
-            placeholder="e.g. Paid via NEFT"
-            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
-          />
-        </div>
-        <div className="flex gap-3 pt-2">
-          <button
-            onClick={handleMarkPaid}
-            className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium"
-          >Record Payment</button>
-          <button
-            onClick={() => setPayModal(null)}
-            className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm"
-          >Cancel</button>
-        </div>
-      </div>
-    </div>
-  </div>
-)}
+      )}
 
       {deleteTarget && (
         <DeleteConfirmModal
