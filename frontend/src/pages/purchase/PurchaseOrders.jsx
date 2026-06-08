@@ -436,18 +436,12 @@ export default function PurchaseOrders() {
                       </button>
                     )}
                     {/* Payment summary */}
-{po.status === 'received' && (
-  <div className="mt-3 pt-3 border-t border-slate-200 flex items-center gap-6 text-xs">
-    <span className="text-slate-500">Total: <strong className="text-slate-700">₹{Number(po.total_amount).toLocaleString('en-IN')}</strong></span>
-    <span className="text-slate-500">Paid: <strong className="text-emerald-600">₹{Number(po.amount_paid || 0).toLocaleString('en-IN')}</strong></span>
-    <span className="text-slate-500">Balance: <strong className="text-red-500">₹{Number(po.balance || po.total_amount).toLocaleString('en-IN')}</strong></span>
-    <span className={`px-2 py-0.5 rounded-full font-semibold ${
-      po.payment_status === 'paid' ? 'bg-emerald-50 text-emerald-700' :
-      po.payment_status === 'partial' ? 'bg-amber-50 text-amber-700' :
-      'bg-red-50 text-red-600'
-    }`}>{po.payment_status || 'unpaid'}</span>
-  </div>
-)}
+                      {po.status === 'received' && (
+                      <button onClick={() => setPayModal({ id: po.id, name: po.po_number, total: po.total_amount })}
+                        className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium">
+                        Paid
+                      </button>
+                    )}
                     {role === 'admin' && (
                       <button onClick={() => setDeleteTarget({ id: po.id, name: po.po_number })}
                         className="px-3 py-1 border border-red-300 hover:bg-red-50 text-red-500 rounded-lg text-xs font-medium">
@@ -491,6 +485,17 @@ export default function PurchaseOrders() {
                         })}
                       </tbody>
                     </table>
+                    {po.status === 'received' && (
+                      <div className="mt-3 pt-3 border-t border-slate-200 flex items-center gap-6 text-xs">
+                        <span className="text-slate-500">Paid: <strong className="text-emerald-600">₹{Number(po.amount_paid || 0).toLocaleString('en-IN')}</strong></span>
+                        <span className="text-slate-500">Balance: <strong className="text-red-500">₹{Number(po.balance || po.total_amount).toLocaleString('en-IN')}</strong></span>
+                        <span className={`px-2 py-0.5 rounded-full font-semibold ${
+                          po.payment_status === 'paid' ? 'bg-emerald-50 text-emerald-700' :
+                          po.payment_status === 'partial' ? 'bg-amber-50 text-amber-700' :
+                          'bg-red-50 text-red-600'
+                        }`}>{po.payment_status || 'unpaid'}</span>
+                      </div>
+                    )}
                   </td>
                 </tr>
               )}
