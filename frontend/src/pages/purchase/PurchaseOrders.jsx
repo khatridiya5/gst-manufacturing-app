@@ -370,7 +370,7 @@ export default function PurchaseOrders() {
           <span className="text-xs text-slate-400">{vendorPOs.length} order{vendorPOs.length > 1 ? 's' : ''}</span>
         </div>
         <span className="text-sm font-semibold text-slate-600">
-  Total: ₹{vendorPOs.reduce((sum, po) => sum + Number(po.total_amount), 0).toLocaleString('en-IN')}
+  Total: ₹{vendorPOs.reduce((sum, po) => sum + Number((po.amount_paid || 0) + (po.balance || po.total_amount)), 0).toLocaleString('en-IN')}
   {vendorPOs.some(po => po.amount_paid > 0) && (
     <span className="ml-3 text-emerald-600">
       Paid: ₹{vendorPOs.reduce((sum, po) => sum + Number(po.amount_paid || 0), 0).toLocaleString('en-IN')}
@@ -407,8 +407,8 @@ export default function PurchaseOrders() {
                 <td className="px-5 py-3 text-slate-500 text-xs">{fmtDateTime(po.created_at)}</td>
                 <td className="px-5 py-3 text-slate-500 text-xs">{fmtDateTime(po.received_at)}</td>
                 <td className="px-5 py-3 text-right font-semibold text-slate-700">
-                  ₹{Number(po.total_amount).toLocaleString('en-IN')}
-                </td>
+  ₹{Number((po.amount_paid || 0) + (po.balance || po.total_amount)).toLocaleString('en-IN')}
+</td>
                 <td className="px-5 py-3 text-center">
                   {po.track_qr ? (
                     <span className="px-2 py-0.5 bg-violet-50 text-violet-600 rounded-full text-xs font-medium">QR</span>
