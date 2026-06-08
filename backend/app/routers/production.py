@@ -85,6 +85,9 @@ def create_bom(
             company_id=current_user.company_id,
             name=data.finished_good_name,
             item_type='finished_good',
+            hsn_code='',       # ← add these
+            unit='pcs',        # ← add these
+            tax_rate=0,
             current_stock=0
         )
         db.add(fg)
