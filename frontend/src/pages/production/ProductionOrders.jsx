@@ -97,17 +97,15 @@ export default function ProductionOrders() {
   e.preventDefault()
   try {
     await api.post('/production/bom', {
-      finished_good_id: bomForm.finished_good_id ? parseInt(bomForm.finished_good_id) : null,
-      finished_good_name: bomForm.finished_good_name,
-      version: bomForm.version,
-      line_items: bomForm.line_items.map(li => ({
-        raw_material_id: li.raw_material_id ? parseInt(li.raw_material_id) : null,
-        raw_material_name: li.raw_material_name,
-        quantity_required: parseFloat(li.quantity_required),
-        unit: li.unit,
-        scrap_percentage: parseFloat(li.scrap_percentage) || 0,
-      }))
-    })
+  finished_good_name: bomForm.finished_good_name,
+  version: bomForm.version,
+  line_items: bomForm.line_items.map(li => ({
+    raw_material_name: li.raw_material_name,
+    quantity_required: parseFloat(li.quantity_required),
+    unit: li.unit,
+    scrap_percentage: parseFloat(li.scrap_percentage) || 0,
+  }))
+})
     setShowBOMForm(false)
     setBomForm({
       finished_good_id: '', finished_good_name: '', version: '1.0',
@@ -159,7 +157,7 @@ export default function ProductionOrders() {
   }
 
   const rawMaterials = items.filter(i => i.item_type === 'raw_material')
-  const finishedGoods = items.filter(i => i.item_type === 'finished_good')
+  const finishedGoods = items
   const getBOMName = (id) => boms.find(b => b.id === id)?.finished_good || '—'
 
   const totalCost = (groupOrders) =>

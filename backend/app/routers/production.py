@@ -17,19 +17,20 @@ from app.models.stock import PartInstance
 from datetime import datetime
 from app.utils.otp import verify_delete_otp
 from app.models.customer import Customer
+from sqlalchemy import func
 
 router = APIRouter(prefix="/production", tags=["Production"])
 
 # ─── SCHEMAS ─────────────────────────────────────────────────
 
 class BOMLineIn(BaseModel):
-    raw_material_id: int
+    raw_material_name: str 
     quantity_required: Decimal
     unit: str
     scrap_percentage: Optional[Decimal] = 0
 
 class BOMCreate(BaseModel):
-    finished_good_id: int
+    finished_good_name: str
     version: Optional[str] = "1.0"
     line_items: List[BOMLineIn]
 
@@ -74,25 +75,39 @@ def create_bom(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "accountant", "production"))
 ):
-    fg = db.query(Item).filter(Item.id == data.finished_good_id).first()
+    # Find or create finished good item
+    fg = db.query(Item).filter(
+        func.lower(Item.name) == data.finished_good_name.lower(),
+        Item.company_id == current_user.company_id
+    ).first()
     if not fg:
-        raise HTTPException(status_code=404, detail="Finished good item not found")
+        fg = Item(
+            company_id=current_user.company_id,
+            name=data.finished_good_name,
+            item_type='finished_good',
+            current_stock=0
+        )
+        db.add(fg)
+        db.flush()
 
     bom = BOMHeader(
         company_id=current_user.company_id,
-        finished_good_id=data.finished_good_id,
+        finished_good_id=fg.id,
         version=data.version
     )
     db.add(bom)
     db.flush()
 
     for li in data.line_items:
-        rm = db.query(Item).filter(Item.id == li.raw_material_id).first()
+        rm = db.query(Item).filter(
+            func.lower(Item.name) == li.raw_material_name.lower(),
+            Item.company_id == current_user.company_id
+        ).first()
         if not rm:
-            raise HTTPException(status_code=404, detail=f"Raw material {li.raw_material_id} not found")
+            raise HTTPException(status_code=404, detail=f"Raw material '{li.raw_material_name}' not found in inventory")
         bom_line = BOMLineItem(
             bom_id=bom.id,
-            raw_material_id=li.raw_material_id,
+            raw_material_id=rm.id,
             quantity_required=li.quantity_required,
             unit=li.unit,
             scrap_percentage=li.scrap_percentage
