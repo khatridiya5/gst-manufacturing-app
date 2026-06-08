@@ -94,37 +94,28 @@ export default function ProductionOrders() {
   }
 
   const handleCreateBOM = async (e) => {
-    e.preventDefault()
-    if (!bomForm.finished_good_id) {
-    alert('Please select a valid finished good from the suggestions')
-    return
-  }
-  const invalidItems = bomForm.line_items.filter(li => !li.raw_material_id)
-  if (invalidItems.length > 0) {
-    alert('Please select valid materials from the suggestions (must match exactly)')
-    return
-  }
-    try {
-      await api.post('/production/bom', {
-        finished_good_id: parseInt(bomForm.finished_good_id),
-        version: bomForm.version,
-        line_items: bomForm.line_items.map(li => ({
-          raw_material_id: parseInt(li.raw_material_id),
-          quantity_required: parseFloat(li.quantity_required),
-          unit: li.unit,
-          scrap_percentage: parseFloat(li.scrap_percentage),
-        }))
-      })
-      setShowBOMForm(false)
-      setBomForm({                        // ← add this
-      finished_good_id: '',
-      finished_good_name: '',
-      version: '1.0',
-      line_items: [{ raw_material_id: '', quantity_required: '', unit: 'kg', scrap_percentage: 0 }]
+  e.preventDefault()
+  try {
+    await api.post('/production/bom', {
+      finished_good_id: bomForm.finished_good_id ? parseInt(bomForm.finished_good_id) : null,
+      finished_good_name: bomForm.finished_good_name,
+      version: bomForm.version,
+      line_items: bomForm.line_items.map(li => ({
+        raw_material_id: li.raw_material_id ? parseInt(li.raw_material_id) : null,
+        raw_material_name: li.raw_material_name,
+        quantity_required: parseFloat(li.quantity_required),
+        unit: li.unit,
+        scrap_percentage: parseFloat(li.scrap_percentage) || 0,
+      }))
     })
-      fetchAll()
-    } catch (err) { alert(err.response?.data?.detail || 'Error') }
-  }
+    setShowBOMForm(false)
+    setBomForm({
+      finished_good_id: '', finished_good_name: '', version: '1.0',
+      line_items: [{ raw_material_id: '', raw_material_name: '', quantity_required: '', unit: 'kg', scrap_percentage: 0 }]
+    })
+    fetchAll()
+  } catch (err) { alert(err.response?.data?.detail || 'Error') }
+}
 
   const handleCreateOrder = async (e) => {
     e.preventDefault()
