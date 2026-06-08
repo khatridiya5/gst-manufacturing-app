@@ -32,5 +32,9 @@ api.interceptors.response.use(
     return Promise.reject(error)
   }
 )
-
+// Keep Render backend alive — ping every 10 minutes
+setInterval(() => {
+  fetch('https://gst-manufacturing-backend.onrender.com')
+    .catch(() => {}) // silent fail
+}, 10 * 60 * 1000)
 export default api
