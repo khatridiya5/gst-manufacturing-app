@@ -95,6 +95,15 @@ export default function ProductionOrders() {
 
   const handleCreateBOM = async (e) => {
     e.preventDefault()
+    if (!bomForm.finished_good_id) {
+    alert('Please select a valid finished good from the suggestions')
+    return
+  }
+  const invalidItems = bomForm.line_items.filter(li => !li.raw_material_id)
+  if (invalidItems.length > 0) {
+    alert('Please select valid materials from the suggestions (must match exactly)')
+    return
+  }
     try {
       await api.post('/production/bom', {
         finished_good_id: parseInt(bomForm.finished_good_id),
