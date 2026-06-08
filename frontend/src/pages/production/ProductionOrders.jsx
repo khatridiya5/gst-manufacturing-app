@@ -31,11 +31,12 @@ export default function ProductionOrders() {
   const [sortOrder, setSortOrder] = useState('newest')
   const [expandedCustomers, setExpandedCustomers] = useState({})
   const [expandedOrders, setExpandedOrders] = useState({})
+  const [storeItems, setStoreItems] = useState([])
 
   const [bomForm, setBomForm] = useState({
     finished_good_id: '', version: '1.0',
     finished_good_name: '',
-    line_items: [{ raw_material_id: '', quantity_required: '', unit: 'kg', scrap_percentage: 0 }]
+    line_items: [{ raw_material_id: '', raw_material_name: '', quantity_required: '', unit: 'kg', scrap_percentage: 0 }]
   })
   const [orderForm, setOrderForm] = useState({
     bom_id: '', planned_quantity: '', customer_id: ''
@@ -50,11 +51,13 @@ export default function ProductionOrders() {
         api.get('/production/bom'),
         api.get('/master/items'),
         api.get('/master/customers'),
+        api.get('/inventory/in-store'),
       ])
       setOrders(ordersRes.data)
       setBoms(bomsRes.data)
       setItems(itemsRes.data)
       setCustomers(customersRes.data)
+      setStoreItems(storeRes.data)
     } catch (err) { console.error(err) }
     finally { setLoading(false) }
   }
@@ -232,15 +235,33 @@ export default function ProductionOrders() {
               <label className="block text-sm font-medium text-slate-600 mb-2">Raw Materials Required</label>
               {bomForm.line_items.map((li, i) => (
                 <div key={i} className="grid grid-cols-4 gap-2 mb-2">
-                  <select
-                    value={li.raw_material_id}
-                    onChange={e => { const u = [...bomForm.line_items]; u[i].raw_material_id = e.target.value; setBomForm({ ...bomForm, line_items: u }) }}
-                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
-                    required
-                  >
-                    <option value="">Select material...</option>
-                    {rawMaterials.map(m => <option key={m.id} value={m.id}>{m.name}</option>)}
-                  </select>
+                  <>
+  <input
+    list={`material-list-${i}`}
+    placeholder="Type to search material..."
+    value={li.raw_material_name || ''}
+    onChange={e => {
+      const typed = e.target.value
+      const match = storeItems.find(m => m.name.toLowerCase() === typed.toLowerCase())
+      const u = [...bomForm.line_items]
+      u[i] = {
+        ...u[i],
+        raw_material_name: typed,
+        raw_material_id: match ? match.item_id : ''
+      }
+      setBomForm({ ...bomForm, line_items: u })
+    }}
+    className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+    required
+  />
+  <datalist id={`material-list-${i}`}>
+    {storeItems.map(m => (
+      <option key={m.item_id} value={m.name}>
+        {m.part_code ? `${m.name} (${m.part_code})` : m.name}
+      </option>
+    ))}
+  </datalist>
+</>
                   <input
                     type="number" placeholder="Qty required" value={li.quantity_required}
                     onChange={e => { const u = [...bomForm.line_items]; u[i].quantity_required = e.target.value; setBomForm({ ...bomForm, line_items: u }) }}
