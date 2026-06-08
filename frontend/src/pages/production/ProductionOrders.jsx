@@ -46,7 +46,7 @@ export default function ProductionOrders() {
 
   const fetchAll = async () => {
     try {
-      const [ordersRes, bomsRes, itemsRes, customersRes] = await Promise.all([
+      const [ordersRes, bomsRes, itemsRes, customersRes, storeRes] = await Promise.all([
         api.get('/production/orders'),
         api.get('/production/bom'),
         api.get('/master/items'),
