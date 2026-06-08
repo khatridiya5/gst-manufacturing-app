@@ -67,6 +67,10 @@ class ProductionOrderOut(BaseModel):
     class Config:
         from_attributes = True
 
+class ProductionPayIn(BaseModel):
+    amount: float
+    note: str = ""
+
 # ─── BOM ─────────────────────────────────────────────────────
 
 @router.post("/bom", response_model=BOMOut)
@@ -504,3 +508,29 @@ def delete_wip_scan(
     db.delete(scan)
     db.commit()
     return {"message": "Scan deleted successfully"}
+
+
+
+@router.post("/orders/{order_id}/pay")
+def mark_order_paid(
+    order_id: int,
+    data: ProductionPayIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "accountant"))
+):
+    order = db.query(ProductionOrder).filter(
+        ProductionOrder.id == order_id,
+        ProductionOrder.company_id == current_user.company_id
+    ).first()
+    if not order:
+        raise HTTPException(status_code=404, detail="Order not found")
+    
+    order.amount_paid = float(order.amount_paid or 0) + data.amount
+    order.payment_note = data.note
+    db.commit()
+    return {
+        "message": "Payment recorded",
+        "amount_paid": float(order.amount_paid),
+        "balance": float(order.production_cost or 0) - float(order.amount_paid),
+        "note": order.payment_note
+    }

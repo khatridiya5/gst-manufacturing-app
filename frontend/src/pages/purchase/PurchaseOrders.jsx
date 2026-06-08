@@ -43,6 +43,9 @@ export default function PurchaseOrders() {
   const [receivingId, setReceivingId] = useState(null)
   const [sortOrder, setSortOrder] = useState('newest')
   const role = localStorage.getItem('role')
+  const [payModal, setPayModal] = useState(null) // { id, po_number, total, paid }
+  const [payAmount, setPayAmount] = useState('')
+  const [payNote, setPayNote] = useState('')
 
   // form state
   const [vendorId, setVendorId] = useState('')
@@ -146,6 +149,21 @@ export default function PurchaseOrders() {
       console.error(err)
     }
   }
+
+  const handleMarkPaid = async () => {
+  try {
+    await api.post(`/purchase/po/${payModal.id}/pay`, {
+      amount: parseFloat(payAmount),
+      note: payNote
+    })
+    setPayModal(null)
+    setPayAmount('')
+    setPayNote('')
+    fetchPOs()
+  } catch (err) {
+    alert(err.response?.data?.detail || 'Error')
+  }
+}
 
   const handleDelete = async (otp) => {
     try {
@@ -417,6 +435,14 @@ export default function PurchaseOrders() {
                         View QR Codes
                       </button>
                     )}
+                    {po.status === 'received' && (
+  <button
+    onClick={() => setPayModal({ id: po.id, name: po.po_number, total: po.total_amount })}
+    className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium"
+  >
+    Paid
+  </button>
+)}
                     {role === 'admin' && (
                       <button onClick={() => setDeleteTarget({ id: po.id, name: po.po_number })}
                         className="px-3 py-1 border border-red-300 hover:bg-red-50 text-red-500 rounded-lg text-xs font-medium">
@@ -514,6 +540,46 @@ export default function PurchaseOrders() {
           </div>
         </div>
       )}
+      {payModal && (
+  <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+    <div className="bg-white rounded-2xl w-full max-w-sm p-6">
+      <h2 className="font-semibold text-slate-700 mb-1">Record Payment</h2>
+      <p className="text-xs text-slate-400 mb-4">{payModal.name}</p>
+      <div className="space-y-3">
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-1">Amount Paid (₹)</label>
+          <input
+            type="number"
+            value={payAmount}
+            onChange={e => setPayAmount(e.target.value)}
+            placeholder="Enter amount"
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+          />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-slate-600 mb-1">Note</label>
+          <input
+            type="text"
+            value={payNote}
+            onChange={e => setPayNote(e.target.value)}
+            placeholder="e.g. Paid via NEFT for PO-0012"
+            className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+          />
+        </div>
+        <div className="flex gap-3 pt-2">
+          <button
+            onClick={handleMarkPaid}
+            className="flex-1 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium"
+          >Record Payment</button>
+          <button
+            onClick={() => setPayModal(null)}
+            className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm"
+          >Cancel</button>
+        </div>
+      </div>
+    </div>
+  </div>
+)}
 
       {deleteTarget && (
         <DeleteConfirmModal

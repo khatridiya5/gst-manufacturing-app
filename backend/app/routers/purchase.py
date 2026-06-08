@@ -16,6 +16,7 @@ from app.services.itc import calculate_tax, is_interstate_transaction
 from app.services.qr import generate_qr_base64, generate_part_qr_data
 from app.utils.otp import verify_delete_otp
 from sqlalchemy import func
+from pydantic import BaseModel as PydanticBase
 
 router = APIRouter(prefix="/purchase", tags=["Purchase"])
 
@@ -62,6 +63,10 @@ class PurchaseInvoiceOut(BaseModel):
     payment_status: str
     class Config:
         from_attributes = True
+
+class MarkPaidIn(PydanticBase):
+    amount: float
+    note: str = ""
 
 # ─── CREATE PO ───────────────────────────────────────────────
 
@@ -558,3 +563,54 @@ def trace_item_stock(item_id: int, db: Session = Depends(get_db)):
             "vendor_name": vendor.name if vendor else "NOT FOUND",
         })
     return result
+
+
+@router.post("/po/{po_id}/pay")
+def mark_po_paid(
+    po_id: int,
+    data: MarkPaidIn,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin", "accountant"))
+):
+    invoice = db.query(PurchaseInvoice).filter(
+        PurchaseInvoice.po_id == po_id,
+        PurchaseInvoice.company_id == current_user.company_id
+    ).first()
+    if not invoice:
+        raise HTTPException(status_code=404, detail="Invoice not found for this PO")
+    
+    invoice.amount_paid = float(invoice.amount_paid or 0) + data.amount
+    if invoice.amount_paid >= float(invoice.total_amount):
+        invoice.payment_status = "paid"
+    else:
+        invoice.payment_status = "partial"
+    
+    db.commit()
+    return {
+        "message": "Payment recorded",
+        "amount_paid": float(invoice.amount_paid),
+        "balance": float(invoice.total_amount) - float(invoice.amount_paid),
+        "status": invoice.payment_status
+    }
+
+@router.get("/po/{po_id}/payments")
+def get_po_payments(
+    po_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    invoice = db.query(PurchaseInvoice).filter(
+        PurchaseInvoice.po_id == po_id,
+        PurchaseInvoice.company_id == current_user.company_id
+    ).first()
+    if not invoice:
+        return {"total": 0, "paid": 0, "balance": 0, "status": "no_invoice"}
+    
+    return {
+        "invoice_number": invoice.invoice_number,
+        "total": float(invoice.total_amount),
+        "paid": float(invoice.amount_paid or 0),
+        "balance": float(invoice.total_amount) - float(invoice.amount_paid or 0),
+        "status": invoice.payment_status,
+        "note": invoice.note if hasattr(invoice, 'note') else ""
+    }
