@@ -325,7 +325,7 @@ export default function ProductionOrders() {
         <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6 shadow-sm">
           <h2 className="font-semibold text-slate-700 mb-4">Create Production Order</h2>
           <form onSubmit={handleCreateOrder} className="space-y-4">
-            <div className="grid-cols-5 gap-4">
+            <div className="grid grid-cols-5 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-600 mb-1">Customer</label>
                 <select
