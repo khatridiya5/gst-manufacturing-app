@@ -440,13 +440,18 @@ export default function PurchaseOrders() {
                         View QR Codes
                       </button>
                     )}
-                    {/* Payment summary */}
-                      {po.status === 'received' && (
-                      <button onClick={() => setPayModal({ id: po.id, name: po.po_number, total: po.total_amount })}
-                        className="px-3 py-1 bg-emerald-50 hover:bg-emerald-100 text-emerald-700 rounded-lg text-xs font-medium">
-                        Paid
-                      </button>
-                    )}
+                    {po.status === 'received' && (
+  <button onClick={() => setPayModal({ id: po.id, name: po.po_number, total: po.total_amount })}
+    className={`px-3 py-1 rounded-lg text-xs font-medium ${
+      po.payment_status === 'paid' 
+        ? 'bg-emerald-600 text-white' 
+        : po.payment_status === 'partial'
+        ? 'bg-amber-50 text-amber-700'
+        : 'bg-emerald-50 text-emerald-700'
+    }`}>
+    {po.payment_status === 'paid' ? '✓ Paid' : po.payment_status === 'partial' ? 'Partial' : 'Paid'}
+  </button>
+)}
                     {role === 'admin' && (
                       <button onClick={() => setDeleteTarget({ id: po.id, name: po.po_number })}
                         className="px-3 py-1 border border-red-300 hover:bg-red-50 text-red-500 rounded-lg text-xs font-medium">
