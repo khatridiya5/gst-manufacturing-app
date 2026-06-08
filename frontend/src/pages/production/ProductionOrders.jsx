@@ -450,12 +450,7 @@ export default function ProductionOrders() {
                                       className="px-3 py-1 bg-teal-50 hover:bg-teal-100 text-teal-700 rounded-lg text-xs font-medium"
                                     >Complete</button>
                                   )}
-                                  {order.status === 'completed' && (
-                                    <button
-                                      onClick={() => handleViewQR(order.id)}
-                                      className="px-3 py-1 bg-violet-50 hover:bg-violet-100 text-violet-700 rounded-lg text-xs font-medium"
-                                    >View QR</button>
-                                  )}
+                                  
                                   <button
                                     onClick={() => setDeleteTarget({ id: order.id, name: order.order_number })}
                                     className="px-3 py-1 border border-red-200 hover:bg-red-50 text-red-500 rounded-lg text-xs font-medium"
