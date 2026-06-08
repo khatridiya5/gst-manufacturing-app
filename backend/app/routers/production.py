@@ -56,6 +56,8 @@ class ProductionOrderCreate(BaseModel):
     planned_quantity: int
     customer_id: Optional[int] = None
     start_date: Optional[date] = None
+    cost_per_unit: Optional[Decimal] = None
+    tax_rate: Optional[Decimal] = Decimal("0")
 
 class ProductionOrderOut(BaseModel):
     id: int
@@ -208,6 +210,9 @@ def create_production_order(
         planned_quantity=data.planned_quantity,
         start_date=data.start_date or date.today(),
         status="planned",
+        production_cost=data.cost_per_unit * data.planned_quantity if data.cost_per_unit else None,
+        tax_rate=data.tax_rate or 0,
+        tax_amount=(data.cost_per_unit * data.planned_quantity * data.tax_rate / 100) if data.cost_per_unit and data.tax_rate else 0,
         created_by=current_user.id
     )
     db.add(order)
@@ -255,7 +260,8 @@ def complete_production_order(
             transaction_date=date.today()
         )
         db.add(stock_out)
-        total_cost += qty_with_scrap * Decimal("50")
+        unit_cost = Decimal(str(rm.purchase_price or 50))
+        total_cost += qty_with_scrap * unit_cost
 
     fg.current_stock += actual_quantity
 
@@ -297,6 +303,7 @@ def complete_production_order(
     order.end_date = date.today()
     order.status = "completed"
     order.production_cost = total_cost
+    order.tax_amount = total_cost * (order.tax_rate or 0) / 100
     db.commit()
 
     return {
@@ -358,6 +365,8 @@ def get_orders(
             "actual_quantity": o.actual_quantity,
             "scrap_quantity": o.scrap_quantity,
             "production_cost": o.production_cost,
+            "tax_rate": float(o.tax_rate or 0),
+            "tax_amount": float(o.tax_amount or 0),
             "status": o.status,
             "start_date": o.start_date,
             "end_date": o.end_date,

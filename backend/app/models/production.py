@@ -41,3 +41,5 @@ class ProductionOrder(Base):
     amount_paid = Column(Numeric(12, 2), default=0)
     payment_note = Column(String(500), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
+    tax_rate = Column(Numeric(5, 2), default=0)
+    tax_amount = Column(Numeric(12, 2), default=0)

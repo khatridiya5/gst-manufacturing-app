@@ -42,8 +42,8 @@ export default function ProductionOrders() {
     line_items: [{ raw_material_id: '', raw_material_name: '', quantity_required: '', unit: 'kg', scrap_percentage: 0 }]
   })
   const [orderForm, setOrderForm] = useState({
-    bom_id: '', planned_quantity: '', customer_id: ''
-  })
+  bom_id: '', planned_quantity: '', customer_id: '', cost_per_unit: '', tax_rate: ''
+})
   const [actualQty, setActualQty] = useState('')
   const [scrapQty, setScrapQty] = useState(0)
 
@@ -126,10 +126,12 @@ export default function ProductionOrders() {
     e.preventDefault()
     try {
       await api.post('/production/orders', {
-        bom_id: parseInt(orderForm.bom_id),
-        planned_quantity: parseInt(orderForm.planned_quantity),
-        customer_id: orderForm.customer_id ? parseInt(orderForm.customer_id) : null
-      })
+  bom_id: parseInt(orderForm.bom_id),
+  planned_quantity: parseInt(orderForm.planned_quantity),
+  customer_id: orderForm.customer_id ? parseInt(orderForm.customer_id) : null,
+  cost_per_unit: orderForm.cost_per_unit ? parseFloat(orderForm.cost_per_unit) : null,
+  tax_rate: orderForm.tax_rate ? parseFloat(orderForm.tax_rate) : 0,
+})
       setShowOrderForm(false)
       setOrderForm({ bom_id: '', planned_quantity: '', customer_id: '' })
       fetchAll()
@@ -323,7 +325,7 @@ export default function ProductionOrders() {
         <div className="bg-white rounded-xl border border-slate-200 p-6 mb-6 shadow-sm">
           <h2 className="font-semibold text-slate-700 mb-4">Create Production Order</h2>
           <form onSubmit={handleCreateOrder} className="space-y-4">
-            <div className="grid grid-cols-3 gap-4">
+            <div className="grid-cols-5 gap-4">
               <div>
                 <label className="block text-sm font-medium text-slate-600 mb-1">Customer</label>
                 <select
@@ -357,6 +359,24 @@ export default function ProductionOrders() {
                   required
                 />
               </div>
+              <div>
+  <label className="block text-sm font-medium text-slate-600 mb-1">Cost/Unit (₹)</label>
+  <input
+    type="number" value={orderForm.cost_per_unit}
+    onChange={e => setOrderForm({ ...orderForm, cost_per_unit: e.target.value })}
+    placeholder="e.g. 500"
+    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+  />
+</div>
+<div>
+  <label className="block text-sm font-medium text-slate-600 mb-1">Tax %</label>
+  <input
+    type="number" value={orderForm.tax_rate}
+    onChange={e => setOrderForm({ ...orderForm, tax_rate: e.target.value })}
+    placeholder="e.g. 18"
+    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+  />
+</div>
             </div>
             <div className="flex gap-3 pt-1">
               <button type="submit" className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-sm font-medium">Create Order</button>
@@ -421,6 +441,7 @@ export default function ProductionOrders() {
                           <th className="px-5 py-2 text-right font-semibold">Planned Qty</th>
                           <th className="px-5 py-2 text-right font-semibold">Actual Qty</th>
                           <th className="px-5 py-2 text-right font-semibold">Cost</th>
+                          <th className="px-5 py-2 text-right font-semibold">Tax</th>
                           <th className="px-5 py-2 text-center font-semibold">Status</th>
                           <th className="px-5 py-2 text-center font-semibold">Actions</th>
                         </tr>
@@ -456,6 +477,9 @@ export default function ProductionOrders() {
                               </td>
                               <td className="px-5 py-3 text-right text-slate-600">
                                 {order.production_cost ? `₹${Number(order.production_cost).toLocaleString('en-IN')}` : '—'}
+                              </td>
+                              <td className="px-5 py-3 text-right text-slate-600">
+                              {order.tax_amount ? `₹${Number(order.tax_amount).toLocaleString('en-IN')}` : '—'}
                               </td>
                               <td className="px-5 py-3 text-center">
                                 <StatusBadge status={order.status} />
