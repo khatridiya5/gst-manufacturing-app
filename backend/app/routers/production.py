@@ -186,16 +186,7 @@ def create_production_order(
     if not bom:
         raise HTTPException(status_code=404, detail="BOM not found")
 
-    bom_lines = db.query(BOMLineItem).filter(BOMLineItem.bom_id == bom.id).all()
-    for line in bom_lines:
-        rm = db.query(Item).filter(Item.id == line.raw_material_id).first()
-        qty_needed = line.quantity_required * data.planned_quantity
-        qty_with_scrap = qty_needed * (1 + line.scrap_percentage / 100)
-        if rm.current_stock < qty_with_scrap:
-            raise HTTPException(
-                status_code=400,
-                detail=f"Insufficient stock for {rm.name}. Need {qty_with_scrap}, have {rm.current_stock}"
-            )
+    
 
     count = db.query(ProductionOrder).filter(
         ProductionOrder.company_id == current_user.company_id
