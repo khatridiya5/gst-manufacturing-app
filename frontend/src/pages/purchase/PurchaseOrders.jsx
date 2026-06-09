@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import api from '../../api/client'
 import DeleteConfirmModal from '../../components/DeleteConfirmModal'
+import { exportToExcel } from '../utils/exportToExcel'
 
 const fmtDateTime = (iso) => {
   if (!iso) return '—'
@@ -209,6 +210,30 @@ export default function PurchaseOrders() {
     >
       + New PO
     </button>
+    <button
+  onClick={() => {
+    exportToExcel([
+      {
+        name: "Purchase Orders",
+        data: sortedPOs.map((po) => ({
+          "PO Number": po.po_number,
+          Vendor: getVendorName(po.vendor_id),
+          Created: fmtDateTime(po.created_at),
+          Received: fmtDateTime(po.received_at),
+          "Amount (₹)": Number(po.invoice_total || po.total_amount),
+          "Amount Paid (₹)": Number(po.amount_paid || 0),
+          "Balance (₹)": Number(po.invoice_total || po.total_amount) - Number(po.amount_paid || 0),
+          "Payment Status": po.payment_status || "unpaid",
+          Status: po.status,
+          "QR Tracking": po.track_qr ? "Yes" : "No",
+        })),
+      },
+    ], "Purchase_Orders")
+  }}
+  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium"
+>
+  ⬇ Export Excel
+</button>
   </div>
 </div>
 

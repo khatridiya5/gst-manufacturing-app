@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import api from '../../api/client'
 import DeleteConfirmModal from '../../components/DeleteConfirmModal'
+import { exportToExcel } from '../utils/exportToExcel'
 
 const StatusBadge = ({ status }) => {
   const colors = {
@@ -236,6 +237,35 @@ export default function ProductionOrders() {
             onClick={() => setShowOrderForm(!showOrderForm)}
             className="px-4 py-2 bg-teal-600 hover:bg-teal-500 text-white rounded-lg text-sm font-medium"
           >+ New Order</button>
+          <button
+  onClick={() => {
+    exportToExcel([
+      {
+        name: "Production Orders",
+        data: orders.map((o) => ({
+          "Order No.": o.order_number,
+          Customer: o.customer_name || "—",
+          "Finished Good": o.finished_good_name || getBOMName(o.bom_id),
+          Created: o.created_at ? new Date(o.created_at).toLocaleDateString('en-GB') : "—",
+          "Planned Qty": Number(o.planned_quantity),
+          "Actual Qty": o.actual_quantity ? Number(o.actual_quantity) : "—",
+          "Scrap Qty": o.scrap_quantity ? Number(o.scrap_quantity) : 0,
+          "Cost (₹)": Number(o.production_cost || 0),
+          "Tax % ": Number(o.tax_rate || 0),
+          "Tax Amt (₹)": Number(o.tax_amount || 0),
+          "Total (₹)": Number(o.production_cost || 0) + Number(o.tax_amount || 0),
+          "Amount Paid (₹)": Number(o.amount_paid || 0),
+          "Balance (₹)": (Number(o.production_cost || 0) + Number(o.tax_amount || 0)) - Number(o.amount_paid || 0),
+          "Payment Status": o.payment_status || "unpaid",
+          Status: o.status,
+        })),
+      },
+    ], "Production_Orders")
+  }}
+  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium"
+>
+  ⬇ Export Excel
+</button>
         </div>
       </div>
 
