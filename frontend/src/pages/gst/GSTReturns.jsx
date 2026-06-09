@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import api from '../../api/client'
+import { exportToExcel } from "../utils/exportToExcel";
 
 export default function GSTReturns() {
   const today = new Date().toISOString().split('T')[0]
@@ -111,6 +112,41 @@ export default function GSTReturns() {
             >
               {loading ? 'Loading...' : 'Generate Returns'}
             </button>
+            // Inside your component, add this button next to "Generate Returns":
+<button
+  onClick={() => {
+    exportToExcel([
+      {
+        name: "GSTR-1 B2B Invoices",
+        data: b2bInvoices.map((inv) => ({
+          Customer: inv.customer_name,
+          GSTIN: inv.gstin,
+          Invoice: inv.invoice_number,
+          Date: inv.date,
+          Type: inv.tax_type,
+          "Taxable (₹)": inv.taxable_value,
+          "Tax (₹)": inv.tax_amount,
+          "Total (₹)": inv.total_amount,
+        })),
+      },
+      {
+        name: "HSN Summary",
+        data: hsnSummary.map((h) => ({
+          "HSN Code": h.hsn_code,
+          Description: h.description,
+          Quantity: h.quantity,
+          "Taxable Value (₹)": h.taxable_value,
+          "IGST (₹)": h.igst,
+          "CGST (₹)": h.cgst,
+          "SGST (₹)": h.sgst,
+        })),
+      },
+    ], `GST_Returns_${fromDate}_${toDate}`);
+  }}
+  className="px-4 py-2 bg-teal-700 text-white rounded hover:bg-teal-800 flex items-center gap-2"
+>
+  ⬇ Export Excel
+</button>
           </div>
         </div>
       </div>
