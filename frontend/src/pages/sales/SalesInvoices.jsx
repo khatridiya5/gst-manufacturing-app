@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import api from '../../api/client'
+import { exportToExcel } from '../utils/exportToExcel'
 
 const StatusBadge = ({ status }) => {
   const colors = {
@@ -139,6 +140,34 @@ export default function SalesInvoices() {
   >
     + New Invoice
   </button>
+  <button
+  onClick={() => {
+    exportToExcel([
+      {
+        name: "Sales Invoices",
+        data: sortedInvoices.map((inv) => {
+          const gst = Number(inv.cgst_amount) + Number(inv.sgst_amount) + Number(inv.igst_amount)
+          return {
+            "Invoice No.": inv.invoice_number,
+            Customer: getCustomerName(inv.customer_id),
+            Date: inv.invoice_date,
+            Type: inv.is_interstate ? "IGST" : "CGST+SGST",
+            "Subtotal (₹)": Number(inv.subtotal),
+            "CGST (₹)": Number(inv.cgst_amount),
+            "SGST (₹)": Number(inv.sgst_amount),
+            "IGST (₹)": Number(inv.igst_amount),
+            "GST Total (₹)": gst,
+            "Total (₹)": Number(inv.total_amount),
+            "Payment Status": inv.payment_status,
+          }
+        }),
+      },
+    ], "Sales_Invoices")
+  }}
+  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium"
+>
+  ⬇ Export Excel
+</button>
 </div>
       </div>
 

@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import api from "../../api/client";
+import { exportToExcel } from '../utils/exportToExcel'
 
 export default function InStore() {
   const [items, setItems] = useState([]);
@@ -84,6 +85,27 @@ export default function InStore() {
         >
           + Manual Entry
         </button>
+        <button
+  onClick={() => {
+    exportToExcel([
+      {
+        name: "In-Store Inventory",
+        data: items.map((item) => ({
+          Item: item.name,
+          "Part Code": item.part_code || "—",
+          "Total Received": Number(item.total_received),
+          "Total Consumed": Number(item.total_consumed),
+          "In Stock": Number(item.in_stock),
+          Status: item.low_stock ? "Low Stock" : "OK",
+          Tracking: item.track_qr ? "QR" : "Manual",
+        })),
+      },
+    ], "InStore_Inventory")
+  }}
+  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium"
+>
+  ⬇ Export Excel
+</button>
       </div>
 
       {/* Manual Entry Modal */}
