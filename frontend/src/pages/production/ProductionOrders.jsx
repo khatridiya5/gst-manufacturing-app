@@ -454,7 +454,7 @@ export default function ProductionOrders() {
                       <thead>
                         <tr className="bg-slate-50 text-slate-400 text-xs uppercase">
                           <th className="px-5 py-2 text-left font-semibold">Order No.</th>
-                          <th className="px-5 py-2 text-left font-semibold">Product</th>
+                          
                           <th className="px-5 py-2 text-left font-semibold">Created</th>
                           <th className="px-5 py-2 text-right font-semibold">Planned Qty</th>
                           <th className="px-5 py-2 text-right font-semibold">Actual Qty</th>
@@ -476,9 +476,7 @@ export default function ProductionOrders() {
                                 <span className={`inline-block mr-2 text-slate-400 text-xs transition-transform duration-200 ${expandedOrders[order.id] ? 'rotate-90' : ''}`}>▶</span>
                                 {order.order_number}
                               </td>
-                              <td className="px-5 py-3 text-slate-600 font-medium">
-                                {order.finished_good_name || getBOMName(order.bom_id)}
-                              </td>
+                              
                               <td className="px-5 py-3 text-slate-500 text-xs">
                                 {order.created_at
                                   ? new Date(order.created_at).toLocaleDateString('en-GB', {
@@ -535,7 +533,7 @@ export default function ProductionOrders() {
                             {/* ─── INVOICE-STYLE DETAIL ROW ─── */}
                             {expandedOrders[order.id] && (
                               <tr key={`${order.id}-detail`}>
-                                <td colSpan={9} className="bg-slate-50/80 border-b border-slate-100">
+                                <td colSpan={8} className="bg-slate-50/80 border-b border-slate-100">
                                   <div className="px-6 py-5">
                                     {/* Invoice Header */}
                                     <div className="flex items-center justify-between mb-4">

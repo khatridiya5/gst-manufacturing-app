@@ -191,7 +191,15 @@ def create_production_order(
     count = db.query(ProductionOrder).filter(
         ProductionOrder.company_id == current_user.company_id
     ).count()
-    order_number = f"PRD-{current_user.company_id}-{str(count + 1).zfill(4)}"
+
+    if data.customer_id:
+        customer = db.query(Customer).filter(Customer.id == data.customer_id).first()
+        prefix = customer.name[:3].upper() if customer else "PRD"
+    else:
+        prefix = "PRD"
+
+    order_number = f"{prefix}-{str(count + 1).zfill(4)}"
+
 
     order = ProductionOrder(
         company_id=current_user.company_id,
