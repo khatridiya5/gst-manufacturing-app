@@ -67,6 +67,21 @@ export default function InStore() {
     }
   };
 
+  const handleDeleteItem = async (item) => {
+  const confirmed = window.confirm(
+    `Delete "${item.name}"?\n\nThis will remove all stock history, ledger entries, and BOM data for this item. This cannot be undone.`
+  );
+  if (!confirmed) return;
+
+  try {
+    await api.delete(`/master/items/${item.item_id}`);
+    setSelected(null);
+    fetchItems();
+  } catch (e) {
+    alert(e.response?.data?.detail || "Failed to delete item");
+  }
+};
+
   const lowStockItems = items.filter((i) => i.low_stock);
 
   return (
@@ -192,7 +207,7 @@ export default function InStore() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
-              {["Item", "Part Code", "Received", "Consumed", "In Stock", "Status", "Tracking"].map((h) => (
+              {["Item", "Part Code", "Received", "Consumed", "In Stock", "Status", "Tracking", ""].map((h) => (
                 <th key={h} className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
               ))}
             </tr>
@@ -230,6 +245,18 @@ export default function InStore() {
                         ? <span className="px-2 py-0.5 bg-violet-50 text-violet-600 rounded-full text-xs font-medium">QR</span>
                         : <span className="px-2 py-0.5 bg-slate-100 text-slate-400 rounded-full text-xs">Manual</span>}
                     </td>
+                    <td className="px-5 py-4">
+  <button
+    onClick={(e) => {
+      e.stopPropagation();
+      handleDeleteItem(item);
+    }}
+    className="text-gray-300 hover:text-red-500 transition-colors"
+    title="Delete item"
+  >
+    🗑
+  </button>
+</td>
                   </tr>
 
                   {/* ── Unified Dropdown ── */}
