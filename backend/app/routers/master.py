@@ -157,7 +157,7 @@ def delete_item(item_id: int, db: Session = Depends(get_db),
         db.query(BOMHeader).filter(BOMHeader.id.in_(bom_ids)).delete(synchronize_session=False)
 
     db.query(BOMLineItem).filter(BOMLineItem.raw_material_id == item_id).delete()
-    db.query(POLineItem).filter(POLineItem.item_id == item_id).delete()
+    # POLineItem uses item_name not item_id — no direct link to delete
     db.query(PurchaseLineItem).filter(PurchaseLineItem.item_id == item_id).delete()
     db.query(SalesLineItem).filter(SalesLineItem.item_id == item_id).delete()
     db.query(StockLedger).filter(StockLedger.item_id == item_id).delete()
