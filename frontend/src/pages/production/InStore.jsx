@@ -72,41 +72,43 @@ export default function InStore() {
   return (
     <div className="p-6 bg-gray-50 min-h-screen">
       {/* Header */}
-      <div className="mb-6 flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold text-gray-800">In-Store Inventory</h1>
-          <p className="text-sm text-gray-500 mt-1">
-            Stock updates from received POs · Deducted on worker start scans
-          </p>
-        </div>
-        <button
-          onClick={() => setShowManualEntry(true)}
-          className="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition"
-        >
-          + Manual Entry
-        </button>
-        <button
-  onClick={() => {
-    exportToExcel([
-      {
-        name: "In-Store Inventory",
-        data: items.map((item) => ({
-          Item: item.name,
-          "Part Code": item.part_code || "—",
-          "Total Received": Number(item.total_received),
-          "Total Consumed": Number(item.total_consumed),
-          "In Stock": Number(item.in_stock),
-          Status: item.low_stock ? "Low Stock" : "OK",
-          Tracking: item.track_qr ? "QR" : "Manual",
-        })),
-      },
-    ], "InStore_Inventory")
-  }}
-  className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium"
->
-  ⬇ Export Excel
-</button>
-      </div>
+<div className="mb-6 flex items-center justify-between">
+  <div>
+    <h1 className="text-3xl font-bold text-gray-800">In-Store Inventory</h1>
+    <p className="text-sm text-gray-500 mt-1">
+      Stock updates from received POs · Deducted on worker start scans
+    </p>
+  </div>
+  <div className="flex items-center gap-3">
+    <button
+      onClick={() => setShowManualEntry(true)}
+      className="px-4 py-2 bg-teal-600 text-white text-sm font-medium rounded-lg hover:bg-teal-700 transition"
+    >
+      + Manual Entry
+    </button>
+    <button
+      onClick={() => {
+        exportToExcel([
+          {
+            name: "In-Store Inventory",
+            data: items.map((item) => ({
+              Item: item.name,
+              "Part Code": item.part_code || "—",
+              "Total Received": Number(item.total_received),
+              "Total Consumed": Number(item.total_consumed),
+              "In Stock": Number(item.in_stock),
+              Status: item.low_stock ? "Low Stock" : "OK",
+              Tracking: item.track_qr ? "QR" : "Manual",
+            })),
+          },
+        ], "InStore_Inventory")
+      }}
+      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium"
+    >
+      ⬇ Export Excel
+    </button>
+  </div>
+</div>
 
       {/* Manual Entry Modal */}
       {showManualEntry && (
