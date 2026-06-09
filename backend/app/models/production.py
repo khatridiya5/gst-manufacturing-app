@@ -28,6 +28,7 @@ class ProductionOrder(Base):
     id = Column(Integer, primary_key=True, index=True)
     company_id = Column(Integer, ForeignKey("companies.id"))
     bom_id = Column(Integer, ForeignKey("bom_headers.id"))
+    payment_status = Column(String(20), default="unpaid")  # ← ADD THIS
     customer_id = Column(Integer, ForeignKey("customers.id"), nullable=True)  # ← ADD THIS
     order_number = Column(String(50), unique=True, nullable=False)
     planned_quantity = Column(Numeric(10, 3), nullable=False)

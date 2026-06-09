@@ -477,7 +477,7 @@ export default function ProductionOrders() {
                                 {order.order_number}
                               </td>
                               <td className="px-5 py-3 text-slate-600 font-medium">
-                                {getBOMName(order.bom_id)}
+                                {order.finished_good_name || getBOMName(order.bom_id)}
                               </td>
                               <td className="px-5 py-3 text-slate-500 text-xs">
                                 {order.created_at
@@ -544,7 +544,7 @@ export default function ProductionOrders() {
                                         <p className="text-lg font-bold text-slate-800 mt-0.5">{order.order_number}</p>
                                       </div>
                                       <div className="text-right">
-                                        <p className="text-xs text-slate-400">{getBOMName(order.bom_id)}</p>
+                                        <p className="text-xs text-slate-400">{order.finished_good_name || getBOMName(order.bom_id)}</p>
                                         <p className="text-xs text-slate-400 mt-0.5">
                                           {order.created_at
                                             ? new Date(order.created_at).toLocaleDateString('en-GB', {
@@ -571,7 +571,7 @@ export default function ProductionOrders() {
                                         <tbody>
                                           <tr className="border-b border-slate-50">
                                             <td className="px-4 py-3 text-slate-700 font-medium">
-                                              {getBOMName(order.bom_id)}
+                                              {order.finished_good_name || getBOMName(order.bom_id)}
                                             </td>
                                             <td className="px-4 py-3 text-right text-slate-600">
                                               {Number(order.planned_quantity).toLocaleString('en-IN')}

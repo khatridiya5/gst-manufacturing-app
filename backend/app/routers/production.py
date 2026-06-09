@@ -350,6 +350,7 @@ def get_orders(
             "id": o.id,
             "order_number": o.order_number,
             "bom_id": o.bom_id,
+            "finished_good_name": fg.name if fg else "—",
             "customer_id": o.customer_id,
             "customer_name": customer.name if customer else "No Customer",
             "planned_quantity": o.planned_quantity,
