@@ -105,49 +105,57 @@ export default function GSTReturns() {
           </div>
 
           <div className="pt-5">
-            <button
-              onClick={handleFetch}
-              disabled={loading}
-              className="px-5 py-2 bg-teal-600 hover:bg-teal-500 disabled:bg-teal-800 text-white rounded-lg text-sm font-medium transition-colors"
-            >
-              {loading ? 'Loading...' : 'Generate Returns'}
-            </button>
-            // Inside your component, add this button next to "Generate Returns":
-<button
-  onClick={() => {
-    exportToExcel([
-      {
-        name: "GSTR-1 B2B Invoices",
-        data: b2bInvoices.map((inv) => ({
-          Customer: inv.customer_name,
-          GSTIN: inv.gstin,
-          Invoice: inv.invoice_number,
-          Date: inv.date,
-          Type: inv.tax_type,
-          "Taxable (₹)": inv.taxable_value,
-          "Tax (₹)": inv.tax_amount,
-          "Total (₹)": inv.total_amount,
-        })),
-      },
-      {
-        name: "HSN Summary",
-        data: hsnSummary.map((h) => ({
-          "HSN Code": h.hsn_code,
-          Description: h.description,
-          Quantity: h.quantity,
-          "Taxable Value (₹)": h.taxable_value,
-          "IGST (₹)": h.igst,
-          "CGST (₹)": h.cgst,
-          "SGST (₹)": h.sgst,
-        })),
-      },
-    ], `GST_Returns_${fromDate}_${toDate}`);
-  }}
-  className="px-4 py-2 bg-teal-700 text-white rounded hover:bg-teal-800 flex items-center gap-2"
->
-  ⬇ Export Excel
-</button>
-          </div>
+  <button
+    onClick={handleFetch}
+    disabled={loading}
+    className="px-5 py-2 bg-teal-600 hover:bg-teal-500 disabled:bg-teal-800 text-white rounded-lg text-sm font-medium transition-colors"
+  >
+    {loading ? 'Loading...' : 'Generate Returns'}
+  </button>
+</div>
+
+{/* Export button - only show after data is loaded */}
+{gstr1 && (
+  <div className="pt-5">
+    <button
+      onClick={() => {
+        exportToExcel([
+          {
+            name: "GSTR-1 B2B Invoices",
+            data: (gstr1.b2b_invoices || []).map((inv) => ({
+              Customer: inv.customer_name,
+              GSTIN: inv.customer_gstin,
+              Invoice: inv.invoice_number,
+              Date: inv.invoice_date,
+              Type: inv.is_interstate ? "IGST" : "CGST+SGST",
+              "Taxable (₹)": Number(inv.taxable_value),
+              "CGST (₹)": Number(inv.cgst),
+              "SGST (₹)": Number(inv.sgst),
+              "IGST (₹)": Number(inv.igst),
+              "Total (₹)": Number(inv.invoice_value),
+            })),
+          },
+          {
+            name: "HSN Summary",
+            data: (gstr1.hsn_summary || []).map((h) => ({
+              "HSN Code": h.hsn_code,
+              Description: h.description,
+              Quantity: Number(h.total_quantity),
+              UOM: h.uom,
+              "Taxable Value (₹)": Number(h.taxable_value),
+              "IGST (₹)": Number(h.igst),
+              "CGST (₹)": Number(h.cgst),
+              "SGST (₹)": Number(h.sgst),
+            })),
+          },
+        ], `GST_Returns_${fromDate}_to_${toDate}`)
+      }}
+      className="px-4 py-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-lg text-sm font-medium flex items-center gap-2"
+    >
+      ⬇ Export Excel
+    </button>
+  </div>
+)}
         </div>
       </div>
     
