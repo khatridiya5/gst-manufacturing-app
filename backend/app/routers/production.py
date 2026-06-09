@@ -345,30 +345,30 @@ def get_orders(
     
     result = []
     for o in orders:
-    customer = db.query(Customer).filter(Customer.id == o.customer_id).first() if o.customer_id else None
-    bom = db.query(BOMHeader).filter(BOMHeader.id == o.bom_id).first()
-    fg = db.query(Item).filter(Item.id == bom.finished_good_id).first() if bom else None  # ← fg defined here
+        customer = db.query(Customer).filter(Customer.id == o.customer_id).first() if o.customer_id else None
+        bom = db.query(BOMHeader).filter(BOMHeader.id == o.bom_id).first()
+        fg = db.query(Item).filter(Item.id == bom.finished_good_id).first() if bom else None
 
-    result.append({
-        "id": o.id,
-        "order_number": o.order_number,
-        "bom_id": o.bom_id,
-        "finished_good_name": fg.name if fg else "—",  # ← now fg is always in scope
-        "customer_id": o.customer_id,
-        "customer_name": customer.name if customer else "No Customer",
-        "planned_quantity": o.planned_quantity,
-        "actual_quantity": o.actual_quantity,
-        "scrap_quantity": o.scrap_quantity,
-        "production_cost": o.production_cost,
-        "tax_rate": float(o.tax_rate or 0),
-        "tax_amount": float(o.tax_amount or 0),
-        "status": o.status,
-        "start_date": o.start_date,
-        "end_date": o.end_date,
-        "created_at": o.created_at,
-        "amount_paid": float(o.amount_paid or 0),
-        "payment_status": "paid" if float(o.amount_paid or 0) >= float(o.production_cost or 0) and float(o.production_cost or 0) > 0 else "partial" if float(o.amount_paid or 0) > 0 else "unpaid",
-    })
+        result.append({
+            "id": o.id,
+            "order_number": o.order_number,
+            "bom_id": o.bom_id,
+            "finished_good_name": fg.name if fg else "—",
+            "customer_id": o.customer_id,
+            "customer_name": customer.name if customer else "No Customer",
+            "planned_quantity": o.planned_quantity,
+            "actual_quantity": o.actual_quantity,
+            "scrap_quantity": o.scrap_quantity,
+            "production_cost": o.production_cost,
+            "tax_rate": float(o.tax_rate or 0),
+            "tax_amount": float(o.tax_amount or 0),
+            "status": o.status,
+            "start_date": o.start_date,
+            "end_date": o.end_date,
+            "created_at": o.created_at,
+            "amount_paid": float(o.amount_paid or 0),
+            "payment_status": "paid" if float(o.amount_paid or 0) >= float(o.production_cost or 0) and float(o.production_cost or 0) > 0 else "partial" if float(o.amount_paid or 0) > 0 else "unpaid",
+        })
     return result
 
 # ─── WIP SCANS ───────────────────────────────────────────────
