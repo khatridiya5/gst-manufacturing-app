@@ -246,19 +246,9 @@ def complete_production_order(
         rm = db.query(Item).filter(Item.id == line.raw_material_id).first()
         qty_consumed = line.quantity_required * actual_quantity
         qty_with_scrap = qty_consumed * (1 + line.scrap_percentage / 100)
-        rm.current_stock -= qty_with_scrap
+        
 
-        stock_out = StockLedger(
-            company_id=current_user.company_id,
-            item_id=rm.id,
-            transaction_type="production_consumption",
-            reference_id=order.id,
-            reference_type="production_order",
-            quantity=-qty_with_scrap,
-            unit_cost=None,
-            transaction_date=date.today()
-        )
-        db.add(stock_out)
+        
         unit_cost = Decimal(str(rm.purchase_price or 50))
         total_cost += qty_with_scrap * unit_cost
 
