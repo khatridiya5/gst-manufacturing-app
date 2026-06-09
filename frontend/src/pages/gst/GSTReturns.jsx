@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import api from '../../api/client'
-import { exportToExcel } from "../../utils/exportToExcel";
+import { exportToExcel } from "../utils/exportToExcel";
 
 export default function GSTReturns() {
   const today = new Date().toISOString().split('T')[0]
