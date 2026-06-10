@@ -531,7 +531,10 @@ def mark_order_paid(
         raise HTTPException(status_code=404, detail="Order not found")
     
     order.amount_paid = float(order.amount_paid or 0) + data.amount
-    order.payment_note = data.note
+    existing = order.payment_note or ""
+    new_note = data.note.strip()
+    if new_note:
+        order.payment_note = f"{existing} | {new_note}".strip(" |") if existing else new_note
     db.commit()
     return {
         "message": "Payment recorded",
