@@ -21,6 +21,7 @@ class ItemCreate(BaseModel):
     unit: str
     tax_rate: Decimal
     opening_stock: Optional[Decimal] = 0
+    purchase_price: Optional[Decimal] = 0 
 
 class ItemOut(BaseModel):
     id: int
@@ -31,6 +32,7 @@ class ItemOut(BaseModel):
     unit: str
     tax_rate: Decimal
     current_stock: Decimal
+    purchase_price: Optional[Decimal]  # ← add this
     class Config:
         from_attributes = True
 
