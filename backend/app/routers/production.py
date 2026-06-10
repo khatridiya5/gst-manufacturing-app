@@ -365,6 +365,7 @@ def get_orders(
             "end_date": o.end_date,
             "created_at": o.created_at,
             "amount_paid": float(o.amount_paid or 0),
+            "payment_note": o.payment_note or "",
             "payment_status": "paid" if float(o.amount_paid or 0) >= float(o.production_cost or 0) and float(o.production_cost or 0) > 0 else "partial" if float(o.amount_paid or 0) > 0 else "unpaid",
         })
     return result
