@@ -153,6 +153,7 @@ export default function Vendors() {
               <th className="px-5 py-3 text-left">GSTIN</th>
               <th className="px-5 py-3 text-left">State</th>
               <th className="px-5 py-3 text-left">Phone</th>
+              <th className="px-5 py-3 text-left">Email</th>
               <th className="px-5 py-3 text-right">Balance Due</th>
               <th className="px-5 py-3 text-center">Bank</th>
               <th className="px-5 py-3 text-center">Status</th>
@@ -174,6 +175,7 @@ export default function Vendors() {
                     <td className="px-5 py-3 font-mono text-xs text-slate-500">{v.gstin || '—'}</td>
                     <td className="px-5 py-3 text-slate-500">{v.state || '—'} {v.state_code ? `(${v.state_code})` : ''}</td>
                     <td className="px-5 py-3 text-slate-500">{v.phone || '—'}</td>
+                    <td className="px-5 py-3 text-slate-500">{v.email || '—'}</td>
                     <td className="px-5 py-3 text-right">
                       {bal ? (
                         <div>
@@ -218,7 +220,7 @@ export default function Vendors() {
                   {/* Bank details expandable row */}
                   {expandedBank === v.id && (
                     <tr key={`bank-${v.id}`} className="bg-blue-50">
-                      <td colSpan={8} className="px-5 py-3">
+                      <td colSpan={9} className="px-5 py-3">
                         <div className="flex gap-8 text-sm">
                           <div>
                             <span className="text-xs text-slate-400 uppercase tracking-wider">Account Holder</span>

@@ -194,7 +194,8 @@ def create_production_order(
 
     if data.customer_id:
         customer = db.query(Customer).filter(Customer.id == data.customer_id).first()
-        prefix = customer.name[:3].upper() if customer else "PRD"
+        words = customer.name.split()
+        prefix = ''.join(w[0] for w in words)[:3].upper() if customer else "PRD"
     else:
         prefix = "PRD"
 
