@@ -261,59 +261,45 @@ def receive_po(
         if po.track_qr:
             tracking = item.tracking_type or 'unit'
 
-    if tracking == 'bulk':
-        # ONE QR for the entire batch
-        qr_data = generate_part_qr_data(
-            item.item_type,
-            item.code or item.name,
-            po.po_number,
-            1,
-            tracking_type='bulk'
-        )
-        qr_image = generate_qr_base64(qr_data)
-        part = PartInstance(
-            company_id=current_user.company_id,
-            purchase_order_id=po.id,
-            item_id=item.id,
-            serial_number=qr_data,
-            qr_code_data=qr_data,
-            qr_code_image=qr_image,
-            current_status="in_stock"
-        )
-        db.add(part)
-        all_qr_codes.append({
-            "serial": qr_data,
-            "item": item.name,
-            "unit": "batch",
-            "quantity": qty
-        })
-    else:
-        # ONE QR per physical piece
-        for unit_num in range(1, qty + 1):
-            qr_data = generate_part_qr_data(
-                item.item_type,
-                item.code or item.name,
-                po.po_number,
-                unit_num,
-                tracking_type='unit'
-            )
-            qr_image = generate_qr_base64(qr_data)
-            part = PartInstance(
-                company_id=current_user.company_id,
-                purchase_order_id=po.id,
-                item_id=item.id,
-                serial_number=qr_data,
-                qr_code_data=qr_data,
-                qr_code_image=qr_image,
-                current_status="in_stock"
-            )
-            db.add(part)
-            all_qr_codes.append({
-                "serial": qr_data,
-                "item": item.name,
-                "unit": unit_num
-            })
+            if tracking == 'bulk':
+                qr_data = generate_part_qr_data(
+                    item.item_type, item.code or item.name, po.po_number, 1, tracking_type='bulk'
+                )
+                qr_image = generate_qr_base64(qr_data)
+                part = PartInstance(
+                    company_id=current_user.company_id,
+                    purchase_order_id=po.id,
+                    item_id=item.id,
+                    serial_number=qr_data,
+                    qr_code_data=qr_data,
+                    qr_code_image=qr_image,
+                    current_status="in_stock"
+                )
+                db.add(part)
+                all_qr_codes.append({
+                    "serial": qr_data, "item": item.name, "unit": "batch", "quantity": qty
+                })
+            else:
+                for unit_num in range(1, qty + 1):
+                    qr_data = generate_part_qr_data(
+                        item.item_type, item.code or item.name, po.po_number, unit_num, tracking_type='unit'
+                    )
+                    qr_image = generate_qr_base64(qr_data)
+                    part = PartInstance(
+                        company_id=current_user.company_id,
+                        purchase_order_id=po.id,
+                        item_id=item.id,
+                        serial_number=qr_data,
+                        qr_code_data=qr_data,
+                        qr_code_image=qr_image,
+                        current_status="in_stock"
+                    )
+                    db.add(part)
+                    all_qr_codes.append({
+                        "serial": qr_data, "item": item.name, "unit": unit_num
+                    })
 
+        # stock ledger runs for every item regardless of QR tracking
         stock_entry = StockLedger(
             company_id=current_user.company_id,
             item_id=item.id,
