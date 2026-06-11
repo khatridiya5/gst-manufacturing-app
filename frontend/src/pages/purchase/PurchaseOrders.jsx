@@ -47,6 +47,8 @@ export default function PurchaseOrders() {
   const [payModal, setPayModal] = useState(null) // { id, po_number, total, paid }
   const [payAmount, setPayAmount] = useState('')
   const [payNote, setPayNote] = useState('')
+  const [inStoreItems, setInStoreItems] = useState([])
+  const [activeSuggestionRow, setActiveSuggestionRow] = useState(null)
 
   // form state
   const [vendorId, setVendorId] = useState('')
@@ -55,29 +57,50 @@ export default function PurchaseOrders() {
   const [lineItems, setLineItems] = useState([{ item_name: '', quantity: '', unit_price: '', tracking_type: 'unit' }])
 
   const fetchPOs = async () => {
-    try {
-      const [posRes, vendorsRes] = await Promise.all([
-        api.get('/purchase/po'),
-        api.get('/master/vendors'),
-      ])
-      setPOs(posRes.data)
-      setVendors(vendorsRes.data)
-    } catch (err) {
-      console.error(err)
-    } finally {
-      setLoading(false)
-    }
+  try {
+    const [posRes, vendorsRes, itemsRes] = await Promise.all([
+      api.get('/purchase/po'),
+      api.get('/master/vendors'),
+      api.get('/api/inventory/in-store'),
+    ])
+    setPOs(posRes.data)
+    setVendors(vendorsRes.data)
+    setInStoreItems(Array.isArray(itemsRes.data) ? itemsRes.data : [])
+  } catch (err) {
+    console.error(err)
+  } finally {
+    setLoading(false)
   }
+}
 
   useEffect(() => { fetchPOs() }, [])
 
   const handleAddLine = () => setLineItems([...lineItems, { item_name: '', quantity: '', unit_price: '', tracking_type: 'unit' }])
 
-  const handleLineChange = (i, field, value) => {
-    const updated = [...lineItems]
-    updated[i][field] = value
-    setLineItems(updated)
+  const getSuggestions = (query) => {
+  if (!query || query.length < 1) return []
+  const q = query.toLowerCase()
+  return inStoreItems.filter(i => i.name?.toLowerCase().includes(q)).slice(0, 6)
+}
+
+const handleSelectSuggestion = (i, item) => {
+  const updated = [...lineItems]
+  updated[i] = {
+    ...updated[i],
+    item_name: item.name,
+    part_code: item.part_code || '',
   }
+  setLineItems(updated)
+  setActiveSuggestionRow(null)
+}
+
+
+  const handleLineChange = (i, field, value) => {
+  const updated = [...lineItems]
+  updated[i][field] = value
+  if (field === 'item_name') setActiveSuggestionRow(i)
+  setLineItems(updated)
+}
 
   const handleRemoveLine = (i) => setLineItems(lineItems.filter((_, idx) => idx !== i))
 
@@ -307,14 +330,32 @@ export default function PurchaseOrders() {
               <div className="space-y-2">
                 {lineItems.map((li, i) => (
                   <div key={i} className="grid grid-cols-7 gap-2 items-center">
-                  <input
-                    type="text"
-                    placeholder="Material name"
-                    value={li.item_name}
-                    onChange={(e) => handleLineChange(i, 'item_name', e.target.value)}
-                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
-                    required
-                  />
+                  <div className="relative">
+  <input
+    type="text"
+    placeholder="Material name"
+    value={li.item_name}
+    onChange={(e) => handleLineChange(i, 'item_name', e.target.value)}
+    onFocus={() => setActiveSuggestionRow(i)}
+    onBlur={() => setTimeout(() => setActiveSuggestionRow(null), 150)}
+    className="w-full px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+    required
+  />
+  {activeSuggestionRow === i && getSuggestions(li.item_name).length > 0 && (
+    <div className="absolute z-10 mt-1 w-64 bg-white border border-slate-200 rounded-lg shadow-lg max-h-48 overflow-y-auto">
+      {getSuggestions(li.item_name).map((item) => (
+        <div
+          key={item.item_id}
+          onMouseDown={() => handleSelectSuggestion(i, item)}
+          className="px-3 py-2 text-sm hover:bg-teal-50 cursor-pointer flex items-center justify-between"
+        >
+          <span className="text-slate-700">{item.name}</span>
+          <span className="text-xs text-slate-400 font-mono">{item.part_code || '—'}</span>
+        </div>
+      ))}
+    </div>
+  )}
+</div>
                   <input
                     type="text"
                     placeholder="Part code (optional)"
