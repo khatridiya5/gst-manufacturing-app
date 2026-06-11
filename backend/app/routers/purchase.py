@@ -358,16 +358,42 @@ def get_po_qr_codes(
     if not po.track_qr:
         return {"message": "QR tracking was not enabled for this PO", "parts": []}
 
+    result = []
+
+    # Unit-tracked parts
     parts = db.query(PartInstance).filter(
         PartInstance.purchase_order_id == po_id,
         PartInstance.company_id == current_user.company_id
     ).all()
-    return [{
-        "serial_number": p.serial_number,
-        "item_id": p.item_id,
-        "qr_code_image": p.qr_code_image,
-        "status": p.current_status
-    } for p in parts]
+    for p in parts:
+        result.append({
+            "serial_number": p.serial_number,
+            "item_id": p.item_id,
+            "qr_code_image": p.qr_code_image,
+            "status": p.current_status
+        })
+
+    # Bulk-tracked items on this PO — show their (reusable) batch QR
+    po_lines = db.query(POLineItem).filter(POLineItem.po_id == po_id).all()
+    seen_items = set()
+    for li in po_lines:
+        if (li.tracking_type or "unit") != "bulk":
+            continue
+        item = db.query(Item).filter(
+            func.lower(Item.name) == li.item_name.strip().lower(),
+            Item.company_id == current_user.company_id
+        ).first()
+        if not item or not item.batch_qr_code or item.id in seen_items:
+            continue
+        seen_items.add(item.id)
+        result.append({
+            "serial_number": item.batch_qr_code,
+            "item_id": item.id,
+            "qr_code_image": item.batch_qr_image,
+            "status": "batch"
+        })
+
+    return result
 
 # ─── GET ALL POs ──────────────────────────────────────────────
 
