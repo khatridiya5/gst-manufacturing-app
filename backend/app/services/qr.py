@@ -16,10 +16,13 @@ def generate_qr_base64(data: str) -> str:
     img.save(buffer, format="PNG")
     return base64.b64encode(buffer.getvalue()).decode()
 
-def generate_part_qr_data(item_type: str, item_code: str, po_number: str, unit_number: int) -> str:
-    prefix = "RM" if item_type == "raw_material" else "FG"
+# REPLACE WITH THIS:
+def generate_part_qr_data(item_type: str, item_code: str, po_number: str, unit_number: int, tracking_type: str = 'unit') -> str:
     code = item_code.upper().replace(" ", "")[:8]
-    return f"{prefix}-{code}-{po_number}-{unit_number:04d}"
+    if tracking_type == 'bulk':
+        return f"BULK-{code}-{po_number}"   # one QR for whole batch
+    else:
+        return f"UNIT-{code}-{po_number}-{unit_number:04d}"  # one QR per piece
 
 def generate_worker_qr_data(worker_code: str, worker_name: str) -> str:
     name = worker_name.upper().replace(" ", "")[:8]
