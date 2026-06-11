@@ -197,10 +197,10 @@ def receive_po(
             db.add(item)   # ✅ ADD THIS
             db.flush()     # ✅ ADD THIS — gives item.id before we use it below
         else:
-        # Update part code if provided and not already set
+            # Update part code if provided and not already set
             if li.part_code and not item.code:
                 item.code = li.part_code
-            if li.tax_rate:
+            if li.tax_rate is not None:
                 item.tax_rate = li.tax_rate
             db.add(item)
             db.flush()  # get item.id immediately
