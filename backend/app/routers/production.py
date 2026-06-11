@@ -376,27 +376,29 @@ def get_orders(
 @router.get("/wip")
 def get_wip_scans(db: Session = Depends(get_db)):
     results = (
-        db.query(WIPScan, Worker.name, Worker.department, PartInstance.qr_code_data)
-        .join(Worker, WIPScan.worker_id == Worker.id)
-        .join(PartInstance, WIPScan.part_instance_id == PartInstance.id)
-        .order_by(WIPScan.scanned_at.desc())
-        .limit(100)
-        .all()
-    )
+    db.query(WIPScan, Worker.name, Worker.department, PartInstance.qr_code_data, Item.name)
+    .join(Worker, WIPScan.worker_id == Worker.id)
+    .outerjoin(PartInstance, WIPScan.part_instance_id == PartInstance.id)
+    .outerjoin(Item, WIPScan.item_id == Item.id)
+    .order_by(WIPScan.scanned_at.desc())
+    .limit(100)
+    .all()
+)
     return [
         {
             "id": scan.id,
             "worker_id": scan.worker_id,
             "worker_name": name,
             "worker_department": department,
-            "part_code": qr_code_data, 
+            "part_code": qr_code_data or item_name,
             "part_instance_id": scan.part_instance_id,
             "scan_type": scan.scan_type,
             "workstation": scan.workstation,
             "duration_minutes": scan.duration_minutes,
             "scanned_at": scan.scanned_at,
+            "quantity": scan.quantity,
         }
-        for scan, name, department ,qr_code_data in results
+        for scan, name, department, qr_code_data, item_name in results
     ]
 
 
