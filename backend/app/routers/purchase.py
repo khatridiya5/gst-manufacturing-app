@@ -28,6 +28,7 @@ class POLineItemIn(BaseModel):
     unit_price: Decimal
     part_code: Optional[str] = None
     tax_rate: Optional[Decimal] = Decimal("0.00")
+    tracking_type: Optional[str] = "unit"
 
 class POCreate(BaseModel):
     vendor_id: int
@@ -109,9 +110,9 @@ def create_po(
             part_code=li.part_code,
             tax_rate=li.tax_rate,
             quantity=li.quantity,
-            unit_price=li.unit_price
-
-)
+            unit_price=li.unit_price,
+            tracking_type=li.tracking_type or "unit"
+        )
         db.add(po_line)
 
     db.commit()
@@ -191,6 +192,7 @@ def receive_po(
                 tax_rate=li.tax_rate or Decimal("0.00"),
                 opening_stock=0,
                 current_stock=0,
+                tracking_type=li.tracking_type or "unit",
             )
             db.add(item)   # ✅ ADD THIS
             db.flush()     # ✅ ADD THIS — gives item.id before we use it below
@@ -262,27 +264,32 @@ def receive_po(
             tracking = item.tracking_type or 'unit'
 
             if tracking == 'bulk':
-                qr_data = generate_part_qr_data(
-                    item.item_type, item.code or item.name, po.po_number, 1, tracking_type='bulk'
-                )
-                qr_image = generate_qr_base64(qr_data)
-                part = PartInstance(
-                    company_id=current_user.company_id,
-                    purchase_order_id=po.id,
-                    item_id=item.id,
-                    serial_number=qr_data,
-                    qr_code_data=qr_data,
-                    qr_code_image=qr_image,
-                    current_status="in_stock"
-                )
-                db.add(part)
+                if not item.batch_qr_code:
+                    qr_data = generate_part_qr_data(
+                        item.item_type,
+                        item.code or item.name,
+                        po.po_number,
+                        1,
+                        tracking_type='bulk'
+                    )
+                    item.batch_qr_code = qr_data
+                    item.batch_qr_image = generate_qr_base64(qr_data)
+                    db.add(item)
+
                 all_qr_codes.append({
-                    "serial": qr_data, "item": item.name, "unit": "batch", "quantity": qty
+                    "serial": item.batch_qr_code,
+                    "item": item.name,
+                    "unit": "batch",
+                    "quantity": qty
                 })
             else:
                 for unit_num in range(1, qty + 1):
                     qr_data = generate_part_qr_data(
-                        item.item_type, item.code or item.name, po.po_number, unit_num, tracking_type='unit'
+                        item.item_type,
+                        item.code or item.name,
+                        str(po.id),
+                        unit_num,
+                        tracking_type='unit'
                     )
                     qr_image = generate_qr_base64(qr_data)
                     part = PartInstance(
@@ -296,10 +303,11 @@ def receive_po(
                     )
                     db.add(part)
                     all_qr_codes.append({
-                        "serial": qr_data, "item": item.name, "unit": unit_num
+                        "serial": qr_data,
+                        "item": item.name,
+                        "unit": unit_num
                     })
 
-        # stock ledger runs for every item regardless of QR tracking
         stock_entry = StockLedger(
             company_id=current_user.company_id,
             item_id=item.id,

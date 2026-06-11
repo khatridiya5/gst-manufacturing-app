@@ -347,6 +347,7 @@ export default function ProductionOrders() {
                     onChange={e => { const u = [...bomForm.line_items]; u[i].scrap_percentage = e.target.value; setBomForm({ ...bomForm, line_items: u }) }}
                     className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
                   />
+                  
                   <button
                     type="button"
                     onClick={() => setBomForm({ ...bomForm, line_items: bomForm.line_items.filter((_, idx) => idx !== i) })}

@@ -64,3 +64,4 @@ class POLineItem(Base):
     quantity = Column(Integer, nullable=False)
     unit_price = Column(Numeric(10, 2), nullable=False)
     tax_rate = Column(Numeric(5, 2), default=0, nullable=True)
+    tracking_type = Column(String(10), default='unit')

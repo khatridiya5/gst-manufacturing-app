@@ -18,3 +18,5 @@ class Item(Base):
     purchase_price = Column(Numeric(10, 2), nullable=True, default=0)  # ← add this
     tracking_type = Column(String(10), default='unit')
     created_at = Column(DateTime, server_default=func.now())
+    batch_qr_code = Column(String(100), nullable=True)
+    batch_qr_image = Column(Text, nullable=True)

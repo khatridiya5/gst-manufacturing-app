@@ -403,32 +403,83 @@ def get_wip_scans(db: Session = Depends(get_db)):
 class WIPScanIn(BaseModel):
     worker_qr: str
     part_qr: str
-    scan_type: str  # "start" or "end"
+    quantity: Optional[int] = 1
     workstation: Optional[str] = None
 
 @router.post("/wip/scan")
 def submit_wip_scan(data: WIPScanIn, db: Session = Depends(get_db)):
-    # resolve worker from qr_code_data
     worker = db.query(Worker).filter(Worker.qr_code_data == data.worker_qr).first()
     if not worker:
         raise HTTPException(status_code=404, detail="Worker QR not recognised")
 
-    part = db.query(PartInstance).filter(PartInstance.qr_code_data == data.part_qr).first()
-    if not part:
-        raise HTTPException(status_code=404, detail="Part instance not found")
+    qr = data.part_qr.strip()
 
-    scan = WIPScan(
-        company_id=worker.company_id,
-        worker_id=worker.id,
-        part_instance_id=part.id,
-        scan_type=data.scan_type,
-        workstation=data.workstation,
-        scanned_at=datetime.utcnow()
-    )
-    db.add(scan)
-    db.commit()
-    db.refresh(scan)
-    return {"message": "Scan recorded", "scan_id": scan.id, "worker_name": worker.name}
+    if qr.startswith("UNIT-"):
+        part = db.query(PartInstance).filter(PartInstance.qr_code_data == qr).first()
+        if not part:
+            raise HTTPException(status_code=404, detail="Part not found")
+        if part.current_status == "issued":
+            raise HTTPException(status_code=400, detail="This part has already been scanned/issued")
+
+        part.current_status = "issued"
+        scan = WIPScan(
+            company_id=worker.company_id,
+            worker_id=worker.id,
+            part_instance_id=part.id,
+            item_id=part.item_id,
+            quantity=1,
+            workstation=data.workstation,
+            scanned_at=datetime.utcnow()
+        )
+        db.add(scan)
+        db.commit()
+        db.refresh(scan)
+        return {"message": "Scan recorded", "scan_id": scan.id, "worker_name": worker.name}
+
+    elif qr.startswith("BULK-"):
+        item = db.query(Item).filter(
+            Item.batch_qr_code == qr,
+            Item.company_id == worker.company_id
+        ).first()
+        if not item:
+            raise HTTPException(status_code=404, detail="Item not found for this batch QR")
+
+        qty = data.quantity or 1
+        if qty < 1:
+            raise HTTPException(status_code=400, detail="Quantity must be at least 1")
+        if item.current_stock < qty:
+            raise HTTPException(status_code=400, detail=f"Only {item.current_stock} {item.unit} available")
+
+        item.current_stock -= qty
+
+        stock_out = StockLedger(
+            company_id=worker.company_id,
+            item_id=item.id,
+            transaction_type="wip_issue",
+            reference_id=worker.id,
+            reference_type="wip_scan",
+            quantity=-qty,
+            unit_cost=item.purchase_price,
+            transaction_date=date.today()
+        )
+        db.add(stock_out)
+
+        scan = WIPScan(
+            company_id=worker.company_id,
+            worker_id=worker.id,
+            part_instance_id=None,
+            item_id=item.id,
+            quantity=qty,
+            workstation=data.workstation,
+            scanned_at=datetime.utcnow()
+        )
+        db.add(scan)
+        db.commit()
+        db.refresh(scan)
+        return {"message": "Scan recorded", "scan_id": scan.id, "worker_name": worker.name, "remaining_stock": item.current_stock}
+
+    else:
+        raise HTTPException(status_code=400, detail="QR must start with UNIT- or BULK-")
 
 
 

@@ -52,7 +52,7 @@ export default function PurchaseOrders() {
   const [vendorId, setVendorId] = useState('')
   const [poDate, setPoDate] = useState(new Date().toISOString().split('T')[0])
   const [trackQr, setTrackQr] = useState(false)
-  const [lineItems, setLineItems] = useState([{ item_name: '', quantity: '', unit_price: '' }])
+  const [lineItems, setLineItems] = useState([{ item_name: '', quantity: '', unit_price: '', tracking_type: 'unit' }])
 
   const fetchPOs = async () => {
     try {
@@ -71,7 +71,7 @@ export default function PurchaseOrders() {
 
   useEffect(() => { fetchPOs() }, [])
 
-  const handleAddLine = () => setLineItems([...lineItems, { item_name: '', quantity: '', unit_price: '' }])
+  const handleAddLine = () => setLineItems([...lineItems, { item_name: '', quantity: '', unit_price: '', tracking_type: 'unit' }])
 
   const handleLineChange = (i, field, value) => {
     const updated = [...lineItems]
@@ -93,12 +93,14 @@ export default function PurchaseOrders() {
           quantity: parseInt(li.quantity),
           unit_price: parseFloat(li.unit_price),
           tax_rate: parseFloat(li.tax_rate) || 0,
+          part_code: li.part_code || null,
+          tracking_type: li.tracking_type || 'unit',
         }))
       })
       setShowForm(false)
       setVendorId('')
       setTrackQr(false)
-      setLineItems([{ item_name: '', quantity: '', unit_price: '' }])
+      setLineItems([{ item_name: '', quantity: '', unit_price: '', tracking_type: 'unit' }])
       fetchPOs()
     } catch (err) {
       alert(err.response?.data?.detail || 'Error creating PO')
@@ -304,7 +306,7 @@ export default function PurchaseOrders() {
               <label className="block text-sm font-medium text-slate-600 mb-2">Items</label>
               <div className="space-y-2">
                 {lineItems.map((li, i) => (
-                  <div key={i} className="grid grid-cols-6 gap-2 items-center">
+                  <div key={i} className="grid grid-cols-7 gap-2 items-center">
                   <input
                     type="text"
                     placeholder="Material name"
@@ -343,6 +345,14 @@ export default function PurchaseOrders() {
                     onChange={(e) => handleLineChange(i, 'tax_rate', e.target.value)}
                     className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
                   />
+                  <select
+                    value={li.tracking_type || 'unit'}
+                    onChange={(e) => handleLineChange(i, 'tracking_type', e.target.value)}
+                    className="px-3 py-2 border border-slate-200 rounded-lg text-sm focus:outline-none focus:border-teal-500"
+                  >
+                    <option value="unit">Unit-wise</option>
+                    <option value="bulk">Batch-wise</option>
+                  </select>
                   <button
                     type="button"
                     onClick={() => handleRemoveLine(i)}
