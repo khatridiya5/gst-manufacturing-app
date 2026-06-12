@@ -76,7 +76,7 @@ def get_in_store(db: Session = Depends(get_db), current_user: User = Depends(get
                 i.id in total_received_map  # only flag if item has been received at least once
                 and float(i.current_stock) <= total_received_map[i.id] * 0.1
             ),
-            "track_qr": i.id in qr_item_ids,
+            "track_qr": (i.id in qr_item_ids) or (i.tracking_type == "bulk" and bool(i.batch_qr_code)),
         }
         for i in items
     ]
