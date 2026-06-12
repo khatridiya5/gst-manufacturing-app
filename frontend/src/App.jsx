@@ -22,6 +22,7 @@ import PayablesSummary from './pages/payments/PayablesSummary'
 import ReceivablesSummary from './pages/payments/ReceivablesSummary'
 import PaymentLedger from './pages/payments/PaymentLedger'
 import PaymentsDashboard from './pages/payments/PaymentsDashboard'
+import DataImport from "./pages/master/DataImport";
 
 const PrivateRoute = ({ children }) => {
   const token = localStorage.getItem('token')
@@ -66,6 +67,7 @@ export default function App() {
         <Route path="payments/payables" element={<PayablesSummary />} />
         <Route path="payments/receivables" element={<ReceivablesSummary />} />
         <Route path="payments/ledger" element={<PaymentLedger />} />
+        <Route path="/data-import" element={<DataImport />} />
         
       </Route>
 
