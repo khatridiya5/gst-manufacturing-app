@@ -58,7 +58,7 @@ def get_in_store(db: Session = Depends(get_db), current_user: User = Depends(get
         StockLedger.item_id,
         func.sum(StockLedger.quantity).label("total")
     ).filter(
-        StockLedger.transaction_type.in_(["issue_out", "manual_out"]),
+        StockLedger.transaction_type.in_(["issue_out", "manual_out", "wip_issue"]),  # ← add wip_issue
         StockLedger.company_id == current_user.company_id
     ).group_by(StockLedger.item_id).all()
 

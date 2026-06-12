@@ -460,7 +460,7 @@ def submit_wip_scan(data: WIPScanIn, db: Session = Depends(get_db)):
             transaction_type="wip_issue",
             reference_id=worker.id,
             reference_type="wip_scan",
-            quantity=-qty,
+            quantity=qty,
             unit_cost=item.purchase_price,
             transaction_date=date.today()
         )
