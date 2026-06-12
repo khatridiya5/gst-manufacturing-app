@@ -132,6 +132,7 @@ export default function DataImport() {
             <p>Items added/updated: {result.items}</p>
             <p>Vendors added: {result.vendors}</p>
             <p>Customers added: {result.customers}</p>
+            <p>Workers added: {result.workers}</p>
             <p>Skipped rows: {result.skipped}</p>
             {result.errors.length > 0 && (
               <div style={{ marginTop: "12px" }}>

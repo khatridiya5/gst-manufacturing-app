@@ -10,6 +10,8 @@ from app.models.customer import Customer
 from app.models.stock import StockLedger
 from app.utils.auth import get_current_user, require_role
 from app.models.user import User
+from app.models.worker import Worker
+from app.services.qr import generate_qr_base64, generate_worker_qr_data
 
 router = APIRouter(prefix="/import", tags=["Data Import"])
 
@@ -30,7 +32,7 @@ async def import_excel(
     wb = openpyxl.load_workbook(file.file, data_only=True)
     company_id = current_user.company_id
 
-    summary = {"items": 0, "vendors": 0, "customers": 0, "skipped": 0, "errors": []}
+    summary = {"items": 0, "vendors": 0, "customers": 0, "workers": 0, "skipped": 0, "errors": []}
 
     # ── ITEMS ──
     if "Items" in wb.sheetnames:
@@ -165,7 +167,57 @@ async def import_excel(
                 summary["customers"] += 1
             except Exception as e:
                 summary["errors"].append(f"Customers row {row_num}: {e}")
+    # ── WORKERS ──
+    if "Workers" in wb.sheetnames:
+        ws = wb["Workers"]
+        headers = [c.value for c in ws[1]]
 
+        # Find the last worker code already used, to continue numbering
+        last_worker = db.query(Worker).filter(
+            Worker.company_id == company_id
+        ).order_by(Worker.id.desc()).first()
+
+        if last_worker:
+            next_num = int(last_worker.worker_code[1:]) + 1
+        else:
+            next_num = 1
+
+        for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+            if not row[0]:
+                continue
+            data = dict(zip(headers, row))
+            try:
+                name = safe_str(data.get("name"))
+                if not name:
+                    summary["skipped"] += 1
+                    continue
+
+                existing = db.query(Worker).filter(
+                    func.lower(Worker.name) == name.lower(),
+                    Worker.company_id == company_id
+                ).first()
+                if existing:
+                    summary["skipped"] += 1
+                    continue
+
+                worker_code = f"W{str(next_num).zfill(3)}"
+                next_num += 1
+
+                qr_data = generate_worker_qr_data(worker_code, name)
+                qr_image = generate_qr_base64(qr_data)
+
+                db.add(Worker(
+                    company_id=company_id,
+                    name=name,
+                    worker_code=worker_code,
+                    department=safe_str(data.get("department")),
+                    phone=safe_str(data.get("phone")),
+                    qr_code_data=qr_data,
+                    qr_code_image=qr_image
+                ))
+                summary["workers"] += 1
+            except Exception as e:
+                summary["errors"].append(f"Workers row {row_num}: {e}")
     db.commit()
     return {"message": "Import completed", "summary": summary}
 
@@ -187,6 +239,10 @@ def download_template():
     customers_ws = wb.create_sheet("Customers")
     customers_ws.append(["name", "gstin", "pan", "address", "state", "state_code", "phone", "email", "bank_name", "account_number", "ifsc_code", "account_holder_name"])
     customers_ws.append(["ABC Motors", "27XYZAB1234F1Z5", "XYZAB1234F", "Sample Address", "Maharashtra", "27", "8888888888", "customer@example.com", "", "", "", ""])
+
+    workers_ws = wb.create_sheet("Workers")
+    workers_ws.append(["name", "department", "phone"])
+    workers_ws.append(["KUNJ PATEL", "Assembly", "9876543210"])
 
     import io
     buf = io.BytesIO()
