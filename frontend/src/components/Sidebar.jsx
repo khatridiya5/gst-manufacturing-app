@@ -14,6 +14,7 @@ const allLinks = [
   { to: '/wip',          label: 'WIP Tracking',  icon: '📡', roles: ['admin', 'production'] },
   { to: '/in-store',     label: 'In-Store',      icon: '🏪', roles: ['admin', 'store_manager'] },
   { to: '/issue-items',  label: 'Issue Items',   icon: '📤', roles: ['admin', 'store_manager'] },
+  { to: '/data-import',  label: 'Data Import',   icon: '📥', roles: ['admin'] },
   { to: '/admin',        label: 'User Management',icon: '⚙️', roles: ['admin'] },
   
 ]
