@@ -84,13 +84,29 @@ export default function DataImport() {
           background: "#fff",
         }}
       >
-        <input
-          type="file"
-          accept=".xlsx"
-          onChange={(e) => setFile(e.target.files[0])}
-          style={{ marginBottom: "16px" }}
-        />
-        <br />
+        
+        <label
+  htmlFor="excel-file-input"
+  style={{
+    display: "inline-block",
+    padding: "10px 18px",
+    background: "#f1f5f9",
+    border: "1px solid #cbd5e1",
+    borderRadius: "8px",
+    cursor: "pointer",
+    marginBottom: "16px",
+  }}
+>
+  {file ? file.name : "Choose Excel File"}
+</label>
+<input
+  id="excel-file-input"
+  type="file"
+  accept=".xlsx"
+  onChange={(e) => setFile(e.target.files[0])}
+  style={{ display: "none" }}
+/>
+<br />
         <button
           onClick={handleUpload}
           disabled={!file || loading}
