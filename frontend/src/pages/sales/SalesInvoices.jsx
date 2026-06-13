@@ -104,6 +104,12 @@ export default function SalesInvoices() {
   }
 
   const getCustomerName = (id) => customers.find(c => c.id === id)?.name || '—'
+  // add this helper near getCustomerName
+const formatDate = (d) => {
+  if (!d) return '—'
+  const [y, m, day] = d.split('-')
+  return `${day}-${m}-${y}`
+}
 
   const totalSales = invoices.reduce((sum, i) => sum + Number(i.total_amount), 0)
   const totalGST = invoices.reduce((sum, i) => sum + Number(i.cgst_amount) + Number(i.sgst_amount) + Number(i.igst_amount), 0)
@@ -334,7 +340,7 @@ export default function SalesInvoices() {
                   <tr key={inv.id} className="hover:bg-slate-50">
                     <td className="px-5 py-3 font-medium text-slate-700">{inv.invoice_number}</td>
                     <td className="px-5 py-3 text-slate-600">{getCustomerName(inv.customer_id)}</td>
-                    <td className="px-5 py-3 text-slate-500">{inv.invoice_date}</td>
+                    <td className="px-5 py-3 text-slate-500">{formatDate(inv.invoice_date)}</td>
                     <td className="px-5 py-3 text-center">
                       <span className={`px-2 py-0.5 rounded text-xs font-medium ${
                         inv.is_interstate
@@ -430,7 +436,7 @@ export default function SalesInvoices() {
                 <tbody className="divide-y divide-slate-50">
                   {selectedInvoice.line_items?.map((li, i) => (
                     <tr key={i}>
-                      <td className="px-4 py-2 text-slate-700">Item #{li.item_id}</td>
+                      <td className="px-4 py-2 text-slate-700">{li.item_name || `Item #${li.item_id}`}</td>
                       <td className="px-4 py-2 text-right">{li.quantity}</td>
                       <td className="px-4 py-2 text-right">₹{Number(li.unit_price).toLocaleString('en-IN')}</td>
                       <td className="px-4 py-2 text-right text-teal-600">

@@ -218,7 +218,7 @@ def get_invoice(
 
     return {
         "invoice_number": invoice.invoice_number,
-        "invoice_date": str(invoice.invoice_date),
+        "invoice_date": invoice.invoice_date.strftime("%d-%m-%Y"),
         "customer": customer.name,
         "is_interstate": invoice.is_interstate,
         "subtotal": str(invoice.subtotal),
@@ -230,6 +230,7 @@ def get_invoice(
         "payment_status": invoice.payment_status,
         "line_items": [{
             "item_id": l.item_id,
+            "item_name": l.item.name if l.item else f"Item #{l.item_id}",
             "quantity": str(l.quantity),
             "unit_price": str(l.unit_price),
             "tax_rate": str(l.tax_rate),
