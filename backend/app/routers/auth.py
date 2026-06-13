@@ -14,9 +14,6 @@ from app.utils.auth import create_access_token, get_current_user
 router = APIRouter(prefix="/auth", tags=["auth"])
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 
-ALLOWED_EMAIL = "admin"
-ALLOWED_PASSWORD = "me"
-
 # ── Schemas ──────────────────────────────────────────────────
 class RegisterRequest(BaseModel):
     name: str
@@ -54,8 +51,6 @@ def get_current_admin(current_user: User = Depends(get_current_user)):
 # ── Auth Routes ───────────────────────────────────────────────
 @router.post("/register", status_code=201)
 def register(body: RegisterRequest, db: Session = Depends(get_db)):
-    if body.email != ALLOWED_EMAIL:
-        raise HTTPException(status_code=403, detail="Registration is not open")
     if db.query(User).filter(User.email == body.email).first():
         raise HTTPException(status_code=400, detail="Email already registered")
     if len(body.password) < 8:
@@ -86,22 +81,18 @@ def register(body: RegisterRequest, db: Session = Depends(get_db)):
 
 @router.post("/login", response_model=TokenResponse)
 def login(form: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    if form.username != ALLOWED_EMAIL or form.password != ALLOWED_PASSWORD:
+    user = db.query(User).filter(User.email == form.username).first()
+    if not user or not verify_password(form.password, user.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid credentials")
-    
-    # Get the first admin user in DB (don't look up by email)
-    user = db.query(User).filter(User.role == "admin").first()
-    if not user:
-        raise HTTPException(status_code=401, detail="No admin user found in DB")
     if not user.is_active:
         raise HTTPException(status_code=403, detail="Account is disabled")
 
     token = create_access_token({
         "user_id": user.id,
-        "role": "admin",
+        "role": user.role,
         "company_id": user.company_id,
     })
-    return {"access_token": token, "token_type": "bearer", "role": "admin"}
+    return {"access_token": token, "token_type": "bearer", "role": user.role}
 
 
 @router.get("/me")
@@ -173,14 +164,24 @@ def section_login(body: SectionLoginRequest, db: Session = Depends(get_db)):
     if body.section not in allowed:
         raise HTTPException(status_code=422, detail=f"section must be one of {allowed}")
 
-    cred = db.query(SectionCredential).filter_by(section=body.section).first()
-    if not cred:
-        raise HTTPException(status_code=404, detail="Section not set up yet — ask admin to configure credentials")
-    if cred.username != body.username or not verify_password(body.password, cred.hashed_password):
+    # NOTE: this still finds the first matching section across ALL companies.
+    # That's fine ONLY if usernames are unique system-wide. If two companies
+    # both set up a "purchase" section with the same username, this breaks.
+    # Proper fix: section login should be scoped per-company, e.g. by
+    # accepting a company slug/code in the request. Flagging this for you —
+    # let me know if you want that added now or later.
+    cred = db.query(SectionCredential).filter_by(
+        section=body.section, username=body.username
+    ).first()
+    if not cred or not verify_password(body.password, cred.hashed_password):
         raise HTTPException(status_code=401, detail="Invalid section credentials")
 
     role = "store_manager" if body.section == "store" else body.section
-    token = create_access_token({"section": body.section, "role": role})
+    token = create_access_token({
+        "section": body.section,
+        "role": role,
+        "company_id": cred.company_id,
+    })
     return {"access_token": token, "token_type": "bearer", "role": role, "section": body.section}
 
 
@@ -208,13 +209,3 @@ def delete_section_credential(
     db.delete(cred)
     db.commit()
     return {"message": f"{section} credentials removed"}
-
-
-@router.post("/fix-admin")
-def fix_admin(email: str, db: Session = Depends(get_db)):
-    user = db.query(User).filter(User.email == email).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-    user.role = "admin"
-    db.commit()
-    return {"message": f"{email} is now admin"}

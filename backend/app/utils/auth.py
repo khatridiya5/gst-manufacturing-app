@@ -33,34 +33,37 @@ def get_current_user(
     )
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id: int = payload.get("user_id")
+        user_id = payload.get("user_id")
 
         if user_id is None:
             section = payload.get("section")
-            if section not in ("purchase", "production", "sales", "store"):
+            company_id = payload.get("company_id")
+            if section not in ("purchase", "production", "sales", "store") or company_id is None:
                 raise credentials_exception
-            # Look up a real admin user for this company to use as created_by
+
+            # Find a real admin user for this company to use as created_by/FK target
             real_user = db.query(User).filter(
-                User.company_id == 2,
+                User.company_id == company_id,
                 User.is_active == True
             ).first()
             if not real_user:
                 raise credentials_exception
+
             dummy = User()
-            dummy.id = real_user.id  # use real user ID to avoid FK violation
+            dummy.id = real_user.id
             dummy.role = "store_manager" if section == "store" else section
-            dummy.company_id = 2
+            dummy.company_id = company_id
             dummy.is_active = True
             return dummy
+
+        user = db.query(User).filter(User.id == user_id).first()
+        if user is None or not user.is_active:
+            raise credentials_exception
+        return user
 
     except JWTError:
         raise credentials_exception
 
-    user = db.query(User).filter(User.id == user_id).first()
-    if user is None or not user.is_active:
-        raise credentials_exception
-
-    return user
 
 def require_role(*roles):
     def role_checker(current_user: User = Depends(get_current_user)):

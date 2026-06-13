@@ -6,6 +6,8 @@ from app.models import user, company, section_credentials
 from app.routers import issue_items
 from app.routers import payment
 from app.routers import data_import
+from app.routers import license as license_router
+from app.models import license as license_model  # so create_all sees the tables
 
 app = FastAPI(title="GST Manufacturing App")
 # Creates all missing tables automatically on startup
@@ -31,6 +33,7 @@ app.include_router(inventory.router)
 app.include_router(issue_items.router)
 app.include_router(payment.router)
 app.include_router(data_import.router)
+app.include_router(license_router.router)
 
 @app.on_event("startup")
 def startup():
