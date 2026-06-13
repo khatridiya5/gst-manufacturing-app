@@ -237,5 +237,5 @@ def get_customer_balance(customer_id: int, db: Session = Depends(get_db),
         SalesInvoice.company_id == current_user.company_id
     ).all()
     total = sum(i.total_amount for i in invoices)
-    paid = sum(i.amount_paid or 0 for i in invoices)
+    paid = sum(i.total_amount for i in invoices if i.payment_status == "paid")
     return {"total": str(total), "paid": str(paid), "balance": str(total - paid)}
