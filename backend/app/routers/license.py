@@ -152,3 +152,13 @@ def admin_revoke_license(license_key: str, db: Session = Depends(get_db)):
     lic.status = "revoked"
     db.commit()
     return {"status": "ok"}
+
+
+@router.post("/admin/activate/{license_key}")
+def admin_activate_license(license_key: str, db: Session = Depends(get_db)):
+    lic = db.query(License).filter(License.license_key == license_key).first()
+    if not lic:
+        raise HTTPException(status_code=404, detail="License not found")
+    lic.status = "active"
+    db.commit()
+    return {"status": "ok"}
