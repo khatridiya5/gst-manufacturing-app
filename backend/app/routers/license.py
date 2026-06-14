@@ -109,14 +109,15 @@ def admin_create_license(body: CreateLicenseRequest, db: Session = Depends(get_d
     existing = db.query(License).filter(License.license_key == body.license_key).first()
     if existing:
         raise HTTPException(status_code=400, detail="License key already exists")
+    # ✅ CORRECT
     lic = License(
         license_key=body.license_key,
         company_id=body.company_id,
         max_devices=body.max_devices,
-        valid_until=datetime.strptime(body.valid_until, "%Y-%m-%d") if body.valid_until else None,
-        status="active"
-        allowed_username=body.allowed_username,                        # ✅ NEW
-        allowed_password_hash=pwd_context.hash(body.allowed_password)  # ✅ NEW
+        valid_until=datetime.strptime(body.valid_until, "%Y-%m-%d") if body.valid_until else None,  # ← comma here
+        status="active",
+        allowed_username=body.allowed_username,
+        allowed_password_hash=pwd_context.hash(body.allowed_password)
     )
     db.add(lic)
     db.commit()
