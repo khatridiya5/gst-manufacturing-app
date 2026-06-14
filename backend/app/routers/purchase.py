@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
+from sqlalchemy import func
 from typing import List, Optional
 from pydantic import BaseModel
 from decimal import Decimal
@@ -15,7 +16,6 @@ from app.models.user import User
 from app.services.itc import calculate_tax, is_interstate_transaction
 from app.services.qr import generate_qr_base64, generate_part_qr_data
 from app.utils.otp import verify_delete_otp
-from sqlalchemy import func
 from pydantic import BaseModel as PydanticBase
 
 router = APIRouter(prefix="/purchase", tags=["Purchase"])
@@ -77,10 +77,14 @@ def create_po(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "accountant", "purchase"))
 ):
-    from sqlalchemy import func
-    vendor = db.query(Vendor).filter(Vendor.id == data.vendor_id).first()
+    # ✅ FIX: scope vendor to company
+    vendor = db.query(Vendor).filter(
+        Vendor.id == data.vendor_id,
+        Vendor.company_id == current_user.company_id
+    ).first()
     if not vendor:
         raise HTTPException(status_code=404, detail="Vendor not found")
+
     vendor_prefix = vendor.name.strip()[:3].upper()
     vendor_po_count = db.query(func.count(PurchaseOrder.id)).filter(
         PurchaseOrder.company_id == current_user.company_id,
@@ -175,7 +179,6 @@ def receive_po(
     processed_lines = []
 
     for li in po_lines:
-        # ── Auto-create item by name if it doesn't exist ──
         item = db.query(Item).filter(
             func.lower(Item.name) == li.item_name.strip().lower(),
             Item.company_id == current_user.company_id
@@ -194,16 +197,15 @@ def receive_po(
                 current_stock=0,
                 tracking_type=li.tracking_type or "unit",
             )
-            db.add(item)   # ✅ ADD THIS
-            db.flush()     # ✅ ADD THIS — gives item.id before we use it below
+            db.add(item)
+            db.flush()
         else:
-            # Update part code if provided and not already set
             if li.part_code and not item.code:
                 item.code = li.part_code
             if li.tax_rate is not None:
                 item.tax_rate = li.tax_rate
             db.add(item)
-            db.flush()  # get item.id immediately
+            db.flush()
 
         line_subtotal = Decimal(li.quantity) * li.unit_price
         tax = calculate_tax(line_subtotal, item.tax_rate, interstate)
@@ -323,7 +325,6 @@ def receive_po(
 
     po.status = "received"
     po.received_at = datetime.utcnow()
-
     db.commit()
 
     return {
@@ -360,7 +361,6 @@ def get_po_qr_codes(
 
     result = []
 
-    # Unit-tracked parts
     parts = db.query(PartInstance).filter(
         PartInstance.purchase_order_id == po_id,
         PartInstance.company_id == current_user.company_id
@@ -373,7 +373,6 @@ def get_po_qr_codes(
             "status": p.current_status
         })
 
-    # Bulk-tracked items on this PO — show their (reusable) batch QR
     po_lines = db.query(POLineItem).filter(POLineItem.po_id == po_id).all()
     seen_items = set()
     for li in po_lines:
@@ -399,17 +398,20 @@ def get_po_qr_codes(
 
 @router.get("/po")
 def get_pos(
+    skip: int = 0,
+    limit: int = 50,                              # ✅ FIX: pagination
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    pos = db.query(PurchaseOrder).filter(
+    # ✅ FIX: single query joining POs with their invoices — eliminates N+1
+    rows = db.query(PurchaseOrder, PurchaseInvoice).outerjoin(
+        PurchaseInvoice, PurchaseInvoice.po_id == PurchaseOrder.id
+    ).filter(
         PurchaseOrder.company_id == current_user.company_id
-    ).all()
+    ).order_by(PurchaseOrder.created_at.desc()).offset(skip).limit(limit).all()
+
     result = []
-    for po in pos:
-        invoice = db.query(PurchaseInvoice).filter(
-            PurchaseInvoice.po_id == po.id
-        ).first()
+    for po, invoice in rows:
         result.append({
             "id": po.id,
             "po_number": po.po_number,
@@ -431,12 +433,14 @@ def get_pos(
 
 @router.get("/invoices", response_model=List[PurchaseInvoiceOut])
 def get_invoices(
+    skip: int = 0,
+    limit: int = 50,                              # ✅ FIX: pagination
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     return db.query(PurchaseInvoice).filter(
         PurchaseInvoice.company_id == current_user.company_id
-    ).all()
+    ).order_by(PurchaseInvoice.invoice_date.desc()).offset(skip).limit(limit).all()
 
 # ─── ITC SUMMARY ─────────────────────────────────────────────
 
@@ -445,13 +449,17 @@ def get_itc_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    invoices = db.query(PurchaseInvoice).filter(
+    # ✅ FIX: DB-side aggregation instead of loading all rows
+    row = db.query(
+        func.coalesce(func.sum(PurchaseInvoice.cgst_amount), Decimal("0")),
+        func.coalesce(func.sum(PurchaseInvoice.sgst_amount), Decimal("0")),
+        func.coalesce(func.sum(PurchaseInvoice.igst_amount), Decimal("0")),
+    ).filter(
         PurchaseInvoice.company_id == current_user.company_id,
         PurchaseInvoice.itc_eligible == True
-    ).all()
-    total_cgst = sum(i.cgst_amount for i in invoices)
-    total_sgst = sum(i.sgst_amount for i in invoices)
-    total_igst = sum(i.igst_amount for i in invoices)
+    ).one()
+
+    total_cgst, total_sgst, total_igst = row
     return {
         "total_cgst_itc": total_cgst,
         "total_sgst_itc": total_sgst,
@@ -480,7 +488,6 @@ def delete_po(
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
 
-    # Step 1 — reverse stock FIRST (before deleting invoices)
     if po.status == "received":
         invoices = db.query(PurchaseInvoice).filter(PurchaseInvoice.po_id == po_id).all()
         for inv in invoices:
@@ -490,7 +497,8 @@ def delete_po(
             for line in lines:
                 item = db.query(Item).filter(Item.id == line.item_id).first()
                 if item:
-                    item.current_stock -= float(line.quantity)
+                    # ✅ FIX: use Decimal subtraction not float
+                    item.current_stock -= line.quantity
                     if item.current_stock < 0:
                         item.current_stock = 0
             db.query(StockLedger).filter(
@@ -498,7 +506,6 @@ def delete_po(
                 StockLedger.reference_type == "purchase_invoice"
             ).delete()
 
-    # Step 2 — delete everything
     parts = db.query(PartInstance).filter(PartInstance.purchase_order_id == po_id).all()
     part_ids = [p.id for p in parts]
     if part_ids:
@@ -515,18 +522,21 @@ def delete_po(
     db.commit()
     return {"message": "PO deleted successfully"}
 
-
-
+# ─── PO ITEMS ────────────────────────────────────────────────
 
 @router.get("/po/{po_id}/items")
-def get_po_items(po_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_po_items(
+    po_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     po = db.query(PurchaseOrder).filter(
         PurchaseOrder.id == po_id,
         PurchaseOrder.company_id == current_user.company_id
     ).first()
     if not po:
         raise HTTPException(status_code=404, detail="PO not found")
-    
+
     lines = db.query(POLineItem).filter(POLineItem.po_id == po_id).all()
     return [
         {
@@ -539,7 +549,7 @@ def get_po_items(po_id: int, db: Session = Depends(get_db), current_user: User =
         for li in lines
     ]
 
-
+# ─── VENDOR BREAKDOWN ────────────────────────────────────────
 
 @router.get("/in-store/{item_id}/vendor-breakdown")
 def get_vendor_breakdown(
@@ -547,9 +557,6 @@ def get_vendor_breakdown(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    from app.models.purchase import PurchaseInvoice, PurchaseOrder
-    from app.models.vendor import Vendor
-
     rows = db.query(
         StockLedger.quantity,
         StockLedger.transaction_date,
@@ -582,60 +589,7 @@ def get_vendor_breakdown(
 
     return list(vendor_map.values())
 
-
-
-@router.patch("/debug/fix-invoice-vendor")
-def fix_invoice_vendor(
-    invoice_id: int,
-    correct_vendor_id: int,
-    db: Session = Depends(get_db)
-):
-    from app.models.purchase import PurchaseInvoice, PurchaseOrder
-    inv = db.query(PurchaseInvoice).filter(PurchaseInvoice.id == invoice_id).first()
-    if not inv:
-        raise HTTPException(status_code=404, detail="Invoice not found")
-    po = db.query(PurchaseOrder).filter(PurchaseOrder.id == inv.po_id).first()
-    if not po:
-        raise HTTPException(status_code=404, detail="PO not found")
-    old_vendor = po.vendor_id
-    po.vendor_id = correct_vendor_id
-    db.commit()
-    return {
-        "fixed": True,
-        "invoice_id": invoice_id,
-        "po_id": po.id,
-        "old_vendor_id": old_vendor,
-        "new_vendor_id": correct_vendor_id
-    }
-
-
-@router.get("/debug/trace-item-stock/{item_id}")
-def trace_item_stock(item_id: int, db: Session = Depends(get_db)):
-    from app.models.purchase import PurchaseInvoice, PurchaseOrder
-    from app.models.vendor import Vendor
-    
-    ledger = db.query(StockLedger).filter(
-        StockLedger.item_id == item_id,
-        StockLedger.transaction_type == "purchase_in"
-    ).all()
-    
-    result = []
-    for row in ledger:
-        inv = db.query(PurchaseInvoice).filter(PurchaseInvoice.id == row.reference_id).first()
-        po = db.query(PurchaseOrder).filter(PurchaseOrder.id == inv.po_id).first() if inv else None
-        vendor = db.query(Vendor).filter(Vendor.id == po.vendor_id).first() if po else None
-        result.append({
-            "ledger_id": row.id,
-            "qty": row.quantity,
-            "invoice_id": row.reference_id,
-            "invoice_number": inv.invoice_number if inv else "NOT FOUND",
-            "po_id": po.id if po else "NOT FOUND",
-            "po_number": po.po_number if po else "NOT FOUND",
-            "vendor_id": po.vendor_id if po else "NOT FOUND",
-            "vendor_name": vendor.name if vendor else "NOT FOUND",
-        })
-    return result
-
+# ─── PAYMENTS ────────────────────────────────────────────────
 
 @router.post("/po/{po_id}/pay")
 def mark_po_paid(
@@ -650,13 +604,13 @@ def mark_po_paid(
     ).first()
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found for this PO")
-    
+
     invoice.amount_paid = float(invoice.amount_paid or 0) + data.amount
     if invoice.amount_paid >= float(invoice.total_amount):
         invoice.payment_status = "paid"
     else:
         invoice.payment_status = "partial"
-    
+
     db.commit()
     return {
         "message": "Payment recorded",
@@ -677,7 +631,7 @@ def get_po_payments(
     ).first()
     if not invoice:
         return {"total": 0, "paid": 0, "balance": 0, "status": "no_invoice"}
-    
+
     return {
         "invoice_number": invoice.invoice_number,
         "total": float(invoice.total_amount),

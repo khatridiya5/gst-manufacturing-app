@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
+from sqlalchemy import func
 from typing import List, Optional
 from pydantic import BaseModel
 from decimal import Decimal
@@ -69,23 +70,33 @@ def create_sales_invoice(
     company = db.query(Company).filter(
         Company.id == current_user.company_id
     ).first()
+
+    # ✅ FIX: scope customer to company
     customer = db.query(Customer).filter(
-        Customer.id == data.customer_id
+        Customer.id == data.customer_id,
+        Customer.company_id == current_user.company_id
     ).first()
     if not customer:
         raise HTTPException(status_code=404, detail="Customer not found")
 
-    # Detect interstate
     interstate = is_interstate_transaction(
         company.state_code,
         customer.state_code or company.state_code
     )
 
-    # Auto-generate invoice number
-    count = db.query(SalesInvoice).filter(
+    count = db.query(func.count(SalesInvoice.id)).filter(
         SalesInvoice.company_id == current_user.company_id
-    ).count()
+    ).scalar() or 0
     invoice_number = f"INV-{current_user.company_id}-{str(count + 1).zfill(4)}"
+
+    # ✅ FIX: fetch all items in one query instead of 1 per line item
+    item_ids = [li.item_id for li in data.line_items]
+    items_map = {
+        i.id: i for i in db.query(Item).filter(
+            Item.id.in_(item_ids),
+            Item.company_id == current_user.company_id  # ✅ FIX: scope to company
+        ).all()
+    }
 
     subtotal = Decimal("0")
     total_cgst = Decimal("0")
@@ -94,11 +105,10 @@ def create_sales_invoice(
     processed_lines = []
 
     for li in data.line_items:
-        item = db.query(Item).filter(Item.id == li.item_id).first()
+        item = items_map.get(li.item_id)
         if not item:
             raise HTTPException(status_code=404, detail=f"Item {li.item_id} not found")
 
-        # Check stock
         if item.current_stock < li.quantity:
             raise HTTPException(
                 status_code=422,
@@ -125,9 +135,6 @@ def create_sales_invoice(
 
     total_amount = subtotal + total_cgst + total_sgst + total_igst
 
-    
-    
-    # Save invoice
     invoice = SalesInvoice(
         company_id=current_user.company_id,
         customer_id=data.customer_id,
@@ -148,7 +155,6 @@ def create_sales_invoice(
     db.flush()
 
     for pl in processed_lines:
-        # Save line item
         line = SalesLineItem(
             sales_invoice_id=invoice.id,
             item_id=pl["item"].id,
@@ -163,10 +169,8 @@ def create_sales_invoice(
         )
         db.add(line)
 
-        # Deduct stock
         pl["item"].current_stock -= pl["quantity"]
 
-        # Stock ledger
         stock_out = StockLedger(
             company_id=current_user.company_id,
             item_id=pl["item"].id,
@@ -187,12 +191,14 @@ def create_sales_invoice(
 
 @router.get("/invoices", response_model=List[SalesInvoiceOut])
 def get_invoices(
+    skip: int = 0,
+    limit: int = 50,                              # ✅ FIX: pagination — no more loading all rows
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     return db.query(SalesInvoice).filter(
         SalesInvoice.company_id == current_user.company_id
-    ).all()
+    ).order_by(SalesInvoice.invoice_date.desc()).offset(skip).limit(limit).all()
 
 # ─── GET SINGLE INVOICE WITH LINE ITEMS ───────────────────────
 
@@ -202,24 +208,22 @@ def get_invoice(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    invoice = db.query(SalesInvoice).filter(
+    # ✅ FIX: load invoice + line_items + customer in one query
+    invoice = db.query(SalesInvoice).options(
+        joinedload(SalesInvoice.line_items).joinedload(SalesLineItem.item),
+        joinedload(SalesInvoice.customer)
+    ).filter(
         SalesInvoice.id == invoice_id,
         SalesInvoice.company_id == current_user.company_id
     ).first()
+
     if not invoice:
         raise HTTPException(status_code=404, detail="Invoice not found")
-
-    lines = db.query(SalesLineItem).filter(
-        SalesLineItem.sales_invoice_id == invoice_id
-    ).all()
-    customer = db.query(Customer).filter(
-        Customer.id == invoice.customer_id
-    ).first()
 
     return {
         "invoice_number": invoice.invoice_number,
         "invoice_date": invoice.invoice_date.strftime("%d-%m-%Y"),
-        "customer": customer.name,
+        "customer": invoice.customer.name,
         "is_interstate": invoice.is_interstate,
         "subtotal": str(invoice.subtotal),
         "cgst": str(invoice.cgst_amount),
@@ -238,7 +242,7 @@ def get_invoice(
             "sgst": str(l.sgst),
             "igst": str(l.igst),
             "total": str(l.total)
-        } for l in lines]
+        } for l in invoice.line_items]
     }
 
 # ─── MARK INVOICE AS PAID ─────────────────────────────────────
@@ -267,19 +271,27 @@ def get_sales_summary(
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
-    invoices = db.query(SalesInvoice).filter(
+    # ✅ FIX: single aggregation query — no Python-side summing of all rows
+    row = db.query(
+        func.coalesce(func.sum(SalesInvoice.subtotal),    Decimal("0")),
+        func.coalesce(func.sum(SalesInvoice.cgst_amount), Decimal("0")),
+        func.coalesce(func.sum(SalesInvoice.sgst_amount), Decimal("0")),
+        func.coalesce(func.sum(SalesInvoice.igst_amount), Decimal("0")),
+        func.count(SalesInvoice.id),
+        func.coalesce(
+            func.sum(SalesInvoice.total_amount).filter(
+                SalesInvoice.payment_status == "unpaid"
+            ), Decimal("0")
+        )
+    ).filter(
         SalesInvoice.company_id == current_user.company_id
-    ).all()
+    ).one()
 
-    total_sales = sum(i.subtotal for i in invoices)
-    total_cgst = sum(i.cgst_amount for i in invoices)
-    total_sgst = sum(i.sgst_amount for i in invoices)
-    total_igst = sum(i.igst_amount for i in invoices)
+    total_sales, total_cgst, total_sgst, total_igst, total_invoices, unpaid = row
     total_tax = total_cgst + total_sgst + total_igst
-    unpaid = sum(i.total_amount for i in invoices if i.payment_status == "unpaid")
 
     return {
-        "total_invoices": len(invoices),
+        "total_invoices": total_invoices,
         "total_sales_value": str(total_sales),
         "total_gst_collected": str(total_tax),
         "cgst_collected": str(total_cgst),
