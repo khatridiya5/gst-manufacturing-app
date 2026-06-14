@@ -17,12 +17,17 @@ class ActivateRequest(BaseModel):
 class VerifyRequest(BaseModel):
     license_key: str
     device_fingerprint: str
+    username: str | None = None   # ✅ NEW
+    password: str | None = None   # ✅ NEW
+
 
 class CreateLicenseRequest(BaseModel):
     company_id: int
     license_key: str
     max_devices: int = 2
     valid_until: str | None = None  # "2026-12-31"
+    allowed_username: str          # ✅ NEW
+    allowed_password: str 
 
 
 def _check_license_validity(lic: License):
@@ -74,6 +79,15 @@ def verify(body: VerifyRequest, db: Session = Depends(get_db)):
 
     _check_license_validity(lic)
 
+    # ✅ NEW: check credentials if license has them bound
+    if lic.allowed_username and lic.allowed_password_hash:
+        if not body.username or not body.password:
+            raise HTTPException(status_code=401, detail="Credentials required for this license")
+        if body.username != lic.allowed_username:
+            raise HTTPException(status_code=401, detail="Invalid credentials for this license")
+        if not pwd_context.verify(body.password, lic.allowed_password_hash):
+            raise HTTPException(status_code=401, detail="Invalid credentials for this license")
+
     device = db.query(RegisteredDevice).filter_by(
         license_id=lic.id, device_fingerprint=body.device_fingerprint
     ).first()
@@ -101,6 +115,8 @@ def admin_create_license(body: CreateLicenseRequest, db: Session = Depends(get_d
         max_devices=body.max_devices,
         valid_until=datetime.strptime(body.valid_until, "%Y-%m-%d") if body.valid_until else None,
         status="active"
+        allowed_username=body.allowed_username,                        # ✅ NEW
+        allowed_password_hash=pwd_context.hash(body.allowed_password)  # ✅ NEW
     )
     db.add(lic)
     db.commit()

@@ -14,6 +14,9 @@ class License(Base):
     status = Column(String(20), default="active")
     created_at = Column(TIMESTAMP, server_default=func.now())
 
+    allowed_username = Column(String(100), nullable=True)
+    allowed_password_hash = Column(String(255), nullable=True)
+
     devices = relationship("RegisteredDevice", back_populates="license", cascade="all, delete-orphan")
     company = relationship("Company")
 
