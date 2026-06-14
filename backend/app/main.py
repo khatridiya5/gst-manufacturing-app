@@ -7,6 +7,7 @@ from app.routers import issue_items
 from app.routers import payment
 from app.routers import data_import
 from app.routers import license as license_router
+from app.routers import admin_clients
 from app.models import license as license_model  # so create_all sees the tables
 
 app = FastAPI(title="GST Manufacturing App")
@@ -34,6 +35,7 @@ app.include_router(issue_items.router)
 app.include_router(payment.router)
 app.include_router(data_import.router)
 app.include_router(license_router.router)
+app.include_router(admin_clients.router)
 
 @app.on_event("startup")
 def startup():
