@@ -374,16 +374,20 @@ def get_orders(
 # ─── WIP SCANS ───────────────────────────────────────────────
 
 @router.get("/wip")
-def get_wip_scans(db: Session = Depends(get_db)):
+def get_wip_scans(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)  # ← add this
+):
     results = (
-    db.query(WIPScan, Worker.name, Worker.department, PartInstance.qr_code_data, Item.name)
-    .join(Worker, WIPScan.worker_id == Worker.id)
-    .outerjoin(PartInstance, WIPScan.part_instance_id == PartInstance.id)
-    .outerjoin(Item, WIPScan.item_id == Item.id)
-    .order_by(WIPScan.scanned_at.desc())
-    .limit(100)
-    .all()
-)
+        db.query(WIPScan, Worker.name, Worker.department, PartInstance.qr_code_data, Item.name)
+        .join(Worker, WIPScan.worker_id == Worker.id)
+        .outerjoin(PartInstance, WIPScan.part_instance_id == PartInstance.id)
+        .outerjoin(Item, WIPScan.item_id == Item.id)
+        .filter(WIPScan.company_id == current_user.company_id)  # ← add this
+        .order_by(WIPScan.scanned_at.desc())
+        .limit(100)
+        .all()
+    )
     return [
         {
             "id": scan.id,
