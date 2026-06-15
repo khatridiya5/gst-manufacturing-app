@@ -2,6 +2,7 @@ from sqlalchemy import Column, Integer, String, Numeric, Boolean, DateTime, Date
 from sqlalchemy.sql import func
 from sqlalchemy.orm import relationship 
 from app.database import Base
+from sqlalchemy import Index
 
 class SalesInvoice(Base):
     __tablename__ = "sales_invoices"
@@ -26,6 +27,10 @@ class SalesInvoice(Base):
 
     customer = relationship("Customer", foreign_keys=[customer_id])   # ✅ ADD
     line_items = relationship("SalesLineItem", back_populates="sales_invoice")  # ✅ ADD
+
+    __table_args__ = (
+    Index('ix_sales_company_date', 'company_id', 'invoice_date'),
+)
     
 
 class SalesLineItem(Base):

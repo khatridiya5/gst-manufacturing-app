@@ -9,6 +9,7 @@ from app.models.vendor import Vendor
 from app.models.customer import Customer
 from app.utils.auth import get_current_user, require_role
 from app.models.user import User
+from fastapi import Query
 
 router = APIRouter(prefix="/master", tags=["Master Data"])
 
@@ -109,9 +110,16 @@ def create_item(item: ItemCreate, db: Session = Depends(get_db),
     db.add(new_item); db.commit(); db.refresh(new_item)
     return new_item
 
+from fastapi import Query
+
 @router.get("/items", response_model=List[ItemOut])
-def get_items(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    return db.query(Item).filter(Item.company_id == current_user.company_id).all()
+def get_items(
+    skip: int = 0,
+    limit: int = Query(default=50, le=500),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
+    return db.query(Item).filter(Item.company_id == current_user.company_id).offset(skip).limit(limit).all()
 
 @router.get("/items/{item_id}", response_model=ItemOut)
 def get_item(item_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -175,9 +183,15 @@ def create_vendor(vendor: VendorCreate, db: Session = Depends(get_db),
     return new_vendor
 
 @router.get("/vendors", response_model=List[VendorOut])
-def get_vendors(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_vendors(
+    skip: int = 0,
+    limit: int = Query(default=50, le=500),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     return db.query(Vendor).filter(
-        Vendor.company_id == current_user.company_id, Vendor.is_active == True).all()
+        Vendor.company_id == current_user.company_id, Vendor.is_active == True
+    ).offset(skip).limit(limit).all()
 
 @router.delete("/vendors/{vendor_id}")
 def delete_vendor(vendor_id: int, db: Session = Depends(get_db)):
@@ -196,9 +210,15 @@ def create_customer(customer: CustomerCreate, db: Session = Depends(get_db),
     return new_customer
 
 @router.get("/customers", response_model=List[CustomerOut])
-def get_customers(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
+def get_customers(
+    skip: int = 0,
+    limit: int = Query(default=50, le=500),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
+):
     return db.query(Customer).filter(
-        Customer.company_id == current_user.company_id, Customer.is_active == True).all()
+        Customer.company_id == current_user.company_id, Customer.is_active == True
+    ).offset(skip).limit(limit).all()
 
 @router.delete("/customers/{customer_id}")
 def delete_customer(customer_id: int, db: Session = Depends(get_db),
@@ -219,12 +239,15 @@ def delete_customer(customer_id: int, db: Session = Depends(get_db),
 def get_vendor_balance(vendor_id: int, db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)):
     from app.models.purchase import PurchaseInvoice
-    invoices = db.query(PurchaseInvoice).filter(
+    from sqlalchemy import func
+    row = db.query(
+        func.coalesce(func.sum(PurchaseInvoice.total_amount), 0),
+        func.coalesce(func.sum(PurchaseInvoice.amount_paid), 0)
+    ).filter(
         PurchaseInvoice.vendor_id == vendor_id,
         PurchaseInvoice.company_id == current_user.company_id
-    ).all()
-    total = sum(i.total_amount for i in invoices)
-    paid = sum(i.amount_paid or 0 for i in invoices)
+    ).one()
+    total, paid = row
     return {"total": str(total), "paid": str(paid), "balance": str(total - paid)}
 
 # ─── PAYMENT SUMMARY PER CUSTOMER ─────────────────────────────
@@ -232,10 +255,13 @@ def get_vendor_balance(vendor_id: int, db: Session = Depends(get_db),
 def get_customer_balance(customer_id: int, db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)):
     from app.models.sales import SalesInvoice
-    invoices = db.query(SalesInvoice).filter(
+    from sqlalchemy import func
+    row = db.query(
+        func.coalesce(func.sum(SalesInvoice.total_amount), 0),
+        func.coalesce(func.sum(SalesInvoice.amount_paid), 0)
+    ).filter(
         SalesInvoice.customer_id == customer_id,
         SalesInvoice.company_id == current_user.company_id
-    ).all()
-    total = sum(i.total_amount for i in invoices)
-    paid = sum(i.total_amount for i in invoices if i.payment_status == "paid")
+    ).one()
+    total, paid = row
     return {"total": str(total), "paid": str(paid), "balance": str(total - paid)}

@@ -18,6 +18,7 @@ from datetime import datetime
 from app.utils.otp import verify_delete_otp
 from app.models.customer import Customer
 from sqlalchemy import func
+from sqlalchemy.orm import joinedload
 
 router = APIRouter(prefix="/production", tags=["Production"])
 
@@ -333,20 +334,32 @@ def get_production_qr_codes(
         "status": p.current_status
     } for p in parts]
 
+
+
 @router.get("/orders")
 def get_orders(
+    skip: int = 0,
+    limit: int = Query(default=50, le=500),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user)
 ):
     orders = db.query(ProductionOrder).filter(
         ProductionOrder.company_id == current_user.company_id
-    ).all()
-    
+    ).order_by(ProductionOrder.created_at.desc()).offset(skip).limit(limit).all()
+
+    bom_ids = {o.bom_id for o in orders}
+    customer_ids = {o.customer_id for o in orders if o.customer_id}
+
+    boms = {b.id: b for b in db.query(BOMHeader).filter(BOMHeader.id.in_(bom_ids)).all()}
+    fg_ids = {b.finished_good_id for b in boms.values()}
+    items = {i.id: i for i in db.query(Item).filter(Item.id.in_(fg_ids)).all()}
+    customers = {c.id: c for c in db.query(Customer).filter(Customer.id.in_(customer_ids)).all()}
+
     result = []
     for o in orders:
-        customer = db.query(Customer).filter(Customer.id == o.customer_id).first() if o.customer_id else None
-        bom = db.query(BOMHeader).filter(BOMHeader.id == o.bom_id).first()
-        fg = db.query(Item).filter(Item.id == bom.finished_good_id).first() if bom else None
+        customer = customers.get(o.customer_id)
+        bom = boms.get(o.bom_id)
+        fg = items.get(bom.finished_good_id) if bom else None
 
         result.append({
             "id": o.id,

@@ -1,6 +1,8 @@
 from sqlalchemy import Column, Integer, String, Numeric, DateTime, Date, Text, ForeignKey
 from sqlalchemy.sql import func
 from app.database import Base
+from sqlalchemy import Index
+
 
 class StockLedger(Base):
     __tablename__ = "stock_ledger"
@@ -16,6 +18,11 @@ class StockLedger(Base):
     transaction_date = Column(Date, nullable=False)
     reason = Column(String(200), nullable=True)
     created_at = Column(DateTime, server_default=func.now())
+
+    __table_args__ = (
+    Index('ix_stock_ledger_company_type', 'company_id', 'transaction_type'),
+    Index('ix_stock_ledger_item_date', 'item_id', 'transaction_date'),
+)
 
 
 class PartInstance(Base):
