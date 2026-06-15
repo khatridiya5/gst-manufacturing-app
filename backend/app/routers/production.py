@@ -19,6 +19,7 @@ from app.utils.otp import verify_delete_otp
 from app.models.customer import Customer
 from sqlalchemy import func
 from sqlalchemy.orm import joinedload
+from fastapi import Query
 
 router = APIRouter(prefix="/production", tags=["Production"])
 
