@@ -29,6 +29,9 @@ class CreateLicenseRequest(BaseModel):
     allowed_username: str          # ✅ NEW
     allowed_password: str 
 
+class RenewLicenseRequest(BaseModel):
+    valid_until: str  # "2026-12-31"
+
 
 def _check_license_validity(lic: License):
     if lic.status != "active":
@@ -159,6 +162,17 @@ def admin_activate_license(license_key: str, db: Session = Depends(get_db)):
     lic = db.query(License).filter(License.license_key == license_key).first()
     if not lic:
         raise HTTPException(status_code=404, detail="License not found")
+    lic.status = "active"
+    db.commit()
+    return {"status": "ok"}
+
+
+@router.post("/admin/renew/{license_key}")
+def admin_renew_license(license_key: str, body: RenewLicenseRequest, db: Session = Depends(get_db)):
+    lic = db.query(License).filter(License.license_key == license_key).first()
+    if not lic:
+        raise HTTPException(status_code=404, detail="License not found")
+    lic.valid_until = datetime.strptime(body.valid_until, "%Y-%m-%d")
     lic.status = "active"
     db.commit()
     return {"status": "ok"}
