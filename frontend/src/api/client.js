@@ -4,37 +4,34 @@ const api = axios.create({
   baseURL: import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000',
 })
 
-// Attach token to every request automatically
 api.interceptors.request.use((config) => {
-  const token = localStorage.getItem('token')
+  const section = localStorage.getItem('active_section') || 'admin'
+  const token = localStorage.getItem(`token_${section}`)
   if (token) {
     config.headers.Authorization = `Bearer ${token}`
   }
   return config
 })
 
-// Redirect to login if token expired
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-  const isLoginRequest = error.config?.url?.includes('/auth/login')
-  if (!isLoginRequest) {
-    localStorage.removeItem('token')
-    window.location.href = '/login'
-     // ADD THIS LINE:
-    
-    return Promise.reject(error)
-
-
-  }
-}
+      const isLoginRequest = error.config?.url?.includes('/auth/login')
+      if (!isLoginRequest) {
+        const section = localStorage.getItem('active_section') || 'admin'
+        localStorage.removeItem(`token_${section}`)
+        localStorage.removeItem(`role_${section}`)
+        localStorage.removeItem('active_section')
+        window.location.href = '/login'
+      }
+    }
     return Promise.reject(error)
   }
 )
-// Keep Render backend alive — ping every 10 minutes
+
 setInterval(() => {
-  fetch('https://gst-manufacturing-backend.onrender.com')
-    .catch(() => {}) // silent fail
+  fetch('https://gst-manufacturing-backend.onrender.com').catch(() => {})
 }, 10 * 60 * 1000)
+
 export default api

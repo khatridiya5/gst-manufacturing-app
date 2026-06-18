@@ -20,7 +20,8 @@ export default function UserManagement() {
   const [status, setStatus] = useState({}) // { section: 'success' | 'error' | 'loading' }
   const [messages, setMessages] = useState({})
 
-  const token = localStorage.getItem('token')
+  const section = localStorage.getItem('active_section') || 'admin'
+  const token = localStorage.getItem(`token_${section}`)
   const headers = { Authorization: `Bearer ${token}` }
 
   useEffect(() => {

@@ -28,13 +28,16 @@ const allLinks = [
 
 export default function Sidebar() {
   const navigate = useNavigate()
-  const role = localStorage.getItem('role') || 'admin'
+  const section = localStorage.getItem('active_section') || 'admin'
+  const role = localStorage.getItem(`role_${section}`) || 'admin'
 
   const links = allLinks.filter(link => link.roles.includes(role))
 
   const handleLogout = () => {
-    localStorage.removeItem('token')
-    localStorage.removeItem('role')
+    const section = localStorage.getItem('active_section') || 'admin'
+    localStorage.removeItem(`token_${section}`)
+    localStorage.removeItem(`role_${section}`)
+    localStorage.removeItem('active_section')
     navigate('/login')
   }
 

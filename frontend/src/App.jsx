@@ -1,5 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom'
 import Login from './pages/Login'
+import Activate from './pages/Activate'
 import Dashboard from './pages/Dashboard'
 import Layout from './components/Layout'
 import Items from './pages/master/Items'
@@ -23,30 +24,43 @@ import ReceivablesSummary from './pages/payments/ReceivablesSummary'
 import PaymentLedger from './pages/payments/PaymentLedger'
 import PaymentsDashboard from './pages/payments/PaymentsDashboard'
 import DataImport from "./pages/master/DataImport";
+import LicenseGate from './components/LicenseGate'
 
 const PrivateRoute = ({ children }) => {
-  const token = localStorage.getItem('token')
+  const section = localStorage.getItem('active_section') || 'admin'
+  const token = localStorage.getItem(`token_${section}`)
   return token ? children : <Navigate to="/login" />
 }
 
 export default function App() {
   return (
     <Routes>
-      {/* Public routes */}
+      {/* Always reachable, no license check */}
+      <Route path="/activate" element={<Activate />} />
       <Route path="/login" element={<Login />} />
 
-      {/* /setup is outside Layout — full screen, no sidebar */}
+      {/* Everything else requires a valid license first */}
       <Route
         path="/setup"
         element={
-          <PrivateRoute>
-            <SetupCredentials />
-          </PrivateRoute>
+          <LicenseGate>
+            <PrivateRoute>
+              <SetupCredentials />
+            </PrivateRoute>
+          </LicenseGate>
         }
       />
 
-      {/* All app routes inside sidebar Layout */}
-      <Route path="/" element={<PrivateRoute><Layout /></PrivateRoute>}>
+      <Route
+        path="/"
+        element={
+          <LicenseGate>
+            <PrivateRoute>
+              <Layout />
+            </PrivateRoute>
+          </LicenseGate>
+        }
+      >
         <Route index element={<Dashboard />} />
         <Route path="items" element={<Items />} />
         <Route path="vendors" element={<Vendors />} />
@@ -68,7 +82,6 @@ export default function App() {
         <Route path="payments/receivables" element={<ReceivablesSummary />} />
         <Route path="payments/ledger" element={<PaymentLedger />} />
         <Route path="/data-import" element={<DataImport />} />
-        
       </Route>
 
       {/* Catch-all */}

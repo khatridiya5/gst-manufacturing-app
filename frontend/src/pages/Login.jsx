@@ -437,8 +437,9 @@ function EmployeeLoginForm({ navigate }) {
     setError('')
     try {
       const res = await api.post('/auth/section-login', { section, username, password })
-      localStorage.setItem('token', res.data.access_token)
-      localStorage.setItem('role', res.data.role)
+      localStorage.setItem(`token_${section}`, res.data.access_token)
+      localStorage.setItem(`role_${section}`, res.data.role)
+      localStorage.setItem('active_section', section)   // ← only new line
       navigate(sectionRedirects[section] || '/')
     } catch (err) {
       setError(extractError(err, 'Invalid credentials'))

@@ -26,7 +26,8 @@ function StatCard({ label, value }) {
 export default function WIPDashboard() {
   const [scans, setScans] = useState([])
   const [lastUpdated, setLastUpdated] = useState(null)
-  const role = localStorage.getItem('role')
+  const section = localStorage.getItem('active_section') || 'admin'
+  const role = localStorage.getItem(`role_${section}`)
 
   const loadWIP = async () => {
     try {

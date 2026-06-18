@@ -43,7 +43,8 @@ export default function PurchaseOrders() {
   const [poItems, setPoItems] = useState({})
   const [receivingId, setReceivingId] = useState(null)
   const [sortOrder, setSortOrder] = useState('newest')
-  const role = localStorage.getItem('role')
+  const section = localStorage.getItem('active_section') || 'admin'
+  const role = localStorage.getItem(`role_${section}`)
   const [payModal, setPayModal] = useState(null) // { id, po_number, total, paid }
   const [payAmount, setPayAmount] = useState('')
   const [payNote, setPayNote] = useState('')
