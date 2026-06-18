@@ -27,8 +27,8 @@ import DataImport from "./pages/master/DataImport";
 import LicenseGate from './components/LicenseGate'
 
 const PrivateRoute = ({ children }) => {
-  const section = localStorage.getItem('active_section') || 'admin'
-  const token = localStorage.getItem(`token_${section}`)
+  const section = sessionStorage.getItem('active_section') || 'admin'  // ✅
+  const token = localStorage.getItem(`token_${section}`) || localStorage.getItem('token')
   return token ? children : <Navigate to="/login" />
 }
 

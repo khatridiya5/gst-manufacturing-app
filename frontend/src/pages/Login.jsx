@@ -439,7 +439,7 @@ function EmployeeLoginForm({ navigate }) {
       const res = await api.post('/auth/section-login', { section, username, password })
       localStorage.setItem(`token_${section}`, res.data.access_token)
       localStorage.setItem(`role_${section}`, res.data.role)
-      localStorage.setItem('active_section', section)   // ← only new line
+      sessionStorage.setItem('active_section', section)   // ← only new line
       navigate(sectionRedirects[section] || '/')
     } catch (err) {
       setError(extractError(err, 'Invalid credentials'))
@@ -491,8 +491,13 @@ function AdminLoginForm({ navigate }) {
       form.append('username', email)
       form.append('password', password)
       const res = await api.post('/auth/login', form)
-      localStorage.setItem('token', res.data.access_token)
-      localStorage.setItem('role', res.data.role)
+
+      // ✅ Store under namespaced keys + set active_section to 'admin'
+      localStorage.setItem('token_admin', res.data.access_token)
+      localStorage.setItem('role_admin', res.data.role)
+      localStorage.setItem('token', res.data.access_token)   // backward compat
+      localStorage.setItem('role', res.data.role)             // backward compat
+      sessionStorage.setItem('active_section', 'admin')
       navigate('/')
     } catch (err) {
       localStorage.removeItem('token')

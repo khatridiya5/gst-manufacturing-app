@@ -5,10 +5,13 @@ const api = axios.create({
 })
 
 api.interceptors.request.use((config) => {
-  const section = localStorage.getItem('active_section') || 'admin'
-  const token = localStorage.getItem(`token_${section}`)
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`
+  const isAuthRoute = config.url?.includes('/auth/login') || config.url?.includes('/auth/section-login')
+  if (!isAuthRoute) {
+    const section = sessionStorage.getItem('active_section') || 'admin'  // ✅
+    const token = localStorage.getItem(`token_${section}`) || localStorage.getItem('token')
+    if (token) {
+      config.headers.Authorization = `Bearer ${token}`
+    }
   }
   return config
 })
@@ -18,11 +21,12 @@ api.interceptors.response.use(
   (error) => {
     if (error.response?.status === 401) {
       const isLoginRequest = error.config?.url?.includes('/auth/login')
+        || error.config?.url?.includes('/auth/section-login')
       if (!isLoginRequest) {
-        const section = localStorage.getItem('active_section') || 'admin'
+        const section = sessionStorage.getItem('active_section') || 'admin'  // ✅
         localStorage.removeItem(`token_${section}`)
         localStorage.removeItem(`role_${section}`)
-        localStorage.removeItem('active_section')
+        sessionStorage.removeItem('active_section')  // ✅
         window.location.href = '/login'
       }
     }

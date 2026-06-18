@@ -28,18 +28,16 @@ const allLinks = [
 
 export default function Sidebar() {
   const navigate = useNavigate()
-  const section = localStorage.getItem('active_section') || 'admin'
-  const role = localStorage.getItem(`role_${section}`) || 'admin'
+  const section = sessionStorage.getItem('active_section') || 'admin'  // ✅
+const role = localStorage.getItem(`role_${section}`) || 'admin'
 
-  const links = allLinks.filter(link => link.roles.includes(role))
-
-  const handleLogout = () => {
-    const section = localStorage.getItem('active_section') || 'admin'
-    localStorage.removeItem(`token_${section}`)
-    localStorage.removeItem(`role_${section}`)
-    localStorage.removeItem('active_section')
-    navigate('/login')
-  }
+const handleLogout = () => {
+  const section = sessionStorage.getItem('active_section') || 'admin'  // ✅
+  localStorage.removeItem(`token_${section}`)
+  localStorage.removeItem(`role_${section}`)
+  sessionStorage.removeItem('active_section')  // ✅
+  navigate('/login')
+}
 
   const roleLabel = {
     admin: 'Admin',
