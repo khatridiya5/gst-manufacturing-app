@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import api from "../../api/client"
 
 function ScanTypeBadge({ type }) {
@@ -26,6 +26,8 @@ function StatCard({ label, value }) {
 export default function WIPDashboard() {
   const [scans, setScans] = useState([])
   const [lastUpdated, setLastUpdated] = useState(null)
+  const [operationFilter, setOperationFilter] = useState("all")
+  const [productFilter, setProductFilter] = useState("all")
   const section = localStorage.getItem('active_section') || 'admin'
   const role = localStorage.getItem(`role_${section}`)
 
@@ -55,6 +57,21 @@ export default function WIPDashboard() {
     }
   }
 
+  const operations = useMemo(
+    () => [...new Set(scans.map(s => s.operation).filter(Boolean))],
+    [scans]
+  )
+  const products = useMemo(
+    () => [...new Set(scans.map(s => s.product_code).filter(Boolean))],
+    [scans]
+  )
+
+  const filteredScans = scans.filter(s => {
+    if (operationFilter !== "all" && s.operation !== operationFilter) return false
+    if (productFilter !== "all" && s.product_code !== productFilter) return false
+    return true
+  })
+
   const activeWorkers = new Set(scans.map(s => s.worker_id)).size
   const activeStations = new Set(scans.map(s => s.workstation).filter(Boolean)).size
   const totalPartsTaken = scans.reduce((sum, s) => sum + (s.quantity ?? 0), 0)
@@ -75,24 +92,44 @@ export default function WIPDashboard() {
       </div>
 
       <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-  <StatCard label="Active scans" value={scans.length} />
-  <StatCard label="Workers on floor" value={activeWorkers} />
-  <StatCard label="Stations active" value={activeStations} />
-  <StatCard
-    label="Last scan"
-    value={scans.length > 0 ? new Date(scans[0].scanned_at + "Z").toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" }) : "—"}
-  />
-  <StatCard label="Parts taken" value={totalPartsTaken} />
-</div>
+        <StatCard label="Active scans" value={scans.length} />
+        <StatCard label="Workers on floor" value={activeWorkers} />
+        <StatCard label="Stations active" value={activeStations} />
+        <StatCard
+          label="Last scan"
+          value={scans.length > 0 ? new Date(scans[0].scanned_at + "Z").toLocaleTimeString("en-IN", { hour: "2-digit", minute: "2-digit", timeZone: "Asia/Kolkata" }) : "—"}
+        />
+        <StatCard label="Parts taken" value={totalPartsTaken} />
+      </div>
+
+      <div className="flex items-center gap-3 mb-4">
+        <select
+          value={operationFilter}
+          onChange={(e) => setOperationFilter(e.target.value)}
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 bg-white"
+        >
+          <option value="all">All operations</option>
+          {operations.map(op => <option key={op} value={op}>{op}</option>)}
+        </select>
+        <select
+          value={productFilter}
+          onChange={(e) => setProductFilter(e.target.value)}
+          className="border border-slate-200 rounded-lg px-3 py-2 text-sm text-slate-600 bg-white"
+        >
+          <option value="all">All jobs</option>
+          {products.map(p => <option key={p} value={p}>{p}</option>)}
+        </select>
+      </div>
 
       <div className="bg-white rounded-2xl border border-slate-200 overflow-hidden">
         <table className="w-full">
           <thead className="bg-slate-50 text-slate-500 text-xs uppercase tracking-wide">
             <tr>
               <th className="px-4 py-3 text-left">Worker</th>
-
               <th className="px-4 py-3 text-left">Part instance</th>
               <th className="px-4 py-3 text-left">Qty</th>
+              <th className="px-4 py-3 text-left">Operation</th>
+              <th className="px-4 py-3 text-left">Product / Job</th>
               <th className="px-4 py-3 text-left">Scan type</th>
               <th className="px-4 py-3 text-left">Workstation</th>
               <th className="px-4 py-3 text-left">Duration</th>
@@ -101,12 +138,12 @@ export default function WIPDashboard() {
             </tr>
           </thead>
           <tbody>
-            {scans.length === 0 ? (
+            {filteredScans.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-4 py-12 text-center text-slate-400 text-sm">No scans recorded yet</td>
+                <td colSpan={10} className="px-4 py-12 text-center text-slate-400 text-sm">No scans recorded yet</td>
               </tr>
             ) : (
-              scans.map((scan) => (
+              filteredScans.map((scan) => (
                 <tr key={scan.id} className="border-t border-slate-100 hover:bg-slate-50 transition-colors">
                   <td className="px-4 py-3">
                     <div className="flex items-center gap-2">
@@ -121,6 +158,8 @@ export default function WIPDashboard() {
                   </td>
                   <td className="px-4 py-3 text-sm text-slate-600 font-mono text-xs">{scan.part_code ?? "—"}</td>
                   <td className="px-4 py-3 text-sm text-slate-600">{scan.quantity ?? "—"}</td>
+                  <td className="px-4 py-3 text-sm text-slate-600">{scan.operation ?? "—"}</td>
+                  <td className="px-4 py-3 text-sm text-slate-600">{scan.product_code ?? "—"}</td>
                   <td className="px-4 py-3"><ScanTypeBadge type={scan.scan_type} /></td>
                   <td className="px-4 py-3 text-sm text-slate-600">{scan.workstation ?? "—"}</td>
                   <td className="px-4 py-3 text-sm text-slate-600">{scan.duration_minutes != null ? `${scan.duration_minutes} min` : "—"}</td>

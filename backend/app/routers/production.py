@@ -423,7 +423,10 @@ def get_wip_scans(
 class WIPScanIn(BaseModel):
     worker_qr: str
     part_qr: str
-    quantity: Optional[int] = 1
+    quantity: Optional[Decimal] = Decimal("1")
+    operation: Optional[str] = None
+    product_code: Optional[str] = None
+    notes: Optional[str] = None
     workstation: Optional[str] = None
 
 @router.post("/wip/scan")
@@ -447,7 +450,10 @@ def submit_wip_scan(data: WIPScanIn, db: Session = Depends(get_db)):
             worker_id=worker.id,
             part_instance_id=part.id,
             item_id=part.item_id,
-            quantity=1,
+            quantity=data.quantity or 1,
+            operation=data.operation,
+            product_code=data.product_code,
+            notes=data.notes,
             workstation=data.workstation,
             scanned_at=datetime.utcnow()
         )
@@ -490,6 +496,9 @@ def submit_wip_scan(data: WIPScanIn, db: Session = Depends(get_db)):
             part_instance_id=None,
             item_id=item.id,
             quantity=qty,
+            operation=data.operation,
+            product_code=data.product_code,
+            notes=data.notes,
             workstation=data.workstation,
             scanned_at=datetime.utcnow()
         )
