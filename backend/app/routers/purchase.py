@@ -286,17 +286,24 @@ def receive_po(
                     "quantity": qty
                 })
             elif tracking == 'pipe':
-                if not item.batch_qr_code:
-                    qr_data = f"PIPE-{item.code or item.name.replace(' ', '-').upper()}-{po.po_number}"
-                    item.batch_qr_code = qr_data
-                    item.batch_qr_image = generate_qr_base64(qr_data)
-                    db.add(item)
-
-                all_qr_codes.append({
-                    "serial": item.batch_qr_code,
-                    "item": item.name,
-                    "unit": "pipe",
-                    "quantity": qty
+                for unit_num in range(1, qty + 1):
+                    qr_data = f"PIPE-{item.code or item.name.replace(' ', '-').upper()}-{po.po_number}-U{unit_num}"
+                    qr_image = generate_qr_base64(qr_data)
+                    part = PartInstance(
+                        company_id=current_user.company_id,
+                        purchase_order_id=po.id,
+                        item_id=item.id,
+                        serial_number=qr_data,
+                        qr_code_data=qr_data,
+                        qr_code_image=qr_image,
+                        current_status="in_stock",
+                        remaining_quantity=1
+                    )
+                    db.add(part)
+                    all_qr_codes.append({
+                        "serial": qr_data,
+                        "item": item.name,
+                        "unit": unit_num
                     })
             else:
                 for unit_num in range(1, qty + 1):
@@ -390,7 +397,7 @@ def get_po_qr_codes(
     po_lines = db.query(POLineItem).filter(POLineItem.po_id == po_id).all()
     seen_items = set()
     for li in po_lines:
-        if (li.tracking_type or "unit") not in ("bulk", "pipe"):
+        if (li.tracking_type or "unit") not in ("bulk",):
             continue
         item = db.query(Item).filter(
             func.lower(Item.name) == li.item_name.strip().lower(),

@@ -36,4 +36,5 @@ class PartInstance(Base):
     qr_code_data = Column(String(100))
     qr_code_image = Column(Text)
     current_status = Column(String(30), default="in_stock")
+    remaining_quantity = Column(Numeric(10, 3), nullable=False, default=1)
     created_at = Column(DateTime, server_default=func.now())
