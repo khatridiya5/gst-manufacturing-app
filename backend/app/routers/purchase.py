@@ -204,6 +204,7 @@ def receive_po(
                 item.code = li.part_code
             if li.tax_rate is not None:
                 item.tax_rate = li.tax_rate
+            item.tracking_type = li.tracking_type or item.tracking_type  # ADD THIS
             db.add(item)
             db.flush()
 
@@ -284,6 +285,19 @@ def receive_po(
                     "unit": "batch",
                     "quantity": qty
                 })
+            elif tracking == 'pipe':
+                if not item.batch_qr_code:
+                    qr_data = f"PIPE-{item.code or item.name.replace(' ', '-').upper()}-{po.po_number}"
+                    item.batch_qr_code = qr_data
+                    item.batch_qr_image = generate_qr_base64(qr_data)
+                    db.add(item)
+
+                all_qr_codes.append({
+                    "serial": item.batch_qr_code,
+                    "item": item.name,
+                    "unit": "pipe",
+                    "quantity": qty
+                    })
             else:
                 for unit_num in range(1, qty + 1):
                     qr_data = generate_part_qr_data(
@@ -376,7 +390,7 @@ def get_po_qr_codes(
     po_lines = db.query(POLineItem).filter(POLineItem.po_id == po_id).all()
     seen_items = set()
     for li in po_lines:
-        if (li.tracking_type or "unit") != "bulk":
+        if (li.tracking_type or "unit") not in ("bulk", "pipe"):
             continue
         item = db.query(Item).filter(
             func.lower(Item.name) == li.item_name.strip().lower(),

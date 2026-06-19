@@ -394,6 +394,7 @@ const handleSelectSuggestion = (i, item) => {
                   >
                     <option value="unit">Unit-wise</option>
                     <option value="bulk">Batch-wise</option>
+                    <option value="pipe">Pipe</option>
                   </select>
                   <button
                     type="button"

@@ -506,9 +506,60 @@ def submit_wip_scan(data: WIPScanIn, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(scan)
         return {"message": "Scan recorded", "scan_id": scan.id, "worker_name": worker.name, "remaining_stock": item.current_stock}
+    
+    elif qr.startswith("PIPE-"):
+        item = db.query(Item).filter(
+            Item.batch_qr_code == qr,
+            Item.company_id == worker.company_id
+        ).first()
+        if not item:
+            raise HTTPException(status_code=404, detail="Pipe not found for this QR")
+
+        qty = data.quantity or Decimal("1")
+        if qty <= 0:
+            raise HTTPException(status_code=400, detail="Quantity must be greater than 0")
+        if item.current_stock < qty:
+            raise HTTPException(status_code=400, detail=f"Only {item.current_stock} {item.unit} available")
+
+        item.current_stock -= qty
+
+        stock_out = StockLedger(
+            company_id=worker.company_id,
+            item_id=item.id,
+            transaction_type="wip_issue",
+            reference_id=worker.id,
+            reference_type="wip_scan",
+            quantity=qty,
+            unit_cost=item.purchase_price,
+            transaction_date=date.today()
+        )
+        db.add(stock_out)
+
+        scan = WIPScan(
+            company_id=worker.company_id,
+            worker_id=worker.id,
+            part_instance_id=None,
+            item_id=item.id,
+            quantity=qty,
+            operation=data.operation,
+            product_code=data.product_code,
+            notes=data.notes,
+            workstation=data.workstation,
+            scanned_at=datetime.utcnow()
+        )
+        db.add(scan)
+        db.commit()
+        db.refresh(scan)
+        return {
+            "message": "Pipe usage recorded",
+            "scan_id": scan.id,
+            "worker_name": worker.name,
+            "remaining_stock": float(item.current_stock)
+        }
+
 
     else:
-        raise HTTPException(status_code=400, detail="QR must start with UNIT- or BULK-")
+        raise HTTPException(status_code=400, detail="QR must start with UNIT-, BULK-, or PIPE-")
 
 
 

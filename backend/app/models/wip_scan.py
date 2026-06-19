@@ -15,6 +15,6 @@ class WIPScan(Base):
     workstation = Column(String(50))
     notes = Column(Text)
     item_id = Column(Integer, ForeignKey("items.id"), nullable=True)
-    quantity = Column(Integer, default=1)
+    quantity = Column(Numeric(10, 3), default=1)
     operation = Column(String(50), nullable=True)
     product_code = Column(String(50), nullable=True)
