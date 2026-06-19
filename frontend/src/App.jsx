@@ -24,7 +24,7 @@ import ReceivablesSummary from './pages/payments/ReceivablesSummary'
 import PaymentLedger from './pages/payments/PaymentLedger'
 import PaymentsDashboard from './pages/payments/PaymentsDashboard'
 import DataImport from "./pages/master/DataImport";
-import LicenseGate from './components/LicenseGate'
+
 
 const PrivateRoute = ({ children }) => {
   const section = sessionStorage.getItem('active_section') || 'admin'  // ✅
@@ -40,27 +40,17 @@ export default function App() {
       <Route path="/login" element={<Login />} />
 
       {/* Everything else requires a valid license first */}
-      <Route
-        path="/setup"
-        element={
-          <LicenseGate>
-            <PrivateRoute>
-              <SetupCredentials />
-            </PrivateRoute>
-          </LicenseGate>
-        }
-      />
+      <Route path="/setup" element={
+  <PrivateRoute>
+    <SetupCredentials />
+  </PrivateRoute>
+} />
 
-      <Route
-        path="/"
-        element={
-          <LicenseGate>
-            <PrivateRoute>
-              <Layout />
-            </PrivateRoute>
-          </LicenseGate>
-        }
-      >
+      <Route path="/" element={
+  <PrivateRoute>
+    <Layout />
+  </PrivateRoute>
+} >
         <Route index element={<Dashboard />} />
         <Route path="items" element={<Items />} />
         <Route path="vendors" element={<Vendors />} />
