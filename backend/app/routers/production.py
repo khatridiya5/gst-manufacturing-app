@@ -576,7 +576,12 @@ def submit_wip_scan(data: WIPScanIn, db: Session = Depends(get_db)):
     else:
         raise HTTPException(status_code=400, detail="QR must start with UNIT-, BULK-, or PIPE-")
 
-
+@router.get("/wip/pipe-status")
+def pipe_status(qr: str, db: Session = Depends(get_db)):
+    part = db.query(PartInstance).filter(PartInstance.qr_code_data == qr).first()
+    if not part:
+        raise HTTPException(status_code=404, detail="Pipe not found")
+    return {"remaining_quantity": float(part.remaining_quantity), "status": part.current_status}
 
 #----Verify worker --------
 
