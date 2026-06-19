@@ -71,7 +71,7 @@ const handleLogout = () => {
 
       {/* Nav links */}
       <nav className="flex-1 p-3 space-y-0.5 overflow-y-auto">
-        {links.map((link) => (
+        {allLinks.filter(link => link.roles.includes(role)).map((link) => (
           <NavLink
             key={link.to}
             to={link.to}
