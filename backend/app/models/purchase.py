@@ -66,7 +66,7 @@ class POLineItem(Base):
     po_id = Column(Integer, ForeignKey("purchase_orders.id"))
     item_name = Column(String(200), nullable=False)
     part_code = Column(String(50), nullable=True)
-    quantity = Column(Integer, nullable=False)
+    quantity = Column(Numeric(10, 3), nullable=False)
     unit_price = Column(Numeric(10, 2), nullable=False)
     tax_rate = Column(Numeric(5, 2), default=0, nullable=True)
     tracking_type = Column(String(10), default='unit')

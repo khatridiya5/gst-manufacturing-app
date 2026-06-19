@@ -24,7 +24,7 @@ router = APIRouter(prefix="/purchase", tags=["Purchase"])
 
 class POLineItemIn(BaseModel):
     item_name: str
-    quantity: int
+    quantity: Decimal
     unit_price: Decimal
     part_code: Optional[str] = None
     tax_rate: Optional[Decimal] = Decimal("0.00")

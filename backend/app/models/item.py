@@ -14,7 +14,7 @@ class Item(Base):
     unit = Column(String(20), nullable=False)
     tax_rate = Column(Numeric(5, 2), nullable=False)
     opening_stock = Column(Numeric(10, 3), default=0)
-    current_stock = Column(Integer, default=0)
+    current_stock = Column(Numeric(10, 3), default=0)
     purchase_price = Column(Numeric(10, 2), nullable=True, default=0)  # ← add this
     tracking_type = Column(String(10), default='unit')
     created_at = Column(DateTime, server_default=func.now())

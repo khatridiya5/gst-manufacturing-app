@@ -114,7 +114,7 @@ const handleSelectSuggestion = (i, item) => {
         track_qr: trackQr,
         line_items: lineItems.map(li => ({
           item_name: li.item_name,
-          quantity: parseInt(li.quantity),
+          quantity: parseFloat(li.quantity),
           unit_price: parseFloat(li.unit_price),
           tax_rate: parseFloat(li.tax_rate) || 0,
           part_code: li.part_code || null,

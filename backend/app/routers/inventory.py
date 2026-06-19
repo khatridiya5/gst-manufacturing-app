@@ -115,7 +115,7 @@ def manual_stock_entry(
     db.add(entry)
 
     # ← this was missing
-    item.current_stock += int(data.quantity)
+    item.current_stock += data.quantity
     if item.current_stock < 0:
         item.current_stock = 0
 
