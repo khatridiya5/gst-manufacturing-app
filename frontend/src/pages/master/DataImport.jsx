@@ -2,6 +2,66 @@ import { useState } from "react";
 
 const BACKEND = "https://gst-manufacturing-backend.onrender.com";
 
+// ASSUMPTION: the backend's generate_qr_base64() returns a raw base64
+// PNG string with no "data:image/..." prefix. If your QR images already
+// render elsewhere in the app (e.g. on the Worker QR badge), check what
+// prefix (if any) that code uses and match it here.
+const qrSrc = (base64) => `data:image/png;base64,${base64}`;
+
+function QrGrid({ title, records }) {
+  if (!records || records.length === 0) return null;
+  return (
+    <div style={{ marginTop: "24px" }}>
+      <h3 style={{ marginBottom: "12px", fontSize: "16px" }}>{title}</h3>
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
+          gap: "16px",
+        }}
+      >
+        {records.map((r, i) => (
+          <div
+            key={i}
+            style={{
+              border: "1px solid #e2e8f0",
+              borderRadius: "10px",
+              padding: "12px",
+              textAlign: "center",
+              background: "#fff",
+            }}
+          >
+            <img
+              src={qrSrc(r.qr_code_image)}
+              alt={`QR code for ${r.name}`}
+              style={{ width: "100%", maxWidth: "120px", height: "auto" }}
+            />
+            <div style={{ marginTop: "8px", fontSize: "13px", fontWeight: 600 }}>
+              {r.name}
+            </div>
+            {r.code && (
+              <div style={{ fontSize: "12px", color: "#64748b" }}>{r.code}</div>
+            )}
+            <a
+              href={qrSrc(r.qr_code_image)}
+              download={`${(r.code || r.name).replace(/\s+/g, "_")}_QR.png`}
+              style={{
+                display: "inline-block",
+                marginTop: "8px",
+                fontSize: "12px",
+                color: "#16a34a",
+                textDecoration: "none",
+              }}
+            >
+              ↓ Download
+            </a>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 export default function DataImport() {
   const [file, setFile] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -52,13 +112,15 @@ export default function DataImport() {
   };
 
   return (
-    <div style={{ padding: "24px", maxWidth: "720px" }}>
+    <div style={{ padding: "24px", maxWidth: "900px" }}>
       <h1 style={{ fontSize: "28px", fontWeight: 700, marginBottom: "8px" }}>
         Data Import
       </h1>
       <p style={{ color: "#64748b", marginBottom: "24px" }}>
-        Import items, vendors, and customers from an Excel file. Download the
-        template below to see the required format.
+        Import items, vendors, customers, and workers from an Excel file.
+        Download the template below to see the required format. You can
+        re-upload the same file later — existing records are updated, not
+        duplicated, and stock won't double-count.
       </p>
 
       <button
@@ -84,29 +146,28 @@ export default function DataImport() {
           background: "#fff",
         }}
       >
-        
         <label
-  htmlFor="excel-file-input"
-  style={{
-    display: "inline-block",
-    padding: "10px 18px",
-    background: "#f1f5f9",
-    border: "1px solid #cbd5e1",
-    borderRadius: "8px",
-    cursor: "pointer",
-    marginBottom: "16px",
-  }}
->
-  {file ? file.name : "Choose Excel File"}
-</label>
-<input
-  id="excel-file-input"
-  type="file"
-  accept=".xlsx"
-  onChange={(e) => setFile(e.target.files[0])}
-  style={{ display: "none" }}
-/>
-<br />
+          htmlFor="excel-file-input"
+          style={{
+            display: "inline-block",
+            padding: "10px 18px",
+            background: "#f1f5f9",
+            border: "1px solid #cbd5e1",
+            borderRadius: "8px",
+            cursor: "pointer",
+            marginBottom: "16px",
+          }}
+        >
+          {file ? file.name : "Choose Excel File"}
+        </label>
+        <input
+          id="excel-file-input"
+          type="file"
+          accept=".xlsx"
+          onChange={(e) => setFile(e.target.files[0])}
+          style={{ display: "none" }}
+        />
+        <br />
         <button
           onClick={handleUpload}
           disabled={!file || loading}
@@ -130,9 +191,10 @@ export default function DataImport() {
           <div style={{ marginTop: "20px" }}>
             <h3 style={{ marginBottom: "8px" }}>Import Summary</h3>
             <p>Items added/updated: {result.items}</p>
-            <p>Vendors added: {result.vendors}</p>
-            <p>Customers added: {result.customers}</p>
-            <p>Workers added: {result.workers}</p>
+            <p>Vendors added/updated: {result.vendors}</p>
+            <p>Customers added/updated: {result.customers}</p>
+            <p>Workers added/updated: {result.workers}</p>
+            <p>QR codes generated: {result.qr_generated}</p>
             <p>Skipped rows: {result.skipped}</p>
             {result.errors.length > 0 && (
               <div style={{ marginTop: "12px" }}>
@@ -146,6 +208,9 @@ export default function DataImport() {
                 </ul>
               </div>
             )}
+
+            <QrGrid title="Item QR Codes" records={result.items_detail} />
+            <QrGrid title="Worker QR Codes" records={result.workers_detail} />
           </div>
         )}
       </div>
