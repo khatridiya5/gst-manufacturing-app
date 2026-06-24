@@ -1,3 +1,28 @@
 {
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "rewrites": [
+    {
+      "source": "/api/:path*",
+      "destination": "https://gst-manufacturing-backend.onrender.com/api/:path*"
+    },
+    {
+      "source": "/master/:path*",
+      "destination": "https://gst-manufacturing-backend.onrender.com/master/:path*"
+    },
+    {
+      "source": "/purchase/:path*",
+      "destination": "https://gst-manufacturing-backend.onrender.com/purchase/:path*"
+    },
+    {
+      "source": "/auth/:path*",
+      "destination": "https://gst-manufacturing-backend.onrender.com/auth/:path*"
+    },
+    {
+      "source": "/import/:path*",
+      "destination": "https://gst-manufacturing-backend.onrender.com/import/:path*"
+    },
+    {
+      "source": "/((?!.*\\.).*)",
+      "destination": "/index.html"
+    }
+  ]
 }
