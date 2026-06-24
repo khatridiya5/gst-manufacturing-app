@@ -207,16 +207,16 @@ export default function InStore() {
         <table className="w-full text-sm">
           <thead className="bg-gray-50 border-b border-gray-100">
             <tr>
-              {["Item", "Part Code", "Received", "Consumed", "In Stock", "Status", "Tracking", ""].map((h) => (
+              {["Item", "Part Code", "Received", "Consumed", "In Stock", "Status", "Tracking", "QR Code", ""].map((h) => (
                 <th key={h} className="text-left px-5 py-3 text-xs font-semibold text-gray-500 uppercase tracking-wider">{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={7} className="text-center py-10 text-gray-400">Loading...</td></tr>
+              <tr><td colSpan={9} className="text-center py-10 text-gray-400">Loading...</td></tr>
             ) : items.length === 0 ? (
-              <tr><td colSpan={7} className="text-center py-10 text-gray-400">No items found.</td></tr>
+              <tr><td colSpan={9} className="text-center py-10 text-gray-400">No items found.</td></tr>
             ) : (
               items.map((item) => (
                 <>
@@ -245,7 +245,23 @@ export default function InStore() {
                         ? <span className="px-2 py-0.5 bg-violet-50 text-violet-600 rounded-full text-xs font-medium">QR</span>
                         : <span className="px-2 py-0.5 bg-slate-100 text-slate-400 rounded-full text-xs">Manual</span>}
                     </td>
-                    <td className="px-5 py-4">
+                    
+                      <td className="px-5 py-4">
+                      {item.qr_code_image ? (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            window.open(`data:image/png;base64,${item.qr_code_image}`, "_blank");
+                          }}
+                          className="px-2 py-1 bg-violet-50 text-violet-600 rounded-full text-xs font-medium hover:bg-violet-100 transition"
+                        >
+                          View QR
+                        </button>
+                      ) : (
+                        <span className="text-gray-300 text-xs">—</span>
+                      )}
+                    </td>
+<td className="px-5 py-4">
   <button
     onClick={(e) => {
       e.stopPropagation();
@@ -262,7 +278,7 @@ export default function InStore() {
                   {/* ── Unified Dropdown ── */}
 {selected?.item_id === item.item_id && (
   <tr key={`${item.item_id}-dropdown`}>
-    <td colSpan={7} className="bg-teal-50 border-b border-teal-100 px-6 py-4">
+    <td colSpan={9} className="bg-teal-50 border-b border-teal-100 px-6 py-4">
       <p className="text-xs font-bold text-teal-700 uppercase tracking-widest mb-3">
         Stock Detail — {item.name.toUpperCase()}
       </p>
