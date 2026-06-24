@@ -318,3 +318,26 @@ def merge_duplicates(db: Session = Depends(get_db), current_user: User = Depends
 
     db.commit()
     return {"merged": results if results else ["No duplicates found"]}
+
+
+
+@router.post("/admin/generate-missing-qr")
+def generate_missing_qr(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    from app.services.qr import generate_qr_base64
+    items = db.query(Item).filter(
+        Item.company_id == current_user.company_id,
+        Item.qr_code_image == None
+    ).all()
+    
+    count = 0
+    for item in items:
+        payload = f"ITEM|{current_user.company_id}|{item.code or item.id}|{item.name}"
+        item.qr_code_data = payload
+        item.qr_code_image = generate_qr_base64(payload)
+        count += 1
+    
+    db.commit()
+    return {"generated": count}
