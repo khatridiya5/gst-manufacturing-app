@@ -248,7 +248,7 @@ export default function InStore() {
                     </td>
                     
                       <td className="px-5 py-4">
-  {item.qr_code_image ? (
+  {item.track_qr && item.qr_code_image ? (
     <button
       onClick={(e) => {
         e.stopPropagation();
