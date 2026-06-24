@@ -20,3 +20,5 @@ class Item(Base):
     created_at = Column(DateTime, server_default=func.now())
     batch_qr_code = Column(String(100), nullable=True)
     batch_qr_image = Column(Text, nullable=True)
+    qr_code_data = Column(String(200), nullable=True)
+    qr_code_image = Column(Text, nullable=True)
