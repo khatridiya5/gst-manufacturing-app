@@ -10,6 +10,7 @@ export default function InStore() {
   const [showManualEntry, setShowManualEntry] = useState(false);
   const [manualForm, setManualForm] = useState({ item_id: "", quantity: "", reason: "" });
   const [manualSubmitting, setManualSubmitting] = useState(false);
+  const [qrModal, setQrModal] = useState(null); // { name, image }
 
   const fetchItems = async () => {
     try {
@@ -247,20 +248,20 @@ export default function InStore() {
                     </td>
                     
                       <td className="px-5 py-4">
-                      {item.qr_code_image ? (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            window.open(`data:image/png;base64,${item.qr_code_image}`, "_blank");
-                          }}
-                          className="px-2 py-1 bg-violet-50 text-violet-600 rounded-full text-xs font-medium hover:bg-violet-100 transition"
-                        >
-                          View QR
-                        </button>
-                      ) : (
-                        <span className="text-gray-300 text-xs">—</span>
-                      )}
-                    </td>
+  {item.qr_code_image ? (
+    <button
+      onClick={(e) => {
+        e.stopPropagation();
+        setQrModal({ name: item.name, image: item.qr_code_image });
+      }}
+      className="px-2 py-1 bg-violet-50 text-violet-600 rounded-full text-xs font-medium hover:bg-violet-100 transition"
+    >
+      View QR
+    </button>
+  ) : (
+    <span className="text-gray-300 text-xs">—</span>
+  )}
+</td>
 <td className="px-5 py-4">
   <button
     onClick={(e) => {
@@ -397,9 +398,40 @@ export default function InStore() {
       </div>
 
       <ReceivedVsConsumed items={items} />
+
+      {qrModal && (
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl w-full max-w-sm p-6 text-center">
+            <h2 className="font-semibold text-slate-700 mb-4">{qrModal.name}</h2>
+            <img
+              src={`data:image/png;base64,${qrModal.image}`}
+              alt={qrModal.name}
+              className="w-48 h-48 mx-auto mb-4"
+            />
+            <div className="flex gap-3 justify-center">
+              <a
+                href={`data:image/png;base64,${qrModal.image}`}
+                download={`${qrModal.name.replace(/\s+/g, '_')}_QR.png`}
+                className="px-4 py-2 bg-teal-600 text-white rounded-lg text-sm font-medium hover:bg-teal-700"
+              >
+                ↓ Download
+              </a>
+              <button
+                onClick={() => setQrModal(null)}
+                className="px-4 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }
+
+    
 
 function StatCard({ label, value, highlight }) {
   return (
