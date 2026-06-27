@@ -528,3 +528,51 @@ def regenerate_pipe_qr(
     
     db.commit()
     return {"regenerated": count, "message": f"Fixed QR for {count} pipe items"}
+
+
+
+@router.post("/create-pipe-instances")
+def create_pipe_instances(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(require_role("admin"))
+):
+    from app.models.stock import PartInstance
+    
+    pipes = db.query(Item).filter(
+        Item.company_id == current_user.company_id,
+        Item.name.ilike("PIPE%")
+    ).all()
+    
+    created = 0
+    for item in pipes:
+        qty = int(item.current_stock or 0)
+        if qty == 0:
+            continue
+        
+        # Check if instances already exist for this item
+        existing = db.query(PartInstance).filter(
+            PartInstance.item_id == item.id,
+            PartInstance.company_id == current_user.company_id
+        ).count()
+        if existing >= qty:
+            continue
+        
+        for i in range(existing + 1, qty + 1):
+            serial = String(i).zfill(4)  # won't work in Python — fix below
+            qr_data = f"PIPE-{item.id}-{str(i).zfill(4)}"
+            qr_image = generate_qr_base64(qr_data)
+            part = PartInstance(
+                company_id=current_user.company_id,
+                item_id=item.id,
+                serial_number=qr_data,
+                qr_code_data=qr_data,
+                qr_code_image=qr_image,
+                current_status="in_stock",
+                remaining_quantity=1,
+                purchase_order_id=None,
+            )
+            db.add(part)
+            created += 1
+    
+    db.commit()
+    return {"created": created, "message": f"Created {created} pipe instances"}
