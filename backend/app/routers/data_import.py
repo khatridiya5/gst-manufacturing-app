@@ -239,6 +239,8 @@ async def import_excel(
                         "name": item.name,
                         "code": item.code,
                         "qr_code_image": item.qr_code_image,
+                        "item_id": item.id,          # ← add this
+                        "quantity": int(item.current_stock or 0),  # ← add this
                     })
 
                 if changed:
