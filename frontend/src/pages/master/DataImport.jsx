@@ -1,4 +1,6 @@
 import { useState } from "react";
+import { useEffect, useRef } from "react";
+import QRCode from "qrcode";  // npm install qrcode
 
 const BACKEND = "https://gst-manufacturing-backend.onrender.com";
 
@@ -8,54 +10,81 @@ const BACKEND = "https://gst-manufacturing-backend.onrender.com";
 // prefix (if any) that code uses and match it here.
 const qrSrc = (base64) => `data:image/png;base64,${base64}`;
 
+
+function PipeQrCard({ record }) {
+  const canvasRef = useRef(null);
+
+  useEffect(() => {
+    if (record.pipeQrData && canvasRef.current) {
+      QRCode.toCanvas(canvasRef.current, record.pipeQrData, { width: 120, margin: 2 });
+    }
+  }, [record.pipeQrData]);
+
+  const handleDownload = () => {
+    if (record.pipeQrData && canvasRef.current) {
+      const url = canvasRef.current.toDataURL("image/png");
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${record.downloadName}.png`;
+      a.click();
+    } else {
+      const a = document.createElement("a");
+      a.href = qrSrc(record.qr_code_image);
+      a.download = `${record.downloadName}.png`;
+      a.click();
+    }
+  };
+
+  return (
+    <div style={{ border: "1px solid #e2e8f0", borderRadius: "10px", padding: "12px", textAlign: "center", background: "#fff" }}>
+      {record.pipeQrData
+        ? <canvas ref={canvasRef} style={{ width: "100%", maxWidth: "120px" }} />
+        : <img src={qrSrc(record.qr_code_image)} alt={record.displayName} style={{ width: "100%", maxWidth: "120px" }} />
+      }
+      <div style={{ marginTop: "8px", fontSize: "12px", fontWeight: 600 }}>{record.displayName}</div>
+      {record.serial && (
+        <div style={{ fontSize: "11px", color: "#64748b" }}>#{record.serial}</div>
+      )}
+      <button onClick={handleDownload} style={{ marginTop: "8px", fontSize: "12px", color: "#16a34a", background: "none", border: "none", cursor: "pointer" }}>
+        ↓ Download
+      </button>
+    </div>
+  );
+}
+
 function QrGrid({ title, records }) {
   if (!records || records.length === 0) return null;
+
+  // Expand pipe items into one card per physical pipe
+  const expanded = [];
+  records.forEach((r) => {
+    const qty = r.quantity || 1;
+    const isPipe = r.name?.toUpperCase().startsWith("PIPE");
+    if (isPipe && qty > 1) {
+      for (let i = 1; i <= qty; i++) {
+        const serial = String(i).padStart(4, "0");
+        // Generate QR for PIPE-{id}-{serial} client-side as a canvas
+        expanded.push({
+          ...r,
+          displayName: r.name,
+          serial: serial,
+          pipeQrData: `PIPE-${r.item_id}-${serial}`,
+          downloadName: `${(r.name).replace(/\s+/g, "_")}_${serial}_QR`,
+        });
+      }
+    } else {
+      expanded.push({ ...r, displayName: r.name, downloadName: `${(r.code || r.name).replace(/\s+/g, "_")}_QR` });
+    }
+  });
+
   return (
     <div style={{ marginTop: "24px" }}>
-      <h3 style={{ marginBottom: "12px", fontSize: "16px" }}>{title}</h3>
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))",
-          gap: "16px",
-        }}
-      >
-        {records.map((r, i) => (
-          <div
-            key={i}
-            style={{
-              border: "1px solid #e2e8f0",
-              borderRadius: "10px",
-              padding: "12px",
-              textAlign: "center",
-              background: "#fff",
-            }}
-          >
-            <img
-              src={qrSrc(r.qr_code_image)}
-              alt={`QR code for ${r.name}`}
-              style={{ width: "100%", maxWidth: "120px", height: "auto" }}
-            />
-            <div style={{ marginTop: "8px", fontSize: "13px", fontWeight: 600 }}>
-              {r.name}
-            </div>
-            {r.code && (
-              <div style={{ fontSize: "12px", color: "#64748b" }}>{r.code}</div>
-            )}
-            <a
-              href={qrSrc(r.qr_code_image)}
-              download={`${(r.code || r.name).replace(/\s+/g, "_")}_QR.png`}
-              style={{
-                display: "inline-block",
-                marginTop: "8px",
-                fontSize: "12px",
-                color: "#16a34a",
-                textDecoration: "none",
-              }}
-            >
-              ↓ Download
-            </a>
-          </div>
+      <h3 style={{ marginBottom: "12px", fontSize: "16px" }}>
+        {title} ({expanded.length} QR codes)
+      </h3>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(140px, 1fr))", gap: "16px" }}>
+        {expanded.map((r, i) => (
+          <PipeQrCard key={i} record={r} />
         ))}
       </div>
     </div>
