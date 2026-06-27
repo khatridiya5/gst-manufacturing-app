@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import api from "../../api/client";
 import { exportToExcel } from '../utils/exportToExcel'
+import PipeQrCard from "../../components/PipeQrCard";
 
 export default function InStore() {
   const [items, setItems] = useState([]);
