@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { useEffect, useRef } from "react";
-import QRCode from "qrcode";  // npm install qrcode
+ // npm install qrcode
 import PipeQrCard from "../../components/PipeQrCard";
 
 const BACKEND = "https://gst-manufacturing-backend.onrender.com";
