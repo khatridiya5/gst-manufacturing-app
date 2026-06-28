@@ -506,36 +506,28 @@ def submit_wip_scan(data: WIPScanIn, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(scan)
         return {"message": "Scan recorded", "scan_id": scan.id, "worker_name": worker.name, "remaining_stock": item.current_stock}
-    
-    elif qr.startswith("PIPE-"):
-        part = db.query(PartInstance).filter(
-            PartInstance.qr_code_data == qr,
-            PartInstance.company_id == worker.company_id
-        ).first()
-        if not part:
-            raise HTTPException(status_code=404, detail="Pipe not found for this QR")
 
-        item = db.query(Item).filter(Item.id == part.item_id).first()
+    elif qr.startswith("PIPE-"):
+        try:
+            parts_qr = qr.split("-")  # ["PIPE", "12", "0001"]
+            item_id = int(parts_qr[1])
+        except (IndexError, ValueError):
+            raise HTTPException(status_code=400, detail="Invalid PIPE QR format")
+
+        item = db.query(Item).filter(
+            Item.id == item_id,
+            Item.company_id == worker.company_id
+        ).first()
+        if not item:
+            raise HTTPException(status_code=404, detail="Pipe not found for this QR")
 
         qty = data.quantity or Decimal("1")
         if qty <= 0:
             raise HTTPException(status_code=400, detail="Quantity must be greater than 0")
+        if item.current_stock < qty:
+            raise HTTPException(status_code=400, detail=f"Only {item.current_stock} {item.unit} in stock")
 
-        if qty > part.remaining_quantity:
-            raise HTTPException(
-                status_code=400,
-                detail=f"This pipe only has {part.remaining_quantity} remaining — cannot use {qty}"
-            )
-
-        part.remaining_quantity -= qty
-        if part.remaining_quantity <= 0:
-            part.remaining_quantity = 0
-            part.current_status = "issued"
-
-        if item.current_stock >= qty:
-            item.current_stock -= qty
-        else:
-            item.current_stock = 0
+        item.current_stock -= qty
 
         stock_out = StockLedger(
             company_id=worker.company_id,
@@ -552,7 +544,7 @@ def submit_wip_scan(data: WIPScanIn, db: Session = Depends(get_db)):
         scan = WIPScan(
             company_id=worker.company_id,
             worker_id=worker.id,
-            part_instance_id=part.id,
+            part_instance_id=None,
             item_id=item.id,
             quantity=qty,
             operation=data.operation,
@@ -565,23 +557,30 @@ def submit_wip_scan(data: WIPScanIn, db: Session = Depends(get_db)):
         db.commit()
         db.refresh(scan)
         return {
-           "message": "Pipe usage recorded",
+            "message": "Pipe usage recorded",
             "scan_id": scan.id,
             "worker_name": worker.name,
-            "remaining_on_this_pipe": float(part.remaining_quantity),
             "remaining_stock": float(item.current_stock)
         }
-
 
     else:
         raise HTTPException(status_code=400, detail="QR must start with UNIT-, BULK-, or PIPE-")
 
+
 @router.get("/wip/pipe-status")
 def pipe_status(qr: str, db: Session = Depends(get_db)):
-    part = db.query(PartInstance).filter(PartInstance.qr_code_data == qr).first()
-    if not part:
+    try:
+        item_id = int(qr.split("-")[1])
+    except (IndexError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid PIPE QR format")
+
+    item = db.query(Item).filter(Item.id == item_id).first()
+    if not item:
         raise HTTPException(status_code=404, detail="Pipe not found")
-    return {"remaining_quantity": float(part.remaining_quantity), "status": part.current_status}
+    return {
+        "remaining_quantity": float(item.current_stock),
+        "status": "available" if item.current_stock > 0 else "depleted"
+    }
 
 #----Verify worker --------
 
