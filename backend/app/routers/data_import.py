@@ -89,11 +89,14 @@ def make_item_qr_payload(company_id, item):
     tracking = getattr(item, 'tracking_type', '') or ''
     name_upper = (item.name or '').upper()
     
-    # tracking_type="qr" or name starts with PIPE → use PIPE- prefix
     if tracking == 'qr' or name_upper.startswith('PIPE'):
         return f"PIPE-{item.id}-0001"
     
-    # Everything else stays as inventory ITEM QR
+    if tracking == 'bulk':
+        payload = f"BULK-{item.id}"
+        item.batch_qr_code = payload   # ← set the column the backend queries
+        return payload
+    
     return f"ITEM|{company_id}|{item.code or item.id}|{item.name}"
 
 

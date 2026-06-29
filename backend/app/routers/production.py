@@ -463,12 +463,17 @@ def submit_wip_scan(data: WIPScanIn, db: Session = Depends(get_db)):
         return {"message": "Scan recorded", "scan_id": scan.id, "worker_name": worker.name}
 
     elif qr.startswith("BULK-"):
-        item = db.query(Item).filter(
-            Item.batch_qr_code == qr,
-            Item.company_id == worker.company_id
-        ).first()
-        if not item:
-            raise HTTPException(status_code=404, detail="Item not found for this batch QR")
+    try:
+        item_id = int(qr.split("-")[1])
+    except (IndexError, ValueError):
+        raise HTTPException(status_code=400, detail="Invalid BULK QR format")
+
+    item = db.query(Item).filter(
+        Item.id == item_id,
+        Item.company_id == worker.company_id
+    ).first()
+    if not item:
+        raise HTTPException(status_code=404, detail="Item not found")
 
         qty = data.quantity or 1
         if qty < 1:
