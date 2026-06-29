@@ -267,27 +267,19 @@ def receive_po(
             tracking = item.tracking_type or 'unit'
 
             if tracking == 'bulk':
-                if not item.batch_qr_code:
-                    qr_data = generate_part_qr_data(
-                        item.item_type,
-                        item.code or item.name,
-                        po.po_number,
-                        1,
-                        tracking_type='bulk'
-                    )
-                    item.batch_qr_code = qr_data
-                    item.batch_qr_image = generate_qr_base64(qr_data)
-                    db.add(item)
-
+                qr_data = f"BULK-{item.id}"
+                item.batch_qr_code = qr_data
+                item.batch_qr_image = generate_qr_base64(qr_data)
+                db.add(item)
                 all_qr_codes.append({
-                    "serial": item.batch_qr_code,
+                    "serial": qr_data,
                     "item": item.name,
                     "unit": "batch",
                     "quantity": qty
                 })
             elif tracking == 'pipe':
                 for unit_num in range(1, qty + 1):
-                    qr_data = f"PIPE-{item.code or item.name.replace(' ', '-').upper()}-{po.po_number}-U{unit_num}"
+                    qr_data = f"PIPE-{item.id}-{str(unit_num).zfill(4)}"
                     qr_image = generate_qr_base64(qr_data)
                     part = PartInstance(
                         company_id=current_user.company_id,
@@ -301,9 +293,9 @@ def receive_po(
                     )
                     db.add(part)
                     all_qr_codes.append({
-                        "serial": qr_data,
-                        "item": item.name,
-                        "unit": unit_num
+                    "serial": qr_data,
+                    "item": item.name,
+                    "unit": unit_num
                     })
             else:
                 for unit_num in range(1, qty + 1):
