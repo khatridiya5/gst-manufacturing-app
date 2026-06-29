@@ -41,20 +41,25 @@ def create_worker(
     db: Session = Depends(get_db),
     current_user: User = Depends(require_role("admin", "production", "store_manager"))
 ):
-    # Auto-generate worker code
+    # Get last worker for THIS company only
     last_worker = db.query(Worker).filter(
         Worker.company_id == current_user.company_id
     ).order_by(Worker.id.desc()).first()
 
     if last_worker:
-        last_num = int(last_worker.worker_code[1:])  # strip the "W"
-        next_num = last_num + 1
+        try:
+            # Handle both "W001" and "WK-W001-NAME" formats
+            code = last_worker.worker_code
+            num_part = ''.join(filter(str.isdigit, code.split('-')[1] if '-' in code else code))
+            next_num = int(num_part) + 1
+        except:
+            next_num = 1
     else:
         next_num = 1
 
-    worker_code = f"W{str(next_num).zfill(3)}"
+    # Include company_id to make it globally unique
+    worker_code = f"WK-C{current_user.company_id}-{str(next_num).zfill(3)}"
 
-    # Generate QR
     qr_data = generate_worker_qr_data(worker_code, data.name)
     qr_image = generate_qr_base64(qr_data)
 
