@@ -310,7 +310,7 @@ export default function GSTReturns() {
 
               {gstr1.total_invoices === 0 && (
                 <div className="bg-white rounded-xl border border-slate-200 p-8 text-center text-slate-400">
-                  No invoices found for {months[month - 1]} {year}
+                  No invoices found for {fromDate} to {toDate}
                 </div>
               )}
             </div>
