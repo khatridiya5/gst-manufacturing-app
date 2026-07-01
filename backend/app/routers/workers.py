@@ -50,7 +50,7 @@ def create_worker(
         try:
             # Handle both "W001" and "WK-W001-NAME" formats
             code = last_worker.worker_code
-            num_part = ''.join(filter(str.isdigit, code.split('-')[1] if '-' in code else code))
+            num_part = ''.join(filter(str.isdigit, code.split('-')[-1]))
             next_num = int(num_part) + 1
         except:
             next_num = 1
