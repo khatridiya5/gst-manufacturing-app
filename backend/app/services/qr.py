@@ -25,7 +25,7 @@ def generate_part_qr_data(item_type: str, item_code: str, po_number: str, unit_n
 
 def generate_worker_qr_data(worker_code: str, worker_name: str) -> str:
     name = worker_name.upper().replace(" ", "")[:8]
-    return f"WK-{worker_code}-{name}"
+    return f"{worker_code}-{name}"
 
 def generate_pipe_qr_data(item_id: int, pipe_serial: int) -> str:
     return f"PIPE-{item_id}-{pipe_serial:04d}"
